@@ -1,0 +1,463 @@
+[
+  {
+    "id": "SK-JAVA",
+    "name": "Java",
+    "category": "Language",
+    "synonyms": [
+      "java core",
+      "core java",
+      "java 8",
+      "java 17",
+      "java 21"
+    ]
+  },
+  {
+    "id": "SK-PYTHON",
+    "name": "Python",
+    "category": "Language",
+    "synonyms": [
+      "python 3",
+      "python programming"
+    ]
+  },
+  {
+    "id": "SK-JS",
+    "name": "JavaScript",
+    "category": "Language",
+    "synonyms": [
+      "js",
+      "es6",
+      "ecmascript"
+    ]
+  },
+  {
+    "id": "SK-TS",
+    "name": "TypeScript",
+    "category": "Language",
+    "synonyms": [
+      "ts"
+    ]
+  },
+  {
+    "id": "SK-CSHARP",
+    "name": "C#",
+    "category": "Language",
+    "synonyms": [
+      "c sharp",
+      ".net c#"
+    ]
+  },
+  {
+    "id": "SK-CPP",
+    "name": "C++",
+    "category": "Language",
+    "synonyms": [
+      "c/c++",
+      "cpp"
+    ]
+  },
+  {
+    "id": "SK-GOLANG",
+    "name": "Go",
+    "category": "Language",
+    "synonyms": [
+      "golang"
+    ]
+  },
+  {
+    "id": "SK-PHP",
+    "name": "PHP",
+    "category": "Language",
+    "synonyms": [
+      "php 8"
+    ]
+  },
+  {
+    "id": "SK-KOTLIN",
+    "name": "Kotlin",
+    "category": "Language",
+    "synonyms": [
+      "android kotlin"
+    ]
+  },
+  {
+    "id": "SK-SWIFT",
+    "name": "Swift",
+    "category": "Language",
+    "synonyms": [
+      "ios swift"
+    ]
+  },
+  {
+    "id": "SK-SQL",
+    "name": "SQL",
+    "category": "Language",
+    "synonyms": [
+      "structured query language",
+      "t-sql",
+      "pl/sql"
+    ]
+  },
+  {
+    "id": "SK-SPRING-BOOT",
+    "name": "Spring Boot",
+    "category": "Backend",
+    "synonyms": [
+      "spring",
+      "spring framework",
+      "spring mvc",
+      "spring data",
+      "spring security"
+    ]
+  },
+  {
+    "id": "SK-NESTJS",
+    "name": "NestJS",
+    "category": "Backend",
+    "synonyms": [
+      "nest.js",
+      "nest js"
+    ]
+  },
+  {
+    "id": "SK-EXPRESS",
+    "name": "Express.js",
+    "category": "Backend",
+    "synonyms": [
+      "express",
+      "expressjs"
+    ]
+  },
+  {
+    "id": "SK-FASTAPI",
+    "name": "FastAPI",
+    "category": "Backend",
+    "synonyms": [
+      "fast api"
+    ]
+  },
+  {
+    "id": "SK-DJANGO",
+    "name": "Django",
+    "category": "Backend",
+    "synonyms": [
+      "django rest framework",
+      "drf"
+    ]
+  },
+  {
+    "id": "SK-DOTNET",
+    "name": ".NET Core",
+    "category": "Backend",
+    "synonyms": [
+      "asp.net",
+      "asp.net core",
+      ".net",
+      "dotnet"
+    ]
+  },
+  {
+    "id": "SK-NODEJS",
+    "name": "Node.js",
+    "category": "Backend",
+    "synonyms": [
+      "nodejs",
+      "node"
+    ]
+  },
+  {
+    "id": "SK-REACT",
+    "name": "React",
+    "category": "Frontend",
+    "synonyms": [
+      "reactjs",
+      "react.js",
+      "react js"
+    ]
+  },
+  {
+    "id": "SK-NEXTJS",
+    "name": "Next.js",
+    "category": "Frontend",
+    "synonyms": [
+      "nextjs",
+      "next js"
+    ]
+  },
+  {
+    "id": "SK-VUE",
+    "name": "Vue.js",
+    "category": "Frontend",
+    "synonyms": [
+      "vue",
+      "vuejs",
+      "vue 3"
+    ]
+  },
+  {
+    "id": "SK-ANGULAR",
+    "name": "Angular",
+    "category": "Frontend",
+    "synonyms": [
+      "angular 2+",
+      "angularjs"
+    ]
+  },
+  {
+    "id": "SK-TAILWIND",
+    "name": "Tailwind CSS",
+    "category": "Frontend",
+    "synonyms": [
+      "tailwind",
+      "tailwindcss"
+    ]
+  },
+  {
+    "id": "SK-HTML-CSS",
+    "name": "HTML/CSS",
+    "category": "Frontend",
+    "synonyms": [
+      "html",
+      "css",
+      "html5",
+      "css3"
+    ]
+  },
+  {
+    "id": "SK-FLUTTER",
+    "name": "Flutter",
+    "category": "Mobile",
+    "synonyms": [
+      "dart",
+      "flutter app"
+    ]
+  },
+  {
+    "id": "SK-REACT-NATIVE",
+    "name": "React Native",
+    "category": "Mobile",
+    "synonyms": [
+      "rn",
+      "react-native"
+    ]
+  },
+  {
+    "id": "SK-POSTGRESQL",
+    "name": "PostgreSQL",
+    "category": "Database",
+    "synonyms": [
+      "postgres",
+      "pgsql",
+      "pgvector"
+    ]
+  },
+  {
+    "id": "SK-MYSQL",
+    "name": "MySQL",
+    "category": "Database",
+    "synonyms": [
+      "mariadb"
+    ]
+  },
+  {
+    "id": "SK-MONGODB",
+    "name": "MongoDB",
+    "category": "Database",
+    "synonyms": [
+      "mongo",
+      "nosql mongodb"
+    ]
+  },
+  {
+    "id": "SK-REDIS",
+    "name": "Redis",
+    "category": "Database",
+    "synonyms": [
+      "redis cache"
+    ]
+  },
+  {
+    "id": "SK-ORACLE",
+    "name": "Oracle DB",
+    "category": "Database",
+    "synonyms": [
+      "oracle database"
+    ]
+  },
+  {
+    "id": "SK-DOCKER",
+    "name": "Docker",
+    "category": "DevOps",
+    "synonyms": [
+      "container",
+      "docker compose",
+      "dockerfile"
+    ]
+  },
+  {
+    "id": "SK-KUBERNETES",
+    "name": "Kubernetes",
+    "category": "DevOps",
+    "synonyms": [
+      "k8s"
+    ]
+  },
+  {
+    "id": "SK-CICD",
+    "name": "CI/CD",
+    "category": "DevOps",
+    "synonyms": [
+      "continuous integration",
+      "github actions",
+      "gitlab ci",
+      "jenkins"
+    ]
+  },
+  {
+    "id": "SK-AWS",
+    "name": "Amazon Web Services (AWS)",
+    "category": "Cloud",
+    "synonyms": [
+      "aws",
+      "ec2",
+      "s3",
+      "lambda"
+    ]
+  },
+  {
+    "id": "SK-AZURE",
+    "name": "Microsoft Azure",
+    "category": "Cloud",
+    "synonyms": [
+      "azure"
+    ]
+  },
+  {
+    "id": "SK-GCP",
+    "name": "Google Cloud Platform (GCP)",
+    "category": "Cloud",
+    "synonyms": [
+      "gcp",
+      "google cloud"
+    ]
+  },
+  {
+    "id": "SK-GIT",
+    "name": "Git",
+    "category": "Tool",
+    "synonyms": [
+      "github",
+      "gitlab",
+      "version control",
+      "git flow"
+    ]
+  },
+  {
+    "id": "SK-LINUX",
+    "name": "Linux",
+    "category": "System",
+    "synonyms": [
+      "ubuntu",
+      "bash",
+      "shell script"
+    ]
+  },
+  {
+    "id": "SK-REST",
+    "name": "RESTful API",
+    "category": "Architecture",
+    "synonyms": [
+      "rest",
+      "rest api",
+      "restful webservice"
+    ]
+  },
+  {
+    "id": "SK-GRAPHQL",
+    "name": "GraphQL",
+    "category": "Architecture",
+    "synonyms": [
+      "apollo"
+    ]
+  },
+  {
+    "id": "SK-MICROSERVICES",
+    "name": "Microservices",
+    "category": "Architecture",
+    "synonyms": [
+      "microservice architecture",
+      "distributed systems"
+    ]
+  },
+  {
+    "id": "SK-OOP",
+    "name": "Object-Oriented Programming (OOP)",
+    "category": "Concept",
+    "synonyms": [
+      "oop",
+      "lập trình hướng đối tượng"
+    ]
+  },
+  {
+    "id": "SK-DESIGN-PATTERNS",
+    "name": "Design Patterns",
+    "category": "Concept",
+    "synonyms": [
+      "mô hình thiết kế",
+      "solid"
+    ]
+  },
+  {
+    "id": "SK-UNIT-TEST",
+    "name": "Unit Testing",
+    "category": "Testing",
+    "synonyms": [
+      "junit",
+      "mockito",
+      "jest",
+      "py-test",
+      "testing"
+    ]
+  },
+  {
+    "id": "SK-TEAMWORK",
+    "name": "Làm việc nhóm (Teamwork)",
+    "category": "SoftSkill",
+    "synonyms": [
+      "teamwork",
+      "kỹ năng làm việc nhóm",
+      "hợp tác"
+    ]
+  },
+  {
+    "id": "SK-COMMUNICATION",
+    "name": "Giao tiếp (Communication)",
+    "category": "SoftSkill",
+    "synonyms": [
+      "communication",
+      "kỹ năng giao tiếp",
+      "thuyết trình"
+    ]
+  },
+  {
+    "id": "SK-PROBLEM-SOLVING",
+    "name": "Giải quyết vấn đề (Problem Solving)",
+    "category": "SoftSkill",
+    "synonyms": [
+      "problem solving",
+      "tư duy logic",
+      "analytical thinking"
+    ]
+  },
+  {
+    "id": "SK-ENGLISH",
+    "name": "Tiếng Anh chuyên ngành (English)",
+    "category": "Language",
+    "synonyms": [
+      "english",
+      "toeic",
+      "ielts",
+      "tiếng anh"
+    ]
+  }
+]
