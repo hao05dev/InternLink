@@ -2,46 +2,44 @@ package com.internlink.core.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "companies")
+@Table(name = "COMPANY")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class Company {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "ID_COMPANY")
+    private Integer id;
 
-    @Column(nullable = false)
-    private String name;
+    @Column(name = "NAME_COMPANY", length = 200, nullable = false)
+    private String nameCompany;
 
+    @Column(name = "TAX_CODE", length = 50, unique = true)
     private String taxCode;
-    private String industry;
-    private String website;
+
+    @Column(name = "ADDRESS", columnDefinition = "TEXT")
     private String address;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "WEBSITE", length = 255)
+    private String website;
+
+    @Column(name = "DESCRIPTION", columnDefinition = "TEXT")
     private String description;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
     @Builder.Default
-    private VerificationStatus status = VerificationStatus.PENDING;
+    @Column(name = "VERIFICATION_STATUS", length = 30)
+    private String verificationStatus = "PENDING";
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "representative_user_id")
-    private User representative;
-
-    @Builder.Default
-    private LocalDateTime createdAt = LocalDateTime.now();
-
-    public enum VerificationStatus {
-        PENDING,
-        VERIFIED,
-        REJECTED
-    }
+    @CreationTimestamp
+    @Column(name = "CREATED_AT", updatable = false)
+    private LocalDateTime createdAt;
 }
