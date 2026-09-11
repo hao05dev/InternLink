@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "skills")
+@Table(name = "SKILL")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -12,14 +12,14 @@ import lombok.*;
 @Builder
 public class Skill {
     @Id
-    private String id; // e.g., 'SK-SPRING-BOOT'
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "ID_SKILL")
+    private Integer id;
 
-    @Column(nullable = false, unique = true)
-    private String name;
+    @Column(name = "NAME_SKILL", length = 100, nullable = false)
+    private String skill;
 
-    @Column(nullable = false)
-    private String category; // Language, Backend, Frontend, Database, DevOps, etc.
+    @Column(name = "DESCRIPTION", columnDefinition = "TEXT")
+    private String description;
 
-    @Column(columnDefinition = "TEXT")
-    private String synonyms; // comma separated
 }

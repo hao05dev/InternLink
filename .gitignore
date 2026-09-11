@@ -20,7 +20,10 @@ $RECYCLE.BIN/
 # Docker / Database data
 postgres_data/
 *.sql.bak
-
+MÔ TẢ LUẬN VĂN.docx
+mo_ta_luan_van.txt
+wbs_tracker.html
+internlink.sql
 # Logs & Temporary Files
 *.log
 npm-debug.log*
