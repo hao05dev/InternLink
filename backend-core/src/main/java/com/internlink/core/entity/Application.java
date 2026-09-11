@@ -2,47 +2,46 @@ package com.internlink.core.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "applications")
+@Table(name = "APPLICATION", uniqueConstraints = {
+        @UniqueConstraint(name = "UQ_APPLICATION", columnNames = { "ID_SP", "ID_IP" })
+})
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class Application {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "ID_APPLICATION")
+    private Integer id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "student_profile_id", nullable = false)
-    private StudentProfile studentProfile;
+    @JoinColumn(name = "ID_SP", nullable = false)
+    private Student student;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "job_id", nullable = false)
-    private Job job;
+    @JoinColumn(name = "ID_IP", nullable = false)
+    private InternshipPosting internshipPosting;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    @Builder.Default
-    private ApplicationStatus status = ApplicationStatus.APPLIED;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "ID_CV")
+    private CurriculumVitae curriculumVitae;
 
-    private LocalDateTime interviewTime;
-    private String interviewLocation;
-    private String feedback;
+    @Column(name = "COVER_LETTER", columnDefinition = "TEXT")
+    private String coverLetter;
 
     @Builder.Default
-    private LocalDateTime appliedAt = LocalDateTime.now();
+    @Column(name = "STATUS", length = 30)
+    private String status = "PENDING"; // PENDING, REVIEWING, INTERVIEW_SCHEDULED, OFFERED, ACCEPTED, REJECTED
 
-    public enum ApplicationStatus {
-        APPLIED,
-        REVIEWING,
-        INTERVIEW_SCHEDULED,
-        OFFERED,
-        OFFER_ACCEPTED,
-        REJECTED,
-        WITHDRAWN
-    }
+    @CreationTimestamp
+    @Column(name = "APPLIED_AT", updatable = false)
+    private LocalDateTime appliedAt;
 }
