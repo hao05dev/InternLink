@@ -2,24 +2,36 @@ package com.internlink.core.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+
+import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "SKILL")
+@Table(name = "skills")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class Skill {
+
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "ID_SKILL")
-    private Integer id;
+    @Column(length = 50)
+    private String id;
 
-    @Column(name = "NAME_SKILL", length = 100, nullable = false)
-    private String skill;
+    @Column(nullable = false, unique = true, length = 100)
+    private String name;
 
-    @Column(name = "DESCRIPTION", columnDefinition = "TEXT")
-    private String description;
+    @Column(nullable = false, length = 50)
+    private String category;
 
+    @Column(name = "esco_uri")
+    private String escoUri;
+
+    @Column(columnDefinition = "TEXT")
+    private String synonyms;
+
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
 }

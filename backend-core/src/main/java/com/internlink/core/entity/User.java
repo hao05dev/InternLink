@@ -1,62 +1,58 @@
 package com.internlink.core.entity;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.*;
-import java.time.LocalDateTime;
-
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "USERS")
+@Table(name = "users")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class User {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "ID_USER")
-    private Integer id;
+    private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "ID_UT", nullable = false)
-    private UserType userType;
-
-    @Column(name = "NAME_USER", length = 100)
-    private String username;
-
-    @Column(name = "FULL_NAME", length = 200, nullable = false)
-    private String fullName;
-
-    @Column(name = "PHONE", length = 20)
-    private String phone;
-
-    @Column(name = "EMAIL", length = 150, nullable = false)
+    @Column(name = "email", length = 150, nullable = false, unique = true)
     private String email;
 
-    @Column(name = "ADDRESS", columnDefinition = "TEXT")
-    private String address;
-
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
-    @Column(name = "PASSWORD", length = 255, nullable = false)
+    @Column(name = "password_hash", length = 255, nullable = false)
     private String password;
 
-    @Builder.Default
-    @Column(name = "STATUS", length = 30)
-    private String status = "ACTIVE";
+    @Column(name = "full_name", length = 150, nullable = false)
+    private String fullName;
 
-    @Column(name = "AVATAR_URL", length = 500)
+    @Column(name = "phone_number", length = 20)
+    private String phoneNumber;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role", length = 30, nullable = false)
+    private Role role;
+
+    @Column(name = "department_id")
+    private Long departmentId;
+
+    @Column(name = "avatar_url", columnDefinition = "TEXT")
     private String avatarUrl;
 
+    @Builder.Default
+    @Column(name = "is_active")
+    private Boolean isActive = true;
+
     @CreationTimestamp
-    @Column(name = "CREATED_AT", updatable = false)
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
     @UpdateTimestamp
-    @Column(name = "UPDATED_AT")
+    @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 }

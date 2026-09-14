@@ -5,33 +5,33 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "departments")
+@Table(name = "addresses")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Department {
+public class Address {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "university_id", nullable = false)
-    private University university;
+    @JoinColumn(name = "ward_id")
+    private Ward ward;
 
     @Column(nullable = false)
-    private String departmentName;
-
-    @Column(nullable = false)
-    private String departmentType; // FACULTY, ACADEMIC_DEPARTMENT, INTERNSHIP_OFFICE
-
-    @Column(columnDefinition = "TEXT")
-    private String description;
+    private String addressLine;
 
     @Builder.Default
-    private String status = "ACTIVE";
+    private String regionType = "HEADQUARTERS"; // HEADQUARTERS, BRANCH, CAMPUS, RESIDENCE
+
+    private String postalCode;
+    private Double latitude;
+    private Double longitude;
 
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
+    @Builder.Default
+    private LocalDateTime updatedAt = LocalDateTime.now();
 }

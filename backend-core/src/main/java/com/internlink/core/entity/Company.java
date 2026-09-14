@@ -3,11 +3,12 @@ package com.internlink.core.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "COMPANY")
+@Table(name = "companies")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -15,31 +16,68 @@ import java.time.LocalDateTime;
 @Builder
 public class Company {
 
+    public enum VerificationStatus {
+        PENDING,
+        VERIFIED,
+        REJECTED,
+        BLACKLISTED
+    }
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "ID_COMPANY")
-    private Integer id;
+    private Long id;
 
-    @Column(name = "NAME_COMPANY", length = 200, nullable = false)
-    private String nameCompany;
+    @Column(nullable = false)
+    private String name;
 
-    @Column(name = "TAX_CODE", length = 50, unique = true)
+    @Column(name = "tax_code", unique = true, length = 50)
     private String taxCode;
 
-    @Column(name = "ADDRESS", columnDefinition = "TEXT")
-    private String address;
+    @Column(length = 100)
+    private String industry;
 
-    @Column(name = "WEBSITE", length = 255)
     private String website;
 
-    @Column(name = "DESCRIPTION", columnDefinition = "TEXT")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "address_id")
+    private Address addressEntity;
+
+    @Column(name = "address_raw", columnDefinition = "TEXT")
+    private String address;
+
+    @Column(name = "contact_name", length = 150)
+    private String contactName;
+
+    @Column(name = "contact_email", length = 150)
+    private String contactEmail;
+
+    @Column(name = "contact_phone", length = 20)
+    private String contactPhone;
+
+    @Column(columnDefinition = "TEXT")
     private String description;
 
+    @Column(name = "work_environment_info", columnDefinition = "TEXT")
+    private String workEnvironmentInfo;
+
     @Builder.Default
-    @Column(name = "VERIFICATION_STATUS", length = 30)
-    private String verificationStatus = "PENDING";
+    @Column(name = "mou_status", length = 30)
+    private String mouStatus = "NONE";
+
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    @Column(name = "verification_status", length = 30)
+    private VerificationStatus status = VerificationStatus.PENDING;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by_user_id")
+    private User representative;
 
     @CreationTimestamp
-    @Column(name = "CREATED_AT", updatable = false)
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
 }
