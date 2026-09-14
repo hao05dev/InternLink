@@ -5,8 +5,6 @@ import lombok.*;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.Set;
 
 @Entity
 @Table(name = "student_profiles")
@@ -21,19 +19,19 @@ public class StudentProfile {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", unique = true, nullable = false)
-    private User user;
+    @Column(name = "user_id", unique = true, nullable = false)
+    private Long userId;
 
-    @Column(name = "student_code", unique = true, nullable = false, length = 30)
+    @Column(name = "student_code", length = 30, unique = true, nullable = false)
     private String studentCode;
 
-    @Column(nullable = false, length = 100)
+    @Column(name = "major", length = 100, nullable = false)
     private String major;
 
     @Column(name = "academic_year", length = 20)
-    private String academicYear;
+    private String academicYear; // e.g., "K2021"
 
+    @Column(name = "gpa")
     private Double gpa;
 
     @Column(name = "passed_credits")
@@ -54,16 +52,15 @@ public class StudentProfile {
     @Column(name = "bio_summary", columnDefinition = "TEXT")
     private String bioSummary;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "preferred_province_id")
-    private Province preferredProvince;
+    @Column(name = "preferred_province_id")
+    private Long preferredProvinceId;
 
     @Column(name = "desired_position", length = 150)
-    private String desiredPosition;
+    private String desiredPosition; // e.g., "Java Backend Developer"
 
     @Builder.Default
     @Column(name = "preferred_work_format", length = 30)
-    private String preferredWorkFormat = "ANY";
+    private String preferredWorkFormat = "ANY"; // ONSITE, HYBRID, REMOTE, ANY
 
     @Builder.Default
     @Column(name = "data_sharing_consent")
@@ -71,16 +68,7 @@ public class StudentProfile {
 
     @Builder.Default
     @Column(name = "internship_status", length = 30)
-    private String internshipStatus = "NOT_STARTED";
-
-    @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-        name = "student_skills",
-        joinColumns = @JoinColumn(name = "student_profile_id"),
-        inverseJoinColumns = @JoinColumn(name = "skill_id")
-    )
-    @Builder.Default
-    private Set<Skill> skills = new HashSet<>();
+    private String internshipStatus = "NOT_STARTED"; // NOT_STARTED, LOOKING_FOR_JOB, IN_PROGRESS, COMPLETED
 
     @UpdateTimestamp
     @Column(name = "updated_at")

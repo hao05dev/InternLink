@@ -16,19 +16,19 @@ import java.time.LocalDateTime;
 public class Skill {
 
     @Id
-    @Column(length = 50)
-    private String id;
+    @Column(name = "id", length = 50)
+    private String id; // e.g., 'SK-JAVA', 'SK-SPRING-BOOT'
 
-    @Column(nullable = false, unique = true, length = 100)
+    @Column(name = "name", length = 100, nullable = false, unique = true)
     private String name;
 
-    @Column(nullable = false, length = 50)
-    private String category;
+    @Column(name = "category", length = 50, nullable = false)
+    private String category; // e.g., Programming Language, Backend, Frontend, DevOps, SoftSkill
 
-    @Column(name = "esco_uri")
+    @Column(name = "esco_uri", length = 255)
     private String escoUri;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "synonyms", columnDefinition = "TEXT")
     private String synonyms;
 
     @CreationTimestamp

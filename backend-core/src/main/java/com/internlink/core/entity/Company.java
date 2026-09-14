@@ -16,34 +16,24 @@ import java.time.LocalDateTime;
 @Builder
 public class Company {
 
-    public enum VerificationStatus {
-        PENDING,
-        VERIFIED,
-        REJECTED,
-        BLACKLISTED
-    }
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(name = "name", length = 255, nullable = false)
     private String name;
 
-    @Column(name = "tax_code", unique = true, length = 50)
+    @Column(name = "tax_code", length = 50, unique = true)
     private String taxCode;
 
-    @Column(length = 100)
+    @Column(name = "industry", length = 100)
     private String industry;
 
+    @Column(name = "website", length = 255)
     private String website;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "address_id")
-    private Address addressEntity;
-
     @Column(name = "address_raw", columnDefinition = "TEXT")
-    private String address;
+    private String addressRaw;
 
     @Column(name = "contact_name", length = 150)
     private String contactName;
@@ -54,24 +44,22 @@ public class Company {
     @Column(name = "contact_phone", length = 20)
     private String contactPhone;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
     @Column(name = "work_environment_info", columnDefinition = "TEXT")
-    private String workEnvironmentInfo;
+    private String workEnvironmentInfo; // An toàn lao động & cơ sở vật chất (ILO 208)
 
     @Builder.Default
     @Column(name = "mou_status", length = 30)
-    private String mouStatus = "NONE";
+    private String mouStatus = "NONE"; // NONE, SIGNED, EXPIRED
 
-    @Enumerated(EnumType.STRING)
     @Builder.Default
     @Column(name = "verification_status", length = 30)
-    private VerificationStatus status = VerificationStatus.PENDING;
+    private String verificationStatus = "PENDING"; // PENDING, VERIFIED, REJECTED
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "created_by_user_id")
-    private User representative;
+    @Column(name = "created_by_user_id")
+    private Long createdByUserId; // User ID của HR tạo công ty
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
