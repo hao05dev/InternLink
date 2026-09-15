@@ -22,13 +22,11 @@ public class Application {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "student_profile_id", nullable = false)
-    private StudentProfile studentProfile;
+    @Column(name = "student_profile_id", nullable = false)
+    private Long studentProfileId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "job_id", nullable = false)
-    private Job job;
+    @Column(name = "job_id", nullable = false)
+    private Long jobId;
 
     @Column(name = "cover_letter", columnDefinition = "TEXT")
     private String coverLetter;
@@ -38,7 +36,7 @@ public class Application {
 
     @Builder.Default
     @Column(name = "status", length = 30)
-    private String status = "APPLIED"; // APPLIED, SCREENING, INTERVIEW_SCHEDULED, OFFERED, ACCEPTED, DECLINED, WITHDRAWN, REJECTED
+    private String status = "APPLIED"; // APPLIED, REVIEWING, INTERVIEW_SCHEDULED, OFFERED, ACCEPTED, REJECTED
 
     @Column(name = "offer_details", columnDefinition = "TEXT")
     private String offerDetails;
