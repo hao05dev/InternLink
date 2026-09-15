@@ -6,8 +6,6 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.Set;
 
 @Entity
 @Table(name = "jobs")
@@ -18,87 +16,59 @@ import java.util.Set;
 @Builder
 public class Job {
 
-    public enum JobStatus {
-        DRAFT,
-        PENDING_APPROVAL,
-        APPROVED,
-        REJECTED,
-        CLOSED
-    }
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "company_id", nullable = false)
-    private Company company;
+    @Column(name = "company_id", nullable = false)
+    private Long companyId;
 
-    @Column(nullable = false, length = 200)
+    @Column(name = "title", length = 200, nullable = false)
     private String title;
 
-    @Column(nullable = false, columnDefinition = "TEXT")
+    @Column(name = "description", columnDefinition = "TEXT", nullable = false)
     private String description;
 
     @Column(name = "target_major", length = 100)
-    private String targetMajor;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "address_id")
-    private Address addressEntity;
+    private String targetMajor; // e.g., "Kỹ thuật phần mềm", "An toàn thông tin"
 
     @Column(name = "location_raw", length = 150)
-    private String location;
+    private String locationRaw;
 
     @Builder.Default
     @Column(name = "work_format", length = 30)
-    private String workFormat = "ONSITE";
+    private String workFormat = "ONSITE"; // ONSITE, HYBRID, REMOTE
 
     @Builder.Default
     @Column(name = "slots")
-    private Integer slots = 1;
+    private Integer slots = 1; // Số lượng tuyển
 
     @Builder.Default
     @Column(name = "filled_slots")
-    private Integer filledSlots = 0;
+    private Integer filledSlots = 0; // Số lượng đã tuyển được
 
     @Column(name = "stipend_range", length = 100)
-    private String stipendRange;
+    private String stipendRange; // e.g., "6,000,000 - 8,000,000 VND / tháng"
 
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "benefits", columnDefinition = "TEXT")
     private String benefits;
 
     @Column(name = "expected_learning_outcomes", columnDefinition = "TEXT")
-    private String expectedLearningOutcomes;
+    private String expectedLearningOutcomes; // Chuẩn đầu ra thực tập theo NACE/Erasmus+
 
-    @Enumerated(EnumType.STRING)
     @Builder.Default
     @Column(name = "status", length = 30)
-    private JobStatus status = JobStatus.DRAFT;
+    private String status = "PENDING_APPROVAL"; // DRAFT, PENDING_APPROVAL, APPROVED, REJECTED, CLOSED
 
     @Column(name = "faculty_feedback", columnDefinition = "TEXT")
     private String facultyFeedback;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "approved_by_user_id")
-    private User approvedBy;
+    @Column(name = "approved_by_user_id")
+    private Long approvedByUserId;
 
     @Builder.Default
     @Column(name = "version")
     private Integer version = 1;
-
-    @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-        name = "job_skills",
-        joinColumns = @JoinColumn(name = "job_id"),
-        inverseJoinColumns = @JoinColumn(name = "skill_id")
-    )
-    @Builder.Default
-    private Set<Skill> mandatorySkills = new HashSet<>();
-
-    @Transient
-    @Builder.Default
-    private Set<Skill> optionalSkills = new HashSet<>();
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
