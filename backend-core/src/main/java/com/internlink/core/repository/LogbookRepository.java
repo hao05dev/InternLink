@@ -8,6 +8,8 @@ import java.util.Optional;
 
 public interface LogbookRepository extends JpaRepository<Logbook, Long> {
 
+    List<Logbook> findByLearningAgreementId(Long learningAgreementId);
+
     List<Logbook> findByLearningAgreementIdOrderByWeekNumberAsc(Long agreementId);
 
     Optional<Logbook> findByLearningAgreementIdAndWeekNumber(Long agreementId, Integer weekNumber);
