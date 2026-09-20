@@ -1,60 +1,62 @@
 package com.internlink.core.entity;
 
+import com.internlink.core.common.BaseEntity;
+import com.internlink.core.common.enums.RubricStage;
+import com.internlink.core.common.enums.UserRole;
 import jakarta.persistence.*;
 import lombok.*;
-import java.time.LocalDateTime;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.Map;
 
 @Entity
-@Table(name = "rubric_evaluations")
+@Table(name = "rubric_evaluations", uniqueConstraints = {
+    @UniqueConstraint(name = "uq_rubric_evaluations_placement_evaluator_stage", columnNames = {"placement_id", "evaluator_id", "evaluation_stage"})
+})
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class RubricEvaluation {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+public class RubricEvaluation extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "learning_agreement_id", nullable = false)
-    private LearningAgreement learningAgreement;
+    @JoinColumn(name = "placement_id", nullable = false)
+    private InternshipPlacement placement;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "evaluator_id", nullable = false)
+    private User evaluator;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private EvaluationType evaluationType; // MIDTERM, FINAL
+    @Column(name = "evaluator_role", nullable = false, length = 30)
+    private UserRole evaluatorRole; // COMPANY_MENTOR or LECTURER
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private EvaluatorRole evaluatorRole; // COMPANY_MENTOR, ACADEMIC_SUPERVISOR, SELF_STUDENT
+    @Column(name = "evaluation_stage", nullable = false, length = 20)
+    private RubricStage evaluationStage; // MIDTERM or FINAL
 
-    private Double technicalScore;
-    private Double workEthicsScore;
-    private Double communicationScore;
-    private Double problemSolvingScore;
+    @Column(name = "rubric_version", nullable = false, length = 50)
+    private String rubricVersion;
 
-    private Double totalScore;
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "criteria_scores", columnDefinition = "jsonb", nullable = false)
+    private List<Map<String, Object>> criteriaScores;
 
-    @Column(columnDefinition = "TEXT")
-    private String comments;
+    @Column(name = "final_score", precision = 5, scale = 2, nullable = false)
+    private BigDecimal finalScore;
 
-    @Column(columnDefinition = "TEXT")
-    private String strengthDemonstrated;
-
-    @Column(columnDefinition = "TEXT")
-    private String improvementNeeded;
+    @Column(name = "qualitative_feedback", columnDefinition = "text")
+    private String qualitativeFeedback;
 
     @Builder.Default
-    private LocalDateTime evaluatedAt = LocalDateTime.now();
+    @Column(name = "status", nullable = false, length = 20)
+    private String status = "DRAFT"; // DRAFT or SUBMITTED
 
-    public enum EvaluationType {
-        MIDTERM,
-        FINAL
-    }
-
-    public enum EvaluatorRole {
-        COMPANY_MENTOR,
-        ACADEMIC_SUPERVISOR,
-        SELF_STUDENT
-    }
+    @Column(name = "submitted_at")
+    private OffsetDateTime submittedAt;
 }

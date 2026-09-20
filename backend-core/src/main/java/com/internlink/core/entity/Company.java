@@ -1,8 +1,14 @@
 package com.internlink.core.entity;
 
+import com.internlink.core.common.BaseEntity;
+import com.internlink.core.common.enums.VerificationStatus;
 import jakarta.persistence.*;
 import lombok.*;
-import java.time.LocalDateTime;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
+import java.time.OffsetDateTime;
+import java.util.Map;
 
 @Entity
 @Table(name = "companies")
@@ -11,37 +17,38 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Company {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+public class Company extends BaseEntity {
 
-    @Column(nullable = false)
-    private String name;
+    @Column(name = "company_name", nullable = false)
+    private String companyName;
 
+    @Column(name = "tax_code", nullable = false, unique = true, length = 50)
     private String taxCode;
-    private String industry;
-    private String website;
-    private String address;
 
-    @Column(columnDefinition = "TEXT")
-    private String description;
+    @Column(name = "industry", length = 100)
+    private String industry;
+
+    @Column(name = "website")
+    private String website;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "address", columnDefinition = "jsonb", nullable = false)
+    private Map<String, Object> address;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
     @Builder.Default
-    private VerificationStatus status = VerificationStatus.PENDING;
+    @Column(name = "verification_status", nullable = false, length = 30)
+    private VerificationStatus verificationStatus = VerificationStatus.PENDING;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Builder.Default
+    @Column(name = "verification_detail", columnDefinition = "jsonb", nullable = false)
+    private Map<String, Object> verificationDetail = Map.of();
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "representative_user_id")
-    private User representative;
+    @JoinColumn(name = "verified_by_user_id")
+    private User verifiedBy;
 
-    @Builder.Default
-    private LocalDateTime createdAt = LocalDateTime.now();
-
-    public enum VerificationStatus {
-        PENDING,
-        VERIFIED,
-        REJECTED
-    }
+    @Column(name = "verified_at")
+    private OffsetDateTime verifiedAt;
 }

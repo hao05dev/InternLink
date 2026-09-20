@@ -2,9 +2,14 @@ package com.internlink.core.repository;
 
 import com.internlink.core.entity.StudentProfile;
 import org.springframework.data.jpa.repository.JpaRepository;
-import java.util.Optional;
+import org.springframework.stereotype.Repository;
 
-public interface StudentProfileRepository extends JpaRepository<StudentProfile, Long> {
-    Optional<StudentProfile> findByUserId(Long userId);
+import java.util.Optional;
+import java.util.UUID;
+
+@Repository
+public interface StudentProfileRepository extends JpaRepository<StudentProfile, UUID> {
     Optional<StudentProfile> findByStudentCode(String studentCode);
+    Optional<StudentProfile> findByUserId(UUID userId);
+    boolean existsByStudentCode(String studentCode);
 }
