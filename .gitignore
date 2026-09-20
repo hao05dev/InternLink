@@ -1,7 +1,9 @@
 # ====================================================================
 # InternLink Gitignore
 # ====================================================================
-
+mo_ta_luan_van.txt
+/docs
+internlink.sql
 # Operating System Files
 .DS_Store
 Thumbs.db
