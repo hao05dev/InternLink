@@ -2,9 +2,15 @@ package com.internlink.core.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.Set;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.type.SqlTypes;
+
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 @Entity
 @Table(name = "student_profiles")
@@ -14,33 +20,57 @@ import java.util.Set;
 @AllArgsConstructor
 @Builder
 public class StudentProfile {
+
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "user_id")
+    private UUID userId;
 
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false, unique = true)
+    @MapsId
+    @JoinColumn(name = "user_id")
     private User user;
 
-    @Column(unique = true, nullable = false)
-    private String studentCode; // MSSV
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "program_id", nullable = false)
+    private AcademicProgram program;
 
-    private String major;
-    private Double gpa;
-    private String cvUrl;
+    @Column(name = "student_code", nullable = false, unique = true, length = 50)
+    private String studentCode;
 
-    @Column(columnDefinition = "TEXT")
-    private String bioSummary;
+    @Column(name = "gpa", precision = 3, scale = 2)
+    private BigDecimal gpa;
 
-    @ManyToMany
-    @JoinTable(
-        name = "student_skills",
-        joinColumns = @JoinColumn(name = "student_profile_id"),
-        inverseJoinColumns = @JoinColumn(name = "skill_id")
-    )
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "current_cv_document_id")
+    private Document currentCvDocument;
+
+    @JdbcTypeCode(SqlTypes.JSON)
     @Builder.Default
-    private Set<Skill> skills = new HashSet<>();
+    @Column(name = "certificates", columnDefinition = "jsonb", nullable = false)
+    private List<Map<String, Object>> certificates = List.of();
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Builder.Default
-    private LocalDateTime updatedAt = LocalDateTime.now();
+    @Column(name = "passed_courses", columnDefinition = "jsonb", nullable = false)
+    private List<Map<String, Object>> passedCourses = List.of();
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Builder.Default
+    @Column(name = "preferences", columnDefinition = "jsonb", nullable = false)
+    private Map<String, Object> preferences = Map.of();
+
+    @Column(name = "github_url")
+    private String githubUrl;
+
+    @Column(name = "bio", columnDefinition = "text")
+    private String bio;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at", nullable = false)
+    private OffsetDateTime updatedAt;
+
+    @Version
+    @Builder.Default
+    @Column(name = "version", nullable = false)
+    private Integer version = 0;
 }

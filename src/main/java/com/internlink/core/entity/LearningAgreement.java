@@ -1,9 +1,14 @@
 package com.internlink.core.entity;
 
+import com.internlink.core.common.BaseEntity;
+import com.internlink.core.common.enums.AgreementStatus;
 import jakarta.persistence.*;
 import lombok.*;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
+import java.util.List;
+import java.util.Map;
 
 @Entity
 @Table(name = "learning_agreements")
@@ -12,58 +17,53 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class LearningAgreement {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+public class LearningAgreement extends BaseEntity {
 
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "application_id", nullable = false)
-    private Application application;
+    @JoinColumn(name = "offer_id", nullable = false, unique = true)
+    private PlacementOffer offer;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "academic_supervisor_id")
-    private User academicSupervisor;
+    @JoinColumn(name = "student_id", nullable = false)
+    private User student;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "company_mentor_id")
-    private User companyMentor;
+    @JoinColumn(name = "company_id", nullable = false)
+    private Company company;
 
-    @Column(columnDefinition = "TEXT", nullable = false)
-    private String learningObjectives; // Mục tiêu đào tạo
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "department_id", nullable = false)
+    private Department department;
 
-    @Column(columnDefinition = "TEXT", nullable = false)
-    private String detailedTasks; // Nhiệm vụ công việc cụ thể
+    @Column(name = "target_credits", nullable = false)
+    private Integer targetCredits;
 
-    private LocalDate startDate;
-    private LocalDate endDate;
-
-    @Builder.Default
-    private Integer version = 1; // Hỗ trợ versioning theo chuẩn Erasmus+
+    @Column(name = "learning_objectives", columnDefinition = "text", nullable = false)
+    private String learningObjectives;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
     @Builder.Default
+    @Column(name = "status", nullable = false, length = 40)
     private AgreementStatus status = AgreementStatus.DRAFT;
 
-    private boolean studentSigned;
-    private LocalDateTime studentSignedAt;
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "student_signature", columnDefinition = "jsonb")
+    private Map<String, Object> studentSignature;
 
-    private boolean mentorSigned;
-    private LocalDateTime mentorSignedAt;
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "company_signature", columnDefinition = "jsonb")
+    private Map<String, Object> companySignature;
 
-    private boolean supervisorSigned;
-    private LocalDateTime supervisorSignedAt;
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "faculty_signature", columnDefinition = "jsonb")
+    private Map<String, Object> facultySignature;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Builder.Default
-    private LocalDateTime updatedAt = LocalDateTime.now();
+    @Column(name = "amendments", columnDefinition = "jsonb", nullable = false)
+    private List<Map<String, Object>> amendments = List.of();
 
-    public enum AgreementStatus {
-        DRAFT,
-        PENDING_SIGNATURES,
-        ACTIVE,
-        MODIFICATION_REQUESTED,
-        COMPLETED,
-        TERMINATED_EARLY
-    }
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "document_id")
+    private Document document;
 }
