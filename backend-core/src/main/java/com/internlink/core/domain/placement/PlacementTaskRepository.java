@@ -4,9 +4,10 @@ import com.internlink.core.common.enums.TaskStatus;
 import com.internlink.core.domain.placement.PlacementTask;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
-
 import java.util.List;
 import java.util.UUID;
+
+
 
 @Repository
 public interface PlacementTaskRepository extends JpaRepository<PlacementTask, UUID> {

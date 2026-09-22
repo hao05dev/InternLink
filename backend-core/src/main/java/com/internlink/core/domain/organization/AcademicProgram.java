@@ -4,6 +4,7 @@ import com.internlink.core.common.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
+
 @Entity
 @Table(name = "academic_programs")
 @Getter

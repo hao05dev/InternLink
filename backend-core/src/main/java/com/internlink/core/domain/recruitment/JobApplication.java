@@ -10,10 +10,11 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
-
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
+
+
 
 @Entity
 @Table(name = "job_applications", uniqueConstraints = {

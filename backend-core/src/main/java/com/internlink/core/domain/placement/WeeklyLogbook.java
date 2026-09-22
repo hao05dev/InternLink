@@ -5,10 +5,11 @@ import com.internlink.core.common.enums.LogbookStatus;
 import com.internlink.core.domain.auth.User;
 import jakarta.persistence.*;
 import lombok.*;
-
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+
+
 
 @Entity
 @Table(name = "weekly_logbooks", uniqueConstraints = {

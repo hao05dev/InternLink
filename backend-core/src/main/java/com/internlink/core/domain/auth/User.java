@@ -6,8 +6,9 @@ import com.internlink.core.domain.company.Company;
 import com.internlink.core.domain.organization.Department;
 import jakarta.persistence.*;
 import lombok.*;
-
 import java.time.OffsetDateTime;
+
+
 
 @Entity
 @Table(name = "users")

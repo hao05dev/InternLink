@@ -1,0 +1,58 @@
+package com.internlink.core.presentation.organization.controller;
+
+import com.internlink.core.application.organization.InternshipTermService;
+import com.internlink.core.common.ApiResponse;
+import com.internlink.core.common.enums.TermStatus;
+import com.internlink.core.presentation.organization.dto.request.InternshipTermRequest;
+import com.internlink.core.presentation.organization.dto.response.InternshipTermResponse;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.UUID;
+
+@RestController
+@RequestMapping("/api/v1/terms")
+@RequiredArgsConstructor
+public class InternshipTermController {
+
+    private final InternshipTermService termService;
+
+    @GetMapping("/by-department/{departmentId}")
+    public ResponseEntity<ApiResponse<List<InternshipTermResponse>>> getTermsByDepartment(
+            @PathVariable UUID departmentId
+    ) {
+        List<InternshipTermResponse> terms = termService.getTermsByDepartment(departmentId);
+        return ResponseEntity.ok(ApiResponse.success(terms));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<InternshipTermResponse>> getTermById(@PathVariable UUID id) {
+        InternshipTermResponse term = termService.getTermById(id);
+        return ResponseEntity.ok(ApiResponse.success(term));
+    }
+
+    @PostMapping
+    @PreAuthorize("hasAnyRole('ADMIN', 'FACULTY_ADMIN')")
+    public ResponseEntity<ApiResponse<InternshipTermResponse>> createTerm(
+            @Valid @RequestBody InternshipTermRequest request
+    ) {
+        InternshipTermResponse response = termService.createTerm(request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Khởi tạo kỳ thực tập thành công", response));
+    }
+
+    @PatchMapping("/{id}/status")
+    @PreAuthorize("hasAnyRole('ADMIN', 'FACULTY_ADMIN')")
+    public ResponseEntity<ApiResponse<InternshipTermResponse>> updateTermStatus(
+            @PathVariable UUID id,
+            @RequestParam TermStatus status
+    ) {
+        InternshipTermResponse response = termService.updateTermStatus(id, status);
+        return ResponseEntity.ok(ApiResponse.success("Cập nhật trạng thái kỳ thực tập thành công", response));
+    }
+}
