@@ -5,8 +5,9 @@ import com.internlink.core.common.enums.EligibilityStatus;
 import com.internlink.core.domain.auth.User;
 import jakarta.persistence.*;
 import lombok.*;
-
 import java.time.OffsetDateTime;
+
+
 
 @Entity
 @Table(name = "student_rosters", uniqueConstraints = {

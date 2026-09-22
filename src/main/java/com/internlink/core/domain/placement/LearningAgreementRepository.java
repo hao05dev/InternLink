@@ -4,10 +4,11 @@ import com.internlink.core.common.enums.AgreementStatus;
 import com.internlink.core.domain.placement.LearningAgreement;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
-
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+
+
 
 @Repository
 public interface LearningAgreementRepository extends JpaRepository<LearningAgreement, UUID> {
