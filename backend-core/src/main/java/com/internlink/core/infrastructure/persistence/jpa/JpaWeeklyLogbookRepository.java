@@ -13,4 +13,5 @@ import java.util.UUID;
 public interface JpaWeeklyLogbookRepository extends JpaRepository<WeeklyLogbook, UUID> {
     List<WeeklyLogbook> findByPlacementIdOrderByWeekNumberAsc(UUID placementId);
     Optional<WeeklyLogbook> findByPlacementIdAndWeekNumber(UUID placementId, Integer weekNumber);
+    boolean existsByPlacementIdAndWeekNumber(UUID placementId, Integer weekNumber);
 }
