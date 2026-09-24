@@ -80,12 +80,11 @@ public class AiMatchingServiceImpl implements AiMatchingService {
         aiRunRepository.save(run);
 
         // 3. Phân tích kết quả và lưu vào student_skills
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> extractedSkills = (List<Map<String, Object>>) aiResult.getOrDefault("skills", List.of());
+        List<Map<String, Object>> extractedSkills = extractSkillItems(aiResult);
         List<StudentSkill> skillsToSave = new ArrayList<>();
 
         for (Map<String, Object> item : extractedSkills) {
-            String skillId = (String) item.get("skill_id");
+            String skillId = getString(item, "skill_id", "id");
             if (skillId == null) continue;
 
             Optional<SkillTaxonomy> taxonomyOpt = taxonomyRepository.findById(skillId);
@@ -103,6 +102,8 @@ public class AiMatchingServiceImpl implements AiMatchingService {
             Object conf = item.get("confidence");
             if (conf instanceof Number num) {
                 studentSkill.setConfidence(BigDecimal.valueOf(num.doubleValue()));
+            } else if (studentSkill.getConfidence() == null) {
+                studentSkill.setConfidence(BigDecimal.ONE);
             }
             studentSkill.setIsConfirmed(true);
 
@@ -141,18 +142,10 @@ public class AiMatchingServiceImpl implements AiMatchingService {
         // Gọi AI Service tính Match Score
         Map<String, Object> matchResult = aiServiceClient.calculateMatchScore(studentId, jobId, studentSkills, jobSkills);
 
-        Object scoreObj = matchResult.get("match_score");
-        BigDecimal score = BigDecimal.ZERO;
-        if (scoreObj instanceof Number num) {
-            score = BigDecimal.valueOf(num.doubleValue());
-        }
-
-        @SuppressWarnings("unchecked")
-        List<String> matched = (List<String>) matchResult.getOrDefault("matched_skills", List.of());
-        @SuppressWarnings("unchecked")
-        List<String> missing = (List<String>) matchResult.getOrDefault("missing_skills", List.of());
-        @SuppressWarnings("unchecked")
-        Map<String, Object> explanation = (Map<String, Object>) matchResult.getOrDefault("explanation", Map.of());
+        BigDecimal score = extractScore(matchResult);
+        List<String> matched = extractStringList(matchResult.get("matched_skills"));
+        List<String> missing = extractStringList(matchResult.get("missing_skills"));
+        Map<String, Object> explanation = extractMap(matchResult.get("explanation"));
 
         return AiMatchScoreResponse.builder()
             .jobId(job.getId())
@@ -183,6 +176,76 @@ public class AiMatchingServiceImpl implements AiMatchingService {
         // Sắp xếp giảm dần theo điểm phù hợp (Match Score)
         recommendations.sort((a, b) -> b.getMatchScore().compareTo(a.getMatchScore()));
         return recommendations;
+    }
+
+    private List<Map<String, Object>> extractSkillItems(Map<String, Object> aiResult) {
+        Object rawSkills = aiResult.getOrDefault("skills", aiResult.get("normalized_skills"));
+        if (!(rawSkills instanceof List<?> list)) {
+            return List.of();
+        }
+
+        List<Map<String, Object>> skills = new ArrayList<>();
+        for (Object item : list) {
+            if (item instanceof Map<?, ?> map) {
+                Map<String, Object> normalized = new HashMap<>();
+                map.forEach((key, value) -> {
+                    if (key != null) {
+                        normalized.put(key.toString(), value);
+                    }
+                });
+                skills.add(normalized);
+            }
+        }
+        return skills;
+    }
+
+    private String getString(Map<String, Object> item, String... keys) {
+        for (String key : keys) {
+            Object value = item.get(key);
+            if (value != null) {
+                return value.toString();
+            }
+        }
+        return null;
+    }
+
+    private BigDecimal extractScore(Map<String, Object> matchResult) {
+        Object scoreObj = matchResult.getOrDefault("match_score", matchResult.get("match_percentage"));
+        if (scoreObj instanceof Number num) {
+            return BigDecimal.valueOf(num.doubleValue());
+        }
+        if (scoreObj instanceof String text) {
+            try {
+                return new BigDecimal(text);
+            } catch (NumberFormatException ignored) {
+                return BigDecimal.ZERO;
+            }
+        }
+        return BigDecimal.ZERO;
+    }
+
+    private List<String> extractStringList(Object value) {
+        if (!(value instanceof List<?> list)) {
+            return List.of();
+        }
+        return list.stream()
+            .filter(Objects::nonNull)
+            .map(Object::toString)
+            .toList();
+    }
+
+    private Map<String, Object> extractMap(Object value) {
+        if (!(value instanceof Map<?, ?> map)) {
+            return Map.of();
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        map.forEach((key, mapValue) -> {
+            if (key != null) {
+                result.put(key.toString(), mapValue);
+            }
+        });
+        return result;
     }
 
     private SkillTaxonomyResponse mapTaxonomyToResponse(SkillTaxonomy entity) {
