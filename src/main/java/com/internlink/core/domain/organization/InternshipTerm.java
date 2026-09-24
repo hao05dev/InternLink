@@ -1,7 +1,7 @@
 package com.internlink.core.domain.organization;
 
-import com.internlink.core.common.BaseEntity;
-import com.internlink.core.common.enums.TermStatus;
+import com.internlink.core.shared.domain.BaseEntity;
+import com.internlink.core.shared.enums.TermStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;

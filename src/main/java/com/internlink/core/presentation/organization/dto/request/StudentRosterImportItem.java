@@ -1,6 +1,6 @@
 package com.internlink.core.presentation.organization.dto.request;
 
-import com.internlink.core.common.enums.EligibilityStatus;
+import com.internlink.core.shared.enums.EligibilityStatus;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;

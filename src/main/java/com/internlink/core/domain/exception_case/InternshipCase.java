@@ -1,9 +1,9 @@
 package com.internlink.core.domain.exception_case;
 
-import com.internlink.core.common.BaseEntity;
-import com.internlink.core.common.enums.CaseSeverity;
-import com.internlink.core.common.enums.CaseStatus;
-import com.internlink.core.common.enums.CaseType;
+import com.internlink.core.shared.domain.BaseEntity;
+import com.internlink.core.shared.enums.CaseSeverity;
+import com.internlink.core.shared.enums.CaseStatus;
+import com.internlink.core.shared.enums.CaseType;
 import com.internlink.core.domain.auth.User;
 import com.internlink.core.domain.placement.InternshipPlacement;
 import jakarta.persistence.*;

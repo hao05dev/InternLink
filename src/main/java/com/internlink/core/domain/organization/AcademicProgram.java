@@ -1,6 +1,6 @@
 package com.internlink.core.domain.organization;
 
-import com.internlink.core.common.BaseEntity;
+import com.internlink.core.shared.domain.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
 

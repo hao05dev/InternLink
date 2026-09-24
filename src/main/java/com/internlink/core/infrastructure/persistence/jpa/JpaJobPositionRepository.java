@@ -1,0 +1,18 @@
+package com.internlink.core.infrastructure.persistence.jpa;
+
+import com.internlink.core.shared.enums.JobStatus;
+import com.internlink.core.domain.recruitment.JobPosition;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+import java.util.List;
+import java.util.UUID;
+
+
+
+@Repository
+public interface JpaJobPositionRepository extends JpaRepository<JobPosition, UUID> {
+    List<JobPosition> findByCompanyId(UUID companyId);
+    List<JobPosition> findByTermId(UUID termId);
+    List<JobPosition> findByTermIdAndStatus(UUID termId, JobStatus status);
+    List<JobPosition> findByDepartmentIdAndStatus(UUID departmentId, JobStatus status);
+}

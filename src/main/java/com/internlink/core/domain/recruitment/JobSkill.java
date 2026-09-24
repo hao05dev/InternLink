@@ -1,6 +1,6 @@
 package com.internlink.core.domain.recruitment;
 
-import com.internlink.core.common.enums.RequirementType;
+import com.internlink.core.shared.enums.RequirementType;
 import com.internlink.core.domain.ai_matching.SkillTaxonomy;
 import jakarta.persistence.*;
 import lombok.*;

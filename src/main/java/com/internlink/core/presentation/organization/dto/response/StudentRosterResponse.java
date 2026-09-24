@@ -1,6 +1,6 @@
 package com.internlink.core.presentation.organization.dto.response;
 
-import com.internlink.core.common.enums.EligibilityStatus;
+import com.internlink.core.shared.enums.EligibilityStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

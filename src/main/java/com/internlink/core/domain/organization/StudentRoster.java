@@ -1,7 +1,7 @@
 package com.internlink.core.domain.organization;
 
-import com.internlink.core.common.BaseEntity;
-import com.internlink.core.common.enums.EligibilityStatus;
+import com.internlink.core.shared.domain.BaseEntity;
+import com.internlink.core.shared.enums.EligibilityStatus;
 import com.internlink.core.domain.auth.User;
 import jakarta.persistence.*;
 import lombok.*;

@@ -1,7 +1,7 @@
 package com.internlink.core.domain.recruitment;
 
-import com.internlink.core.common.BaseEntity;
-import com.internlink.core.common.enums.ApplicationStatus;
+import com.internlink.core.shared.domain.BaseEntity;
+import com.internlink.core.shared.enums.ApplicationStatus;
 import com.internlink.core.domain.ai_matching.AiRun;
 import com.internlink.core.domain.auth.User;
 import com.internlink.core.domain.system.Document;

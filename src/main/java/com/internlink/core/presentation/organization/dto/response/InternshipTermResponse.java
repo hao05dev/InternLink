@@ -1,6 +1,6 @@
 package com.internlink.core.presentation.organization.dto.response;
 
-import com.internlink.core.common.enums.TermStatus;
+import com.internlink.core.shared.enums.TermStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
