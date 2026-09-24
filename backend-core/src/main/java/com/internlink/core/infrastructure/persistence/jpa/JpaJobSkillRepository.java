@@ -11,5 +11,7 @@ import java.util.UUID;
 
 @Repository
 public interface JpaJobSkillRepository extends JpaRepository<JobSkill, JobSkillId> {
+    List<JobSkill> findByIdJobId(UUID jobId);
+    List<JobSkill> findByJob_Id(UUID jobId);
     List<JobSkill> findByJobId(UUID jobId);
 }
