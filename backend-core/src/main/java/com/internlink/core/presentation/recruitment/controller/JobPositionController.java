@@ -1,0 +1,88 @@
+package com.internlink.core.presentation.recruitment.controller;
+
+import com.internlink.core.application.recruitment.JobPositionService;
+import com.internlink.core.infrastructure.security.CustomUserDetail;
+import com.internlink.core.presentation.recruitment.dto.request.JobPositionRequest;
+import com.internlink.core.presentation.recruitment.dto.response.JobPositionResponse;
+import com.internlink.core.shared.api.ApiResponse;
+import com.internlink.core.shared.enums.JobStatus;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.UUID;
+
+@RestController
+@RequestMapping("/api/v1/jobs")
+@RequiredArgsConstructor
+public class JobPositionController {
+
+    private final JobPositionService jobPositionService;
+
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<JobPositionResponse>>> getAllJobs(
+        @RequestParam(required = false) UUID termId,
+        @RequestParam(required = false) UUID companyId
+    ) {
+        List<JobPositionResponse> jobs;
+        if (companyId != null) {
+            jobs = jobPositionService.getJobsByCompany(companyId);
+        } else if (termId != null) {
+            jobs = jobPositionService.getJobsByTerm(termId);
+        } else {
+            jobs = jobPositionService.getAllJobs();
+        }
+        return ResponseEntity.ok(ApiResponse.success(jobs));
+    }
+
+    @GetMapping("/public/term/{termId}")
+    public ResponseEntity<ApiResponse<List<JobPositionResponse>>> getApprovedJobsByTerm(
+        @PathVariable UUID termId
+    ) {
+        List<JobPositionResponse> jobs = jobPositionService.getApprovedJobs(termId);
+        return ResponseEntity.ok(ApiResponse.success(jobs));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<JobPositionResponse>> getJobById(@PathVariable UUID id) {
+        JobPositionResponse job = jobPositionService.getJobById(id);
+        return ResponseEntity.ok(ApiResponse.success(job));
+    }
+
+    @PostMapping
+    @PreAuthorize("hasAnyRole('COMPANY_REP', 'ADMIN')")
+    public ResponseEntity<ApiResponse<JobPositionResponse>> createJob(
+        @Valid @RequestBody JobPositionRequest request
+    ) {
+        JobPositionResponse response = jobPositionService.createJob(request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+            .body(ApiResponse.success("Đăng tin tuyển dụng thành công", response));
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('COMPANY_REP', 'ADMIN')")
+    public ResponseEntity<ApiResponse<JobPositionResponse>> updateJob(
+        @PathVariable UUID id,
+        @Valid @RequestBody JobPositionRequest request
+    ) {
+        JobPositionResponse response = jobPositionService.updateJob(id, request);
+        return ResponseEntity.ok(ApiResponse.success("Cập nhật vị trí thực tập thành công", response));
+    }
+
+    @PatchMapping("/{id}/review")
+    @PreAuthorize("hasAnyRole('ADMIN', 'FACULTY_ADMIN')")
+    public ResponseEntity<ApiResponse<JobPositionResponse>> reviewJob(
+        @PathVariable UUID id,
+        @RequestParam JobStatus status,
+        @RequestParam(required = false) String feedback,
+        @AuthenticationPrincipal CustomUserDetail userDetail
+    ) {
+        JobPositionResponse response = jobPositionService.reviewJob(id, status, feedback, userDetail.getId());
+        return ResponseEntity.ok(ApiResponse.success("Thẩm định vị trí thực tập thành công", response));
+    }
+}

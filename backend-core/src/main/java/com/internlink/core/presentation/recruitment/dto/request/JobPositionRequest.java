@@ -1,0 +1,63 @@
+package com.internlink.core.presentation.recruitment.dto.request;
+
+import com.internlink.core.shared.enums.JobStatus;
+import com.internlink.core.shared.enums.WorkFormat;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.UUID;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class JobPositionRequest {
+
+    @NotNull(message = "Doanh nghiệp không được để trống")
+    private UUID companyId;
+
+    @NotNull(message = "Kỳ thực tập không được để trống")
+    private UUID termId;
+
+    @NotNull(message = "Khoa thẩm định không được để trống")
+    private UUID departmentId;
+
+    @NotBlank(message = "Tiêu đề vị trí không được để trống")
+    @Size(max = 255, message = "Tiêu đề không quá 255 ký tự")
+    private String title;
+
+    @NotNull(message = "Hình thức làm việc không được để trống")
+    private WorkFormat workFormat;
+
+    @NotBlank(message = "Địa điểm làm việc không được để trống")
+    private String location;
+
+    @NotNull(message = "Chỉ tiêu tuyển dụng không được để trống")
+    @Min(value = 1, message = "Chỉ tiêu tuyển dụng tối thiểu là 1")
+    private Integer vacancies;
+
+    @NotBlank(message = "Mô tả công việc không được để trống")
+    private String description;
+
+    @Builder.Default
+    private List<String> targetProgramCodes = List.of();
+
+    @Builder.Default
+    private List<String> targetLearningOutcomes = List.of();
+
+    @Builder.Default
+    private List<String> benefits = List.of();
+
+    private BigDecimal stipendAmount;
+
+    @Builder.Default
+    private JobStatus status = JobStatus.DRAFT;
+}

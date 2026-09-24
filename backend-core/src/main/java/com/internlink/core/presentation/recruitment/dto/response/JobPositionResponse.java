@@ -1,0 +1,42 @@
+package com.internlink.core.presentation.recruitment.dto.response;
+
+import com.internlink.core.shared.enums.JobStatus;
+import com.internlink.core.shared.enums.WorkFormat;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.UUID;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class JobPositionResponse {
+
+    private UUID id;
+    private UUID companyId;
+    private String companyName;
+    private UUID termId;
+    private String termName;
+    private UUID departmentId;
+    private String departmentName;
+    private String title;
+    private WorkFormat workFormat;
+    private String location;
+    private Integer vacancies;
+    private String description;
+    private List<String> targetProgramCodes;
+    private List<String> targetLearningOutcomes;
+    private List<String> benefits;
+    private BigDecimal stipendAmount;
+    private JobStatus status;
+    private String facultyFeedback;
+    private UUID approvedByUserId;
+    private OffsetDateTime approvedAt;
+    private OffsetDateTime createdAt;
+}
