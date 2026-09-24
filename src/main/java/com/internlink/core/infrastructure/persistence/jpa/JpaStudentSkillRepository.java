@@ -11,6 +11,7 @@ import java.util.UUID;
 
 @Repository
 public interface JpaStudentSkillRepository extends JpaRepository<StudentSkill, StudentSkillId> {
-    List<StudentSkill> findByStudentId(UUID studentId);
-    List<StudentSkill> findByStudentIdAndIsConfirmedTrue(UUID studentId);
+    List<StudentSkill> findByIdStudentId(UUID studentId);
+    List<StudentSkill> findByIdStudentIdAndIsConfirmedTrue(UUID studentId);
+    List<StudentSkill> findByStudent_Id(UUID studentId);
 }
