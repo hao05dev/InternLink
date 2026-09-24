@@ -1,6 +1,6 @@
 package com.internlink.core.domain.ai_matching;
 
-import com.internlink.core.common.enums.SkillCategory;
+import com.internlink.core.shared.enums.SkillCategory;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;

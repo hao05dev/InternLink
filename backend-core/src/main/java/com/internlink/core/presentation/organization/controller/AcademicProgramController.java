@@ -1,7 +1,7 @@
 package com.internlink.core.presentation.organization.controller;
 
 import com.internlink.core.application.organization.AcademicProgramService;
-import com.internlink.core.common.ApiResponse;
+import com.internlink.core.shared.api.ApiResponse;
 import com.internlink.core.presentation.organization.dto.request.AcademicProgramRequest;
 import com.internlink.core.presentation.organization.dto.response.AcademicProgramResponse;
 import jakarta.validation.Valid;

@@ -1,6 +1,6 @@
 package com.internlink.core.presentation.organization.dto.request;
 
-import com.internlink.core.common.enums.TermStatus;
+import com.internlink.core.shared.enums.TermStatus;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;

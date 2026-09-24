@@ -1,6 +1,6 @@
 package com.internlink.core.presentation.auth.dto.response;
 
-import com.internlink.core.common.enums.UserRole;
+import com.internlink.core.shared.enums.UserRole;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

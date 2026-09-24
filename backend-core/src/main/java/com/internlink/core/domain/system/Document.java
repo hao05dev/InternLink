@@ -1,9 +1,9 @@
 package com.internlink.core.domain.system;
 
-import com.internlink.core.common.BaseEntity;
-import com.internlink.core.common.enums.ContextType;
-import com.internlink.core.common.enums.DocumentType;
-import com.internlink.core.common.enums.StorageProvider;
+import com.internlink.core.shared.domain.BaseEntity;
+import com.internlink.core.shared.enums.ContextType;
+import com.internlink.core.shared.enums.DocumentType;
+import com.internlink.core.shared.enums.StorageProvider;
 import com.internlink.core.domain.auth.User;
 import jakarta.persistence.*;
 import lombok.*;

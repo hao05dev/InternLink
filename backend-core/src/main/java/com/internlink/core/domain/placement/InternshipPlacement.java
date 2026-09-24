@@ -1,7 +1,7 @@
 package com.internlink.core.domain.placement;
 
-import com.internlink.core.common.BaseEntity;
-import com.internlink.core.common.enums.PlacementStatus;
+import com.internlink.core.shared.domain.BaseEntity;
+import com.internlink.core.shared.enums.PlacementStatus;
 import com.internlink.core.domain.auth.User;
 import com.internlink.core.domain.company.Company;
 import com.internlink.core.domain.organization.InternshipTerm;

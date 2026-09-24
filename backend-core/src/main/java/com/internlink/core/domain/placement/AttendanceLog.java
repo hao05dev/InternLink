@@ -1,8 +1,8 @@
 package com.internlink.core.domain.placement;
 
-import com.internlink.core.common.BaseEntity;
-import com.internlink.core.common.enums.AttendanceStatus;
-import com.internlink.core.common.enums.WorkFormat;
+import com.internlink.core.shared.domain.BaseEntity;
+import com.internlink.core.shared.enums.AttendanceStatus;
+import com.internlink.core.shared.enums.WorkFormat;
 import com.internlink.core.domain.auth.User;
 import jakarta.persistence.*;
 import lombok.*;

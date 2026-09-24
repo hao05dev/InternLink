@@ -1,7 +1,7 @@
 package com.internlink.core.domain.ai_matching;
 
-import com.internlink.core.common.enums.AiRunStatus;
-import com.internlink.core.common.enums.AiRunType;
+import com.internlink.core.shared.enums.AiRunStatus;
+import com.internlink.core.shared.enums.AiRunType;
 import com.internlink.core.domain.auth.User;
 import com.internlink.core.domain.recruitment.JobPosition;
 import com.internlink.core.domain.system.Document;

@@ -1,7 +1,7 @@
 package com.internlink.core.presentation.auth.controller;
 
 import com.internlink.core.application.auth.AuthService;
-import com.internlink.core.common.ApiResponse;
+import com.internlink.core.shared.api.ApiResponse;
 import com.internlink.core.presentation.auth.dto.request.LoginRequest;
 import com.internlink.core.presentation.auth.dto.response.AuthResponse;
 import com.internlink.core.presentation.auth.dto.response.UserSummaryDto;

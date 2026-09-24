@@ -1,8 +1,8 @@
 package com.internlink.core.domain.recruitment;
 
-import com.internlink.core.common.BaseEntity;
-import com.internlink.core.common.enums.JobStatus;
-import com.internlink.core.common.enums.WorkFormat;
+import com.internlink.core.shared.domain.BaseEntity;
+import com.internlink.core.shared.enums.JobStatus;
+import com.internlink.core.shared.enums.WorkFormat;
 import com.internlink.core.domain.auth.User;
 import com.internlink.core.domain.company.Company;
 import com.internlink.core.domain.organization.Department;

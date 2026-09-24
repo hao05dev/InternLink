@@ -1,7 +1,7 @@
 package com.internlink.core.domain.company;
 
-import com.internlink.core.common.BaseEntity;
-import com.internlink.core.common.enums.VerificationStatus;
+import com.internlink.core.shared.domain.BaseEntity;
+import com.internlink.core.shared.enums.VerificationStatus;
 import com.internlink.core.domain.auth.User;
 import jakarta.persistence.*;
 import lombok.*;

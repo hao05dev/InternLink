@@ -1,8 +1,8 @@
 package com.internlink.core.domain.evaluation;
 
-import com.internlink.core.common.BaseEntity;
-import com.internlink.core.common.enums.RubricStage;
-import com.internlink.core.common.enums.UserRole;
+import com.internlink.core.shared.domain.BaseEntity;
+import com.internlink.core.shared.enums.RubricStage;
+import com.internlink.core.shared.enums.UserRole;
 import com.internlink.core.domain.auth.User;
 import com.internlink.core.domain.placement.InternshipPlacement;
 import jakarta.persistence.*;

@@ -1,7 +1,7 @@
 package com.internlink.core.domain.auth;
 
-import com.internlink.core.common.BaseEntity;
-import com.internlink.core.common.enums.UserRole;
+import com.internlink.core.shared.domain.BaseEntity;
+import com.internlink.core.shared.enums.UserRole;
 import com.internlink.core.domain.company.Company;
 import com.internlink.core.domain.organization.Department;
 import jakarta.persistence.*;
