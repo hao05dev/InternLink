@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -28,6 +29,33 @@ public class InternshipPlacementServiceImpl implements InternshipPlacementServic
     private final JpaLearningAgreementRepository agreementRepository;
     private final JpaUserRepository userRepository;
     private final JpaStudentProfileRepository studentProfileRepository;
+    private final JpaFinalResultRepository finalResultRepository;
+
+    // ── State Machine: chuyển trạng thái hợp lệ cho Placement ───────────────
+    //
+    //   PREPARING → ACTIVE → PAUSED → ACTIVE (được phép đảo lại)
+    //   ACTIVE    → COMPLETED | TERMINATED | TRANSFERRED
+    //   PAUSED    → TERMINATED | TRANSFERRED
+    //
+    // Sơ đồ:
+    //   PREPARING ──► ACTIVE ──► COMPLETED
+    //                   │ ▲         (cuối)
+    //                   │ │
+    //                 PAUSED ──► TERMINATED | TRANSFERRED
+    //                              (cuối)
+    private static final Map<PlacementStatus, Set<PlacementStatus>> VALID_TRANSITIONS = Map.of(
+        PlacementStatus.PREPARING,    Set.of(PlacementStatus.ACTIVE),
+        PlacementStatus.ACTIVE,       Set.of(PlacementStatus.PAUSED,
+                                             PlacementStatus.COMPLETED,
+                                             PlacementStatus.TERMINATED,
+                                             PlacementStatus.TRANSFERRED),
+        PlacementStatus.PAUSED,       Set.of(PlacementStatus.ACTIVE,
+                                             PlacementStatus.TERMINATED,
+                                             PlacementStatus.TRANSFERRED),
+        PlacementStatus.COMPLETED,    Set.of(), // trạng thái cuối
+        PlacementStatus.TERMINATED,   Set.of(), // trạng thái cuối
+        PlacementStatus.TRANSFERRED,  Set.of()  // trạng thái cuối
+    );
 
     @Override
     @Transactional(readOnly = true)
@@ -101,20 +129,55 @@ public class InternshipPlacementServiceImpl implements InternshipPlacementServic
             .startDate(agreement.getOffer().getStartDate())
             .endDate(agreement.getOffer().getEndDate())
             .totalHoursWorked(BigDecimal.ZERO)
-            .status(PlacementStatus.ACTIVE)
+            .status(PlacementStatus.PREPARING) // bắt đầu ở PREPARING, chờ kích hoạt ACTIVE
             .workSchedule(Map.of())
             .build();
 
         return mapToResponse(placementRepository.save(placement));
     }
 
+    /**
+     * Chuyển trạng thái placement theo State Machine có kiểm soát.
+     *
+     * <p>Điều kiện tiên quyết theo từng bước đích:
+     * <ul>
+     *   <li>COMPLETED: placement phải có FinalResult được công bố</li>
+     *   <li>TERMINATED: cho phép tự do (do sự cố, chấm dứt sớm)</li>
+     *   <li>TRANSFERRED: cho phép tự do (chuyển đơn vị)</li>
+     * </ul>
+     * </p>
+     */
     @Override
     @Transactional
-    public InternshipPlacementResponse updatePlacementStatus(UUID id, PlacementStatus status) {
+    public InternshipPlacementResponse updatePlacementStatus(UUID id, PlacementStatus newStatus) {
         InternshipPlacement placement = placementRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("InternshipPlacement", "id", id));
 
-        placement.setStatus(status);
+        PlacementStatus currentStatus = placement.getStatus();
+
+        // ── 1. Kiểm tra chuyển trạng thái có hợp lệ theo State Machine không ──
+        Set<PlacementStatus> allowed = VALID_TRANSITIONS.getOrDefault(currentStatus, Set.of());
+        if (!allowed.contains(newStatus)) {
+            throw new BadRequestException(String.format(
+                "Không thể chuyển trạng thái thực tập từ %s sang %s. Các trạng thái hợp lệ: %s",
+                currentStatus, newStatus, allowed.isEmpty() ? "không có (trạng thái cuối)" : allowed
+            ));
+        }
+
+        // ── 2. Điều kiện tiên quyết theo bước đích ───────────────────────────
+        if (newStatus == PlacementStatus.COMPLETED) {
+            // Phải có FinalResult đã được công bố trước khi COMPLETED
+            boolean hasFinalResult = finalResultRepository.findByPlacementId(id)
+                .map(r -> r.getPublishedAt() != null)
+                .orElse(false);
+            if (!hasFinalResult) {
+                throw new BadRequestException(
+                    "Phải có kết quả thực tập đã công bố (FinalResult.publishedAt != null) trước khi đánh dấu COMPLETED"
+                );
+            }
+        }
+
+        placement.setStatus(newStatus);
         return mapToResponse(placementRepository.save(placement));
     }
 
