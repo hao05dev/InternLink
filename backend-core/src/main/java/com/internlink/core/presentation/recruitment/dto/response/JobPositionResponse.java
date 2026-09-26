@@ -39,4 +39,16 @@ public class JobPositionResponse {
     private UUID approvedByUserId;
     private OffsetDateTime approvedAt;
     private OffsetDateTime createdAt;
+
+    /** Danh sách kỹ năng yêu cầu chi tiết */
+    @Builder.Default
+    private List<JobSkillResponse> skills = List.of();
+
+    /** Danh sách mã kỹ năng bắt buộc */
+    @Builder.Default
+    private List<String> mandatorySkillIds = List.of();
+
+    /** Danh sách mã kỹ năng mong muốn */
+    @Builder.Default
+    private List<String> optionalSkillIds = List.of();
 }

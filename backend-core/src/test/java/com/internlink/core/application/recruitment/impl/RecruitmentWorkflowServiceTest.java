@@ -49,6 +49,8 @@ class RecruitmentWorkflowServiceTest {
     @Mock JpaStudentProfileRepository studentProfileRepository;
     @Mock JpaStudentRosterRepository studentRosterRepository;
     @Mock SecurityGuard securityGuard;
+    @Mock JpaJobSkillRepository jobSkillRepository;
+    @Mock JpaSkillTaxonomyRepository taxonomyRepository;
 
     private JobPositionServiceImpl jobService;
     private JobApplicationServiceImpl applicationService;
@@ -57,7 +59,7 @@ class RecruitmentWorkflowServiceTest {
     @BeforeEach
     void setUp() {
         jobService = new JobPositionServiceImpl(jobRepository, companyRepository, termRepository,
-            departmentRepository, userRepository);
+            departmentRepository, userRepository, jobSkillRepository, taxonomyRepository);
         applicationService = new JobApplicationServiceImpl(applicationRepository, jobRepository,
             userRepository, documentRepository, studentProfileRepository, studentRosterRepository);
         offerService = new PlacementOfferServiceImpl(offerRepository, applicationRepository, userRepository, securityGuard);

@@ -60,4 +60,16 @@ public class JobPositionRequest {
 
     @Builder.Default
     private JobStatus status = JobStatus.DRAFT;
+
+    /** Danh sách kỹ năng yêu cầu chi tiết (kèm trọng số và phân loại) */
+    @Builder.Default
+    private List<JobSkillRequest> skills = List.of();
+
+    /** Hỗ trợ truyền nhanh danh sách ID kỹ năng bắt buộc */
+    @Builder.Default
+    private List<String> mandatorySkillIds = List.of();
+
+    /** Hỗ trợ truyền nhanh danh sách ID kỹ năng mong muốn/tùy chọn */
+    @Builder.Default
+    private List<String> optionalSkillIds = List.of();
 }
