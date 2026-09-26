@@ -3,22 +3,30 @@ package com.internlink.core.application.system.impl;
 import com.internlink.core.application.system.DocumentService;
 import com.internlink.core.domain.auth.User;
 import com.internlink.core.domain.system.Document;
+import com.internlink.core.infrastructure.integration.storage.StorageService;
+import com.internlink.core.infrastructure.integration.storage.StorageServiceRouter;
+import com.internlink.core.infrastructure.integration.storage.StoredFileInfo;
 import com.internlink.core.infrastructure.persistence.jpa.JpaDocumentRepository;
 import com.internlink.core.infrastructure.persistence.jpa.JpaUserRepository;
+import com.internlink.core.presentation.system.dto.response.DocumentDownloadInfo;
 import com.internlink.core.presentation.system.dto.response.DocumentResponse;
 import com.internlink.core.shared.enums.ContextType;
 import com.internlink.core.shared.enums.DocumentType;
 import com.internlink.core.shared.enums.StorageProvider;
-import com.internlink.core.shared.exception.ResourceNotFoundException;
 import com.internlink.core.shared.exception.BadRequestException;
+import com.internlink.core.shared.exception.ResourceNotFoundException;
 import com.internlink.core.shared.security.SecurityGuard;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class DocumentServiceImpl implements DocumentService {
@@ -26,6 +34,7 @@ public class DocumentServiceImpl implements DocumentService {
     private final JpaDocumentRepository documentRepository;
     private final JpaUserRepository userRepository;
     private final SecurityGuard securityGuard;
+    private final StorageServiceRouter storageServiceRouter;
 
     @Override
     @Transactional(readOnly = true)
@@ -68,6 +77,80 @@ public class DocumentServiceImpl implements DocumentService {
         // Chỉ chủ sở hữu hoặc Admin mới thấy URL lưu trữ thực tế
         boolean canSeeUrl = securityGuard.isSelfOrAdmin(currentUserId, doc.getOwner().getId());
         return mapToResponse(doc, canSeeUrl);
+    }
+
+    /**
+     * Tải lên tài liệu thực tế và lưu trữ qua Storage Service Provider.
+     */
+    @Override
+    @Transactional
+    public DocumentResponse uploadDocument(
+        UUID ownerId,
+        ContextType contextType,
+        UUID contextId,
+        DocumentType docType,
+        MultipartFile file
+    ) {
+        User owner = userRepository.findById(ownerId)
+            .orElseThrow(() -> new ResourceNotFoundException("User", "id", ownerId));
+
+        if (file == null || file.isEmpty()) {
+            throw new BadRequestException("Tệp tải lên không được rỗng");
+        }
+
+        // Lấy Storage Service đang kích hoạt (Local Disk, Google Drive, ...)
+        StorageService storageService = storageServiceRouter.getActiveStorageService();
+        String subFolder = contextType != null ? contextType.name().toLowerCase() : "misc";
+
+        StoredFileInfo storedInfo = storageService.store(file, subFolder);
+
+        Document doc = Document.builder()
+            .owner(owner)
+            .contextType(contextType)
+            .contextId(contextId)
+            .documentType(docType)
+            .storageProvider(storedInfo.getProvider())
+            .providerFileId(storedInfo.getProviderFileId())
+            .providerFolderId(storedInfo.getProviderFolderId())
+            .originalName(storedInfo.getOriginalName())
+            .mimeType(storedInfo.getMimeType())
+            .sizeBytes(storedInfo.getSizeBytes())
+            .checksum(storedInfo.getChecksum())
+            .externalUrl(storedInfo.getStoragePathOrUrl())
+            .visibility("PRIVATE")
+            .status("ACTIVE")
+            .build();
+
+        Document savedDoc = documentRepository.save(doc);
+        log.info("Tải lên tài liệu thành công: id={}, name={}, provider={}", 
+            savedDoc.getId(), savedDoc.getOriginalName(), savedDoc.getStorageProvider());
+
+        return mapToResponse(savedDoc, true);
+    }
+
+    /**
+     * Tải về tài liệu có xác thực quyền hạn.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public DocumentDownloadInfo downloadDocument(UUID documentId, UUID requestingUserId) {
+        Document doc = documentRepository.findById(documentId)
+            .orElseThrow(() -> new ResourceNotFoundException("Document", "id", documentId));
+
+        // Kiểm tra quyền hạn tải tệp
+        securityGuard.requireDocumentReadAccess(requestingUserId, doc.getOwner().getId());
+
+        // Định tuyến đến nhà cung cấp lưu trữ đã lưu tài liệu này
+        StorageService storageService = storageServiceRouter.getStorageService(doc.getStorageProvider());
+        Resource resource = storageService.loadAsResource(doc.getProviderFileId());
+
+        return DocumentDownloadInfo.builder()
+            .resource(resource)
+            .originalName(doc.getOriginalName())
+            .mimeType(doc.getMimeType() != null ? doc.getMimeType() : "application/octet-stream")
+            .sizeBytes(doc.getSizeBytes())
+            .checksum(doc.getChecksum())
+            .build();
     }
 
     @Override

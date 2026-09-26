@@ -13,6 +13,9 @@ import com.internlink.core.presentation.recruitment.dto.request.JobApplicationRe
 import com.internlink.core.presentation.recruitment.dto.request.JobPositionRequest;
 import com.internlink.core.presentation.recruitment.dto.request.PlacementOfferRequest;
 import com.internlink.core.shared.enums.*;
+import com.internlink.core.shared.security.SecurityGuard;
+import com.internlink.core.infrastructure.persistence.jpa.JpaStudentProfileRepository;
+import com.internlink.core.infrastructure.persistence.jpa.JpaStudentRosterRepository;
 import com.internlink.core.shared.exception.BadRequestException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -43,6 +46,9 @@ class RecruitmentWorkflowServiceTest {
     @Mock JpaJobApplicationRepository applicationRepository;
     @Mock JpaDocumentRepository documentRepository;
     @Mock JpaPlacementOfferRepository offerRepository;
+    @Mock JpaStudentProfileRepository studentProfileRepository;
+    @Mock JpaStudentRosterRepository studentRosterRepository;
+    @Mock SecurityGuard securityGuard;
 
     private JobPositionServiceImpl jobService;
     private JobApplicationServiceImpl applicationService;
@@ -53,8 +59,8 @@ class RecruitmentWorkflowServiceTest {
         jobService = new JobPositionServiceImpl(jobRepository, companyRepository, termRepository,
             departmentRepository, userRepository);
         applicationService = new JobApplicationServiceImpl(applicationRepository, jobRepository,
-            userRepository, documentRepository);
-        offerService = new PlacementOfferServiceImpl(offerRepository, applicationRepository, userRepository);
+            userRepository, documentRepository, studentProfileRepository, studentRosterRepository);
+        offerService = new PlacementOfferServiceImpl(offerRepository, applicationRepository, userRepository, securityGuard);
         lenient().when(jobRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         lenient().when(applicationRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         lenient().when(offerRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));

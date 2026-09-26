@@ -61,6 +61,7 @@ class CoreServicesTest {
     @Mock JpaStudentProfileRepository profileRepository;
     @Mock JpaInternshipCaseRepository caseRepository;
     @Mock JpaAuditLogRepository auditRepository;
+    @Mock JpaFinalResultRepository finalResultRepository;
     @Mock AuthenticationManager authenticationManager;
     @Mock JwtUtil jwtUtil;
     @Mock CookieUtils cookieUtils;
@@ -101,7 +102,7 @@ class CoreServicesTest {
 
     @Test
     void internshipTermRejectsReversedDates() {
-        InternshipTermServiceImpl service = new InternshipTermServiceImpl(termRepository, departmentRepository);
+        InternshipTermServiceImpl service = new InternshipTermServiceImpl(termRepository, departmentRepository, placementRepository);
         Department department = department();
         when(departmentRepository.findById(department.getId())).thenReturn(Optional.of(department));
         InternshipTermRequest request = InternshipTermRequest.builder().departmentId(department.getId())
@@ -144,7 +145,7 @@ class CoreServicesTest {
     @Test
     void placementActivationRequiresApprovedAgreement() {
         InternshipPlacementServiceImpl service = new InternshipPlacementServiceImpl(
-            placementRepository, agreementRepository, userRepository, profileRepository);
+            placementRepository, agreementRepository, userRepository, profileRepository, finalResultRepository);
         LearningAgreement agreement = LearningAgreement.builder().status(AgreementStatus.DRAFT).build();
         agreement.setId(UUID.randomUUID());
         when(agreementRepository.findById(agreement.getId())).thenReturn(Optional.of(agreement));

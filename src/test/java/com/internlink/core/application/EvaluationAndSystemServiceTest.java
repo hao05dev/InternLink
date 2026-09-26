@@ -21,6 +21,8 @@ import com.internlink.core.presentation.evaluation.dto.request.FinalResultReques
 import com.internlink.core.presentation.evaluation.dto.request.RubricEvaluationRequest;
 import com.internlink.core.presentation.student.dto.request.StudentProfileRequest;
 import com.internlink.core.shared.enums.*;
+import com.internlink.core.shared.security.SecurityGuard;
+import com.internlink.core.infrastructure.integration.storage.StorageServiceRouter;
 import com.internlink.core.shared.exception.BadRequestException;
 import com.internlink.core.shared.exception.ForbiddenException;
 import org.junit.jupiter.api.BeforeEach;
@@ -51,6 +53,8 @@ class EvaluationAndSystemServiceTest {
     @Mock JpaAcademicProgramRepository programRepository;
     @Mock JpaNotificationRepository notificationRepository;
     @Mock JpaDocumentRepository documentRepository;
+    @Mock SecurityGuard securityGuard;
+    @Mock StorageServiceRouter storageServiceRouter;
 
     private RubricEvaluationServiceImpl rubricService;
     private FinalResultServiceImpl finalResultService;
@@ -65,7 +69,7 @@ class EvaluationAndSystemServiceTest {
             userRepository, studentProfileRepository);
         profileService = new StudentProfileServiceImpl(studentProfileRepository, userRepository, programRepository);
         notificationService = new NotificationServiceImpl(notificationRepository, userRepository);
-        documentService = new DocumentServiceImpl(documentRepository, userRepository);
+        documentService = new DocumentServiceImpl(documentRepository, userRepository, securityGuard, storageServiceRouter);
         lenient().when(rubricRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         lenient().when(finalResultRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         lenient().when(placementRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
