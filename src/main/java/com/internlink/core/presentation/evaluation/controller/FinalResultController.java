@@ -22,15 +22,24 @@ public class FinalResultController {
 
     private final FinalResultService finalResultService;
 
+    /**
+     * Xem kết quả đánh giá đợt thực tập.
+     * Sinh viên chỉ được xem khi điểm đã được công bố chính thức.
+     */
     @GetMapping("/placement/{placementId}")
     @PreAuthorize("hasAnyRole('STUDENT', 'COMPANY_MENTOR', 'LECTURER', 'FACULTY_ADMIN', 'ADMIN')")
     public ResponseEntity<ApiResponse<FinalResultResponse>> getFinalResultByPlacement(
-        @PathVariable UUID placementId
+        @PathVariable UUID placementId,
+        @AuthenticationPrincipal CustomUserDetail userDetail
     ) {
-        FinalResultResponse response = finalResultService.getFinalResultByPlacement(placementId);
+        FinalResultResponse response = finalResultService.getFinalResultByPlacement(placementId, userDetail.getId());
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
+    /**
+     * Tính toán và tổng hợp điểm tổng kết (hỗ trợ tổng hợp từ Rubrics, quy đổi thang điểm CTU).
+     * Mặc định lưu DRAFT để Hội đồng rà soát (trừ khi request.publishImmediately = true).
+     */
     @PostMapping("/finalize")
     @PreAuthorize("hasAnyRole('ADMIN', 'FACULTY_ADMIN')")
     public ResponseEntity<ApiResponse<FinalResultResponse>> finalizeResult(
@@ -38,7 +47,24 @@ public class FinalResultController {
         @Valid @RequestBody FinalResultRequest request
     ) {
         FinalResultResponse response = finalResultService.calculateAndFinalizeResult(userDetail.getId(), request);
+        String message = Boolean.TRUE.equals(request.getPublishImmediately())
+            ? "Tổng hợp và công bố điểm tổng kết đợt thực tập thành công"
+            : "Tổng hợp điểm tổng kết thành công (đang lưu bản nháp chờ xét duyệt)";
         return ResponseEntity.status(HttpStatus.CREATED)
-            .body(ApiResponse.success("Tổng hợp và công bố điểm tổng kết đợt thực tập thành công", response));
+            .body(ApiResponse.success(message, response));
+    }
+
+    /**
+     * Công bố chính thức kết quả thực tập cho sinh viên.
+     * Chuyển trạng thái lần thực tập sang COMPLETED nếu sinh viên đạt (PASSED).
+     */
+    @PatchMapping("/placement/{placementId}/publish")
+    @PreAuthorize("hasAnyRole('ADMIN', 'FACULTY_ADMIN')")
+    public ResponseEntity<ApiResponse<FinalResultResponse>> publishResult(
+        @PathVariable UUID placementId,
+        @AuthenticationPrincipal CustomUserDetail userDetail
+    ) {
+        FinalResultResponse response = finalResultService.publishFinalResult(placementId, userDetail.getId());
+        return ResponseEntity.ok(ApiResponse.success("Công bố kết quả thực tập chính thức thành công", response));
     }
 }
