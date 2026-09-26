@@ -14,6 +14,8 @@ import com.internlink.core.presentation.recruitment.dto.request.JobPositionReque
 import com.internlink.core.presentation.recruitment.dto.request.PlacementOfferRequest;
 import com.internlink.core.shared.enums.*;
 import com.internlink.core.shared.security.SecurityGuard;
+import com.internlink.core.application.system.AuditLogService;
+import com.internlink.core.application.system.NotificationService;
 import com.internlink.core.infrastructure.persistence.jpa.JpaStudentProfileRepository;
 import com.internlink.core.infrastructure.persistence.jpa.JpaStudentRosterRepository;
 import com.internlink.core.shared.exception.BadRequestException;
@@ -49,6 +51,8 @@ class RecruitmentWorkflowServiceTest {
     @Mock JpaStudentProfileRepository studentProfileRepository;
     @Mock JpaStudentRosterRepository studentRosterRepository;
     @Mock SecurityGuard securityGuard;
+    @Mock AuditLogService auditLogService;
+    @Mock NotificationService notificationService;
     @Mock JpaJobSkillRepository jobSkillRepository;
     @Mock JpaSkillTaxonomyRepository taxonomyRepository;
 
@@ -62,7 +66,7 @@ class RecruitmentWorkflowServiceTest {
             departmentRepository, userRepository, jobSkillRepository, taxonomyRepository);
         applicationService = new JobApplicationServiceImpl(applicationRepository, jobRepository,
             userRepository, documentRepository, studentProfileRepository, studentRosterRepository);
-        offerService = new PlacementOfferServiceImpl(offerRepository, applicationRepository, userRepository, securityGuard);
+        offerService = new PlacementOfferServiceImpl(offerRepository, applicationRepository, userRepository, securityGuard, auditLogService, notificationService);
         lenient().when(jobRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         lenient().when(applicationRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         lenient().when(offerRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
