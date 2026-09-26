@@ -10,19 +10,17 @@ import com.internlink.core.domain.recruitment.JobPosition;
 import com.internlink.core.domain.recruitment.JobSkill;
 import com.internlink.core.domain.recruitment.JobSkillId;
 import com.internlink.core.infrastructure.integration.ai.AiServiceClient;
-import com.internlink.core.infrastructure.persistence.jpa.JpaAiRunRepository;
-import com.internlink.core.infrastructure.persistence.jpa.JpaJobPositionRepository;
-import com.internlink.core.infrastructure.persistence.jpa.JpaJobSkillRepository;
-import com.internlink.core.infrastructure.persistence.jpa.JpaSkillTaxonomyRepository;
-import com.internlink.core.infrastructure.persistence.jpa.JpaStudentSkillRepository;
-import com.internlink.core.infrastructure.persistence.jpa.JpaUserRepository;
+import com.internlink.core.infrastructure.persistence.jpa.*;
+import com.internlink.core.infrastructure.security.CustomUserDetail;
 import com.internlink.core.presentation.ai_matching.dto.response.AiMatchScoreResponse;
 import com.internlink.core.presentation.ai_matching.dto.response.StudentSkillResponse;
 import com.internlink.core.shared.enums.JobStatus;
+import com.internlink.core.shared.enums.RequirementType;
 import com.internlink.core.shared.enums.SkillCategory;
 import com.internlink.core.shared.enums.SkillSource;
 import com.internlink.core.shared.enums.UserRole;
 import com.internlink.core.shared.exception.ResourceNotFoundException;
+import com.internlink.core.shared.security.SecurityGuard;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -39,9 +37,8 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class AiMatchingServiceImplTest {
@@ -67,6 +64,9 @@ class AiMatchingServiceImplTest {
     @Mock
     private AiServiceClient aiServiceClient;
 
+    @Mock
+    private SecurityGuard securityGuard;
+
     @InjectMocks
     private AiMatchingServiceImpl service;
 
@@ -78,7 +78,7 @@ class AiMatchingServiceImplTest {
         SkillTaxonomy spring = taxonomy("skill-spring", "Spring Boot");
 
         when(userRepository.findById(studentId)).thenReturn(Optional.of(student));
-        when(aiServiceClient.extractSkillsFromCv(studentId, "Java Spring Boot"))
+        when(aiServiceClient.extractSkills("Java Spring Boot"))
             .thenReturn(Map.of(
                 "normalized_skills", List.of(
                     Map.of("id", "skill-java", "name", "Java"),
@@ -96,7 +96,8 @@ class AiMatchingServiceImplTest {
 
         assertThat(responses).extracting(StudentSkillResponse::getSkillId)
             .containsExactly("skill-java", "skill-spring");
-        assertThat(responses).allSatisfy(response -> assertThat(response.getIsConfirmed()).isTrue());
+        // Human-in-the-loop: kỹ năng từ CV phải chờ sinh viên duyệt (isConfirmed = false)
+        assertThat(responses).allSatisfy(response -> assertThat(response.getIsConfirmed()).isFalse());
         assertThat(responses.get(0).getConfidence()).isEqualByComparingTo(BigDecimal.ONE);
         assertThat(responses.get(1).getConfidence()).isEqualByComparingTo(BigDecimal.valueOf(0.87));
 
@@ -121,7 +122,7 @@ class AiMatchingServiceImplTest {
             .build();
 
         when(userRepository.findById(studentId)).thenReturn(Optional.of(student));
-        when(aiServiceClient.extractSkillsFromCv(studentId, "Java"))
+        when(aiServiceClient.extractSkills("Java"))
             .thenReturn(Map.of("skills", List.of(Map.of("skill_id", "skill-java", "confidence", 0.91))));
         when(taxonomyRepository.findById("skill-java")).thenReturn(Optional.of(java));
         when(studentSkillRepository.findById(new StudentSkillId(studentId, "skill-java"))).thenReturn(Optional.of(existing));
@@ -132,7 +133,7 @@ class AiMatchingServiceImplTest {
         assertThat(responses).hasSize(1);
         assertThat(responses.get(0).getSource()).isEqualTo(SkillSource.STUDENT_DECLARED);
         assertThat(responses.get(0).getConfidence()).isEqualByComparingTo(BigDecimal.valueOf(0.91));
-        assertThat(responses.get(0).getIsConfirmed()).isTrue();
+        assertThat(responses.get(0).getIsConfirmed()).isFalse();
     }
 
     @Test
@@ -143,7 +144,7 @@ class AiMatchingServiceImplTest {
         assertThatThrownBy(() -> service.syncCvSkills(studentId, null, "Java"))
             .isInstanceOf(ResourceNotFoundException.class);
 
-        verify(aiServiceClient, never()).extractSkillsFromCv(any(), any());
+        verify(aiServiceClient, never()).extractSkills(any());
     }
 
     @Test
@@ -158,6 +159,12 @@ class AiMatchingServiceImplTest {
             .isConfirmed(true)
             .build();
 
+        CustomUserDetail userDetail = CustomUserDetail.builder()
+            .id(studentId)
+            .email("student@example.com")
+            .role(UserRole.STUDENT)
+            .build();
+        when(securityGuard.currentUser()).thenReturn(userDetail);
         when(studentSkillRepository.findById(new StudentSkillId(studentId, "skill-java"))).thenReturn(Optional.of(skill));
         when(studentSkillRepository.save(skill)).thenReturn(skill);
 
@@ -165,6 +172,7 @@ class AiMatchingServiceImplTest {
 
         assertThat(response.getIsConfirmed()).isFalse();
         verify(studentSkillRepository).save(skill);
+        verify(securityGuard).requireSelf(studentId, studentId, "StudentSkill");
     }
 
     @Test
@@ -181,12 +189,15 @@ class AiMatchingServiceImplTest {
         when(studentSkillRepository.findByIdStudentIdAndIsConfirmedTrue(studentId))
             .thenReturn(List.of(studentSkill(studentId, java), studentSkill(studentId, spring)));
         when(jobSkillRepository.findByIdJobId(jobId))
-            .thenReturn(List.of(jobSkill(jobId, java), jobSkill(jobId, docker)));
+            .thenReturn(List.of(jobSkill(jobId, java, RequirementType.MANDATORY), jobSkill(jobId, docker, RequirementType.OPTIONAL)));
         when(aiServiceClient.calculateMatchScore(
-            studentId,
-            jobId,
-            List.of("skill-java", "skill-spring"),
-            List.of("skill-java", "skill-docker")
+            eq(studentId),
+            eq(jobId),
+            eq("Backend Intern"),
+            eq("Description"),
+            eq(List.of("skill-java", "skill-spring")),
+            eq(List.of("skill-java")),
+            eq(List.of("skill-docker"))
         )).thenReturn(Map.of(
             "match_percentage", "76.5",
             "matched_skills", List.of("skill-java"),
@@ -225,11 +236,11 @@ class AiMatchingServiceImplTest {
         when(jobPositionRepository.findById(highJobId)).thenReturn(Optional.of(highJob));
         when(studentSkillRepository.findByIdStudentIdAndIsConfirmedTrue(studentId))
             .thenReturn(List.of(studentSkill(studentId, java)));
-        when(jobSkillRepository.findByIdJobId(lowJobId)).thenReturn(List.of(jobSkill(lowJobId, java)));
-        when(jobSkillRepository.findByIdJobId(highJobId)).thenReturn(List.of(jobSkill(highJobId, java)));
-        when(aiServiceClient.calculateMatchScore(studentId, lowJobId, List.of("skill-java"), List.of("skill-java")))
+        when(jobSkillRepository.findByIdJobId(lowJobId)).thenReturn(List.of(jobSkill(lowJobId, java, RequirementType.MANDATORY)));
+        when(jobSkillRepository.findByIdJobId(highJobId)).thenReturn(List.of(jobSkill(highJobId, java, RequirementType.MANDATORY)));
+        when(aiServiceClient.calculateMatchScore(eq(studentId), eq(lowJobId), any(), any(), eq(List.of("skill-java")), eq(List.of("skill-java")), eq(List.of())))
             .thenReturn(Map.of("match_score", 40.0));
-        when(aiServiceClient.calculateMatchScore(studentId, highJobId, List.of("skill-java"), List.of("skill-java")))
+        when(aiServiceClient.calculateMatchScore(eq(studentId), eq(highJobId), any(), any(), eq(List.of("skill-java")), eq(List.of("skill-java")), eq(List.of())))
             .thenReturn(Map.of("match_score", 90.0));
 
         List<AiMatchScoreResponse> responses = service.recommendJobsForStudent(studentId, termId);
@@ -267,10 +278,11 @@ class AiMatchingServiceImplTest {
             .build();
     }
 
-    private JobSkill jobSkill(UUID jobId, SkillTaxonomy taxonomy) {
+    private JobSkill jobSkill(UUID jobId, SkillTaxonomy taxonomy, RequirementType reqType) {
         return JobSkill.builder()
             .id(new JobSkillId(jobId, taxonomy.getId()))
             .skill(taxonomy)
+            .requirementType(reqType != null ? reqType : RequirementType.MANDATORY)
             .build();
     }
 

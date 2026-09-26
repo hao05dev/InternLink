@@ -6,10 +6,12 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.time.Duration;
 
 @Slf4j
 @Component
@@ -19,22 +21,25 @@ public class AiServiceClient {
 
     public AiServiceClient(
         WebClient.Builder webClientBuilder,
-        @Value("${internlink.ai-service.base-url:http://localhost:8001}") String baseUrl
+        @Value("${internlink.ai-service.base-url:http://localhost:8001}") String aiServiceUrl
     ) {
-        this.webClient = webClientBuilder.baseUrl(baseUrl).build();
+        this.webClient = webClientBuilder
+            .baseUrl(aiServiceUrl)
+            .build();
     }
 
     /**
-     * Gọi sang Python AI Service để trích xuất kỹ năng từ văn bản CV
+     * Gọi sang Python AI Service để trích xuất và chuẩn hóa kỹ năng từ văn bản CV
      */
-    public Map<String, Object> extractSkillsFromCv(UUID studentId, String cvText) {
+    public Map<String, Object> extractSkills(String cvRawText) {
         try {
             Map<String, Object> requestBody = Map.of(
-                "text", cvText != null ? cvText : ""
+                "raw_text", cvRawText != null ? cvRawText : "",
+                "options", Map.of("include_confidence", true)
             );
 
             return webClient.post()
-                .uri("/api/v1/skills/extract")
+                .uri("/api/v1/cv/extract-skills")
                 .bodyValue(requestBody)
                 .retrieve()
                 .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
@@ -49,26 +54,33 @@ public class AiServiceClient {
     }
 
     /**
-     * Gọi sang Python AI Service để tính Match Score và Skill Gap giữa SV và Job
+     * Gọi sang Python AI Service để tính Match Score và Skill Gap với đầy đủ ngữ cảnh:
+     * - Tiêu đề công việc và mô tả công việc (phục vụ tính tương đồng ngữ nghĩa semantic matching)
+     * - Phân loại rõ ràng kỹ năng bắt buộc (mandatory) và kỹ năng mong muốn (optional)
      */
     public Map<String, Object> calculateMatchScore(
         UUID studentId,
         UUID jobId,
+        String jobTitle,
+        String jobDescription,
         List<String> studentSkills,
-        List<String> jobSkills
+        List<String> mandatorySkillIds,
+        List<String> optionalSkillIds
     ) {
         try {
+            Map<String, Object> jobPayload = new HashMap<>();
+            jobPayload.put("id", jobId.toString());
+            jobPayload.put("title", jobTitle != null ? jobTitle : "");
+            jobPayload.put("description", jobDescription != null ? jobDescription : "");
+            jobPayload.put("mandatory_skill_ids", mandatorySkillIds != null ? mandatorySkillIds : List.of());
+            jobPayload.put("optional_skill_ids", optionalSkillIds != null ? optionalSkillIds : List.of());
+
             Map<String, Object> requestBody = Map.of(
                 "student", Map.of(
                     "id", studentId.toString(),
-                    "skill_ids", studentSkills
+                    "skill_ids", studentSkills != null ? studentSkills : List.of()
                 ),
-                "jobs", List.of(Map.of(
-                    "id", jobId.toString(),
-                    "title", "",
-                    "mandatory_skill_ids", jobSkills,
-                    "optional_skill_ids", List.of()
-                ))
+                "jobs", List.of(jobPayload)
             );
 
             Map<String, Object> response = webClient.post()
@@ -85,12 +97,22 @@ public class AiServiceClient {
                 return normalizeRankingResponse(first);
             }
 
-            return fallbackMatchScore(studentSkills, jobSkills);
+            return fallbackMatchScore(studentSkills, mandatorySkillIds, optionalSkillIds);
         } catch (Exception ex) {
             log.error("Lỗi khi gọi AI Service tính toán độ phù hợp: {}", ex.getMessage());
-            // Fallback tính toán cơ bản theo tập hợp Jaccard tương đồng
-            return fallbackMatchScore(studentSkills, jobSkills);
+            // Fallback tính toán cơ bản theo quy tắc
+            return fallbackMatchScore(studentSkills, mandatorySkillIds, optionalSkillIds);
         }
+    }
+
+    /** Overload giữ tương thích ngược */
+    public Map<String, Object> calculateMatchScore(
+        UUID studentId,
+        UUID jobId,
+        List<String> studentSkills,
+        List<String> jobSkills
+    ) {
+        return calculateMatchScore(studentId, jobId, "", "", studentSkills, jobSkills, List.of());
     }
 
     private Map<String, Object> normalizeRankingResponse(Map<?, ?> ranking) {
@@ -118,14 +140,38 @@ public class AiServiceClient {
         return value != null ? value : defaultValue;
     }
 
-    private Map<String, Object> fallbackMatchScore(List<String> studentSkills, List<String> jobSkills) {
-        long matchCount = studentSkills.stream().filter(jobSkills::contains).count();
-        double score = jobSkills.isEmpty() ? 0.0 : (double) matchCount / jobSkills.size() * 100.0;
+    private Map<String, Object> fallbackMatchScore(
+        List<String> studentSkills,
+        List<String> mandatorySkillIds,
+        List<String> optionalSkillIds
+    ) {
+        List<String> safeStudent = studentSkills != null ? studentSkills : List.of();
+        List<String> safeMandatory = mandatorySkillIds != null ? mandatorySkillIds : List.of();
+        List<String> safeOptional = optionalSkillIds != null ? optionalSkillIds : List.of();
+
+        long mandatoryMatches = safeStudent.stream().filter(safeMandatory::contains).count();
+        long optionalMatches = safeStudent.stream().filter(safeOptional::contains).count();
+
+        double mandatoryRatio = safeMandatory.isEmpty() ? 1.0 : (double) mandatoryMatches / safeMandatory.size();
+        double optionalRatio = safeOptional.isEmpty() ? 1.0 : (double) optionalMatches / safeOptional.size();
+
+        double finalScore = (mandatoryRatio * 0.7 + optionalRatio * 0.3) * 100.0;
+
+        List<String> matched = new ArrayList<>();
+        safeStudent.stream().filter(s -> safeMandatory.contains(s) || safeOptional.contains(s)).forEach(matched::add);
+
+        List<String> missing = new ArrayList<>();
+        safeMandatory.stream().filter(s -> !safeStudent.contains(s)).forEach(missing::add);
+
         return Map.of(
-            "match_score", score,
-            "matched_skills", studentSkills.stream().filter(jobSkills::contains).toList(),
-            "missing_skills", jobSkills.stream().filter(s -> !studentSkills.contains(s)).toList(),
-            "explanation", Map.of("note", "Fallback Rule-Based Calculator")
+            "match_score", finalScore,
+            "matched_skills", matched,
+            "missing_skills", missing,
+            "explanation", Map.of(
+                "note", "Fallback Rule-Based Calculator (Mandatory 70% + Optional 30%)",
+                "mandatory_coverage", mandatoryRatio,
+                "optional_coverage", optionalRatio
+            )
         );
     }
 }

@@ -1,15 +1,21 @@
 package com.internlink.core.application.recruitment.impl;
 
 import com.internlink.core.application.recruitment.JobPositionService;
+import com.internlink.core.domain.ai_matching.SkillTaxonomy;
 import com.internlink.core.domain.auth.User;
 import com.internlink.core.domain.company.Company;
 import com.internlink.core.domain.organization.Department;
 import com.internlink.core.domain.organization.InternshipTerm;
 import com.internlink.core.domain.recruitment.JobPosition;
+import com.internlink.core.domain.recruitment.JobSkill;
+import com.internlink.core.domain.recruitment.JobSkillId;
 import com.internlink.core.infrastructure.persistence.jpa.*;
 import com.internlink.core.presentation.recruitment.dto.request.JobPositionRequest;
+import com.internlink.core.presentation.recruitment.dto.request.JobSkillRequest;
 import com.internlink.core.presentation.recruitment.dto.response.JobPositionResponse;
+import com.internlink.core.presentation.recruitment.dto.response.JobSkillResponse;
 import com.internlink.core.shared.enums.JobStatus;
+import com.internlink.core.shared.enums.RequirementType;
 import com.internlink.core.shared.enums.VerificationStatus;
 import com.internlink.core.shared.exception.BadRequestException;
 import com.internlink.core.shared.exception.ResourceNotFoundException;
@@ -17,7 +23,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -30,6 +38,8 @@ public class JobPositionServiceImpl implements JobPositionService {
     private final JpaInternshipTermRepository termRepository;
     private final JpaDepartmentRepository departmentRepository;
     private final JpaUserRepository userRepository;
+    private final JpaJobSkillRepository jobSkillRepository;
+    private final JpaSkillTaxonomyRepository taxonomyRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -91,7 +101,7 @@ public class JobPositionServiceImpl implements JobPositionService {
             throw new BadRequestException("Khoa thẩm định phải trùng với khoa quản lý kỳ thực tập");
         }
 
-        // Track COMPANY_REP nao tao vi tri (phuc vu kiem tra quyen ky thoa thuan)
+        // Track COMPANY_REP nào tạo vị trí (phục vụ kiểm tra quyền ký thỏa thuận)
         User createdBy = userRepository.findById(createdByUserId)
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", createdByUserId));
 
@@ -112,7 +122,10 @@ public class JobPositionServiceImpl implements JobPositionService {
             .createdBy(createdBy)
             .build();
 
-        return mapToResponse(jobPositionRepository.save(job));
+        JobPosition savedJob = jobPositionRepository.save(job);
+        saveJobSkills(savedJob, request);
+
+        return mapToResponse(savedJob);
     }
 
     @Override
@@ -135,7 +148,13 @@ public class JobPositionServiceImpl implements JobPositionService {
         job.setBenefits(request.getBenefits() != null ? request.getBenefits() : List.of());
         job.setStipendAmount(request.getStipendAmount());
 
-        return mapToResponse(jobPositionRepository.save(job));
+        JobPosition updatedJob = jobPositionRepository.save(job);
+
+        // Cập nhật lại kỹ năng yêu cầu
+        jobSkillRepository.deleteByIdJobId(id);
+        saveJobSkills(updatedJob, request);
+
+        return mapToResponse(updatedJob);
     }
 
     @Override
@@ -159,7 +178,90 @@ public class JobPositionServiceImpl implements JobPositionService {
         return mapToResponse(jobPositionRepository.save(job));
     }
 
+    private void saveJobSkills(JobPosition job, JobPositionRequest request) {
+        List<JobSkill> skillsToSave = new ArrayList<>();
+
+        // 1. Lưu từ danh sách skills chi tiết nếu có
+        if (request.getSkills() != null && !request.getSkills().isEmpty()) {
+            for (JobSkillRequest skillReq : request.getSkills()) {
+                if (skillReq.getSkillId() == null) continue;
+                taxonomyRepository.findById(skillReq.getSkillId()).ifPresent(taxonomy -> {
+                    JobSkill jobSkill = JobSkill.builder()
+                        .id(new JobSkillId(job.getId(), taxonomy.getId()))
+                        .job(job)
+                        .skill(taxonomy)
+                        .requirementType(skillReq.getRequirementType() != null ? skillReq.getRequirementType() : RequirementType.MANDATORY)
+                        .requiredLevel(skillReq.getRequiredLevel())
+                        .weight(skillReq.getWeight() != null ? skillReq.getWeight() : BigDecimal.ONE)
+                        .build();
+                    skillsToSave.add(jobSkill);
+                });
+            }
+        }
+
+        // 2. Lưu từ mandatorySkillIds nếu có
+        if (request.getMandatorySkillIds() != null && !request.getMandatorySkillIds().isEmpty()) {
+            for (String skillId : request.getMandatorySkillIds()) {
+                if (skillsToSave.stream().noneMatch(s -> s.getId().getSkillId().equals(skillId))) {
+                    taxonomyRepository.findById(skillId).ifPresent(taxonomy -> {
+                        JobSkill jobSkill = JobSkill.builder()
+                            .id(new JobSkillId(job.getId(), taxonomy.getId()))
+                            .job(job)
+                            .skill(taxonomy)
+                            .requirementType(RequirementType.MANDATORY)
+                            .weight(BigDecimal.ONE)
+                            .build();
+                        skillsToSave.add(jobSkill);
+                    });
+                }
+            }
+        }
+
+        // 3. Lưu từ optionalSkillIds nếu có
+        if (request.getOptionalSkillIds() != null && !request.getOptionalSkillIds().isEmpty()) {
+            for (String skillId : request.getOptionalSkillIds()) {
+                if (skillsToSave.stream().noneMatch(s -> s.getId().getSkillId().equals(skillId))) {
+                    taxonomyRepository.findById(skillId).ifPresent(taxonomy -> {
+                        JobSkill jobSkill = JobSkill.builder()
+                            .id(new JobSkillId(job.getId(), taxonomy.getId()))
+                            .job(job)
+                            .skill(taxonomy)
+                            .requirementType(RequirementType.OPTIONAL)
+                            .weight(BigDecimal.valueOf(0.5))
+                            .build();
+                        skillsToSave.add(jobSkill);
+                    });
+                }
+            }
+        }
+
+        if (!skillsToSave.isEmpty()) {
+            jobSkillRepository.saveAll(skillsToSave);
+        }
+    }
+
     private JobPositionResponse mapToResponse(JobPosition entity) {
+        List<JobSkill> jobSkills = jobSkillRepository.findByIdJobId(entity.getId());
+        List<JobSkillResponse> skillResponses = jobSkills.stream()
+            .map(js -> JobSkillResponse.builder()
+                .skillId(js.getSkill().getId())
+                .skillName(js.getSkill().getSkillName())
+                .requirementType(js.getRequirementType())
+                .requiredLevel(js.getRequiredLevel())
+                .weight(js.getWeight())
+                .build())
+            .toList();
+
+        List<String> mandatory = jobSkills.stream()
+            .filter(js -> js.getRequirementType() == RequirementType.MANDATORY)
+            .map(js -> js.getSkill().getId())
+            .toList();
+
+        List<String> optional = jobSkills.stream()
+            .filter(js -> js.getRequirementType() == RequirementType.OPTIONAL)
+            .map(js -> js.getSkill().getId())
+            .toList();
+
         return JobPositionResponse.builder()
             .id(entity.getId())
             .companyId(entity.getCompany().getId())
@@ -182,6 +284,9 @@ public class JobPositionServiceImpl implements JobPositionService {
             .approvedByUserId(entity.getApprovedBy() != null ? entity.getApprovedBy().getId() : null)
             .approvedAt(entity.getApprovedAt())
             .createdAt(entity.getCreatedAt())
+            .skills(skillResponses)
+            .mandatorySkillIds(mandatory)
+            .optionalSkillIds(optional)
             .build();
     }
 }

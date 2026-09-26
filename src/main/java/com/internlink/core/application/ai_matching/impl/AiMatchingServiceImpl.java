@@ -16,8 +16,10 @@ import com.internlink.core.presentation.ai_matching.dto.response.StudentSkillRes
 import com.internlink.core.shared.enums.AiRunStatus;
 import com.internlink.core.shared.enums.AiRunType;
 import com.internlink.core.shared.enums.JobStatus;
+import com.internlink.core.shared.enums.RequirementType;
 import com.internlink.core.shared.enums.SkillSource;
 import com.internlink.core.shared.exception.ResourceNotFoundException;
+import com.internlink.core.shared.security.SecurityGuard;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -39,6 +41,7 @@ public class AiMatchingServiceImpl implements AiMatchingService {
     private final JpaJobSkillRepository jobSkillRepository;
     private final JpaUserRepository userRepository;
     private final AiServiceClient aiServiceClient;
+    private final SecurityGuard securityGuard;
 
     @Override
     @Transactional(readOnly = true)
@@ -63,7 +66,7 @@ public class AiMatchingServiceImpl implements AiMatchingService {
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", studentId));
 
         // 1. Gọi sang AI Microservice để trích xuất kỹ năng
-        Map<String, Object> aiResult = aiServiceClient.extractSkillsFromCv(studentId, cvText);
+        Map<String, Object> aiResult = aiServiceClient.extractSkills(cvText);
 
         // 2. Ghi nhật ký chạy AI (ai_runs)
         AiRun run = AiRun.builder()
@@ -105,7 +108,10 @@ public class AiMatchingServiceImpl implements AiMatchingService {
             } else if (studentSkill.getConfidence() == null) {
                 studentSkill.setConfidence(BigDecimal.ONE);
             }
-            studentSkill.setIsConfirmed(true);
+
+            // HUMAN-IN-THE-LOOP: Kỹ năng do AI tự động trích xuất từ CV phải để ở trạng thái
+            // chưa xác nhận (isConfirmed = false) để sinh viên rà soát và xác nhận thủ công.
+            studentSkill.setIsConfirmed(false);
 
             skillsToSave.add(studentSkill);
         }
@@ -114,9 +120,17 @@ public class AiMatchingServiceImpl implements AiMatchingService {
         return saved.stream().map(this::mapStudentSkillToResponse).toList();
     }
 
+    /**
+     * Xác nhận hoặc từ chối kỹ năng của sinh viên (Human-in-the-loop).
+     * Được bảo vệ bởi SecurityGuard (Anti-IDOR) đảm bảo chỉ đúng sinh viên mới xác nhận kỹ năng của mình.
+     */
     @Override
     @Transactional
     public StudentSkillResponse confirmStudentSkill(UUID studentId, String skillId, Boolean confirmed) {
+        // Anti-IDOR: chỉ sinh viên sở hữu hoặc Admin mới có quyền xác nhận kỹ năng
+        UUID currentUserId = securityGuard.currentUser().getId();
+        securityGuard.requireSelf(currentUserId, studentId, "StudentSkill");
+
         StudentSkillId id = new StudentSkillId(studentId, skillId);
         StudentSkill skill = studentSkillRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("StudentSkill", "id", skillId));
@@ -125,22 +139,44 @@ public class AiMatchingServiceImpl implements AiMatchingService {
         return mapStudentSkillToResponse(studentSkillRepository.save(skill));
     }
 
+    /**
+     * Tính toán Match Score và Skill Gap giữa Sinh viên và Vị trí tuyển dụng.
+     * Cung cấp đầy đủ ngữ cảnh (tiêu đề, mô tả vị trí) và phân tách rõ ràng
+     * kỹ năng bắt buộc (MANDATORY) và mong muốn (OPTIONAL).
+     */
     @Override
     @Transactional(readOnly = true)
     public AiMatchScoreResponse calculateMatchScoreForJob(UUID studentId, UUID jobId) {
         JobPosition job = jobPositionRepository.findById(jobId)
             .orElseThrow(() -> new ResourceNotFoundException("JobPosition", "id", jobId));
 
-        // Lấy danh sách kỹ năng của sinh viên đã xác nhận
+        // Chỉ lấy danh sách kỹ năng của sinh viên đã được xác nhận (Human-in-the-loop)
         List<String> studentSkills = studentSkillRepository.findByIdStudentIdAndIsConfirmedTrue(studentId)
             .stream().map(ss -> ss.getSkill().getId()).toList();
 
-        // Lấy danh sách kỹ năng yêu cầu của Job
-        List<String> jobSkills = jobSkillRepository.findByIdJobId(jobId)
-            .stream().map(js -> js.getSkill().getId()).toList();
+        // Lấy danh sách kỹ năng yêu cầu của Job và phân tách MANDATORY / OPTIONAL
+        List<JobSkill> jobSkills = jobSkillRepository.findByIdJobId(jobId);
 
-        // Gọi AI Service tính Match Score
-        Map<String, Object> matchResult = aiServiceClient.calculateMatchScore(studentId, jobId, studentSkills, jobSkills);
+        List<String> mandatorySkillIds = jobSkills.stream()
+            .filter(js -> js.getRequirementType() == RequirementType.MANDATORY)
+            .map(js -> js.getSkill().getId())
+            .toList();
+
+        List<String> optionalSkillIds = jobSkills.stream()
+            .filter(js -> js.getRequirementType() == RequirementType.OPTIONAL)
+            .map(js -> js.getSkill().getId())
+            .toList();
+
+        // Gọi AI Service với đầy đủ ngữ cảnh (tiêu đề, mô tả, mandatory vs optional)
+        Map<String, Object> matchResult = aiServiceClient.calculateMatchScore(
+            studentId,
+            jobId,
+            job.getTitle(),
+            job.getDescription(),
+            studentSkills,
+            mandatorySkillIds,
+            optionalSkillIds
+        );
 
         BigDecimal score = extractScore(matchResult);
         List<String> matched = extractStringList(matchResult.get("matched_skills"));
@@ -218,34 +254,27 @@ public class AiMatchingServiceImpl implements AiMatchingService {
             try {
                 return new BigDecimal(text);
             } catch (NumberFormatException ignored) {
-                return BigDecimal.ZERO;
             }
         }
         return BigDecimal.ZERO;
     }
 
-    private List<String> extractStringList(Object value) {
-        if (!(value instanceof List<?> list)) {
-            return List.of();
+    @SuppressWarnings("unchecked")
+    private List<String> extractStringList(Object obj) {
+        if (obj instanceof List<?> list) {
+            return list.stream().map(Object::toString).toList();
         }
-        return list.stream()
-            .filter(Objects::nonNull)
-            .map(Object::toString)
-            .toList();
+        return List.of();
     }
 
-    private Map<String, Object> extractMap(Object value) {
-        if (!(value instanceof Map<?, ?> map)) {
-            return Map.of();
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> extractMap(Object obj) {
+        if (obj instanceof Map<?, ?> map) {
+            Map<String, Object> result = new HashMap<>();
+            map.forEach((k, v) -> result.put(String.valueOf(k), v));
+            return result;
         }
-
-        Map<String, Object> result = new HashMap<>();
-        map.forEach((key, mapValue) -> {
-            if (key != null) {
-                result.put(key.toString(), mapValue);
-            }
-        });
-        return result;
+        return Map.of();
     }
 
     private SkillTaxonomyResponse mapTaxonomyToResponse(SkillTaxonomy entity) {
@@ -261,15 +290,15 @@ public class AiMatchingServiceImpl implements AiMatchingService {
 
     private StudentSkillResponse mapStudentSkillToResponse(StudentSkill entity) {
         return StudentSkillResponse.builder()
-            .studentId(entity.getStudent().getId())
+            .studentId(entity.getId().getStudentId())
             .skillId(entity.getSkill().getId())
             .skillName(entity.getSkill().getSkillName())
             .category(entity.getSkill().getCategory())
-            .source(entity.getSource())
             .proficiencyLevel(entity.getProficiencyLevel())
+            .source(entity.getSource())
             .confidence(entity.getConfidence())
             .isConfirmed(entity.getIsConfirmed())
-            .evidenceDocumentId(entity.getEvidenceDocument() != null ? entity.getEvidenceDocument().getId() : null)
+            .createdAt(entity.getCreatedAt())
             .build();
     }
 }
