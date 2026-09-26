@@ -64,7 +64,8 @@ public class FinalResultServiceImpl implements FinalResultService {
         result.setMentorScore(mentor);
         result.setLecturerScore(lecturer);
         result.setComplianceScore(compliance);
-        result.setComponentBreakdown(request.getComponentBreakdown());
+        result.setComponentBreakdown(request.getComponentBreakdown() != null
+            ? request.getComponentBreakdown() : java.util.Map.of());
         result.setFinalScore(total);
         result.setResultStatus(request.getResultStatus());
         result.setDecidedBy(admin);

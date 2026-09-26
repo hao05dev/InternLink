@@ -4,6 +4,9 @@
 mo_ta_luan_van.txt
 internlink.sql
 /docs
+!/docs/
+/docs/**
+!/docs/MARKET_RESEARCH_AND_BUSINESS_PLAN.md
 # Operating System Files
 .DS_Store
 Thumbs.db

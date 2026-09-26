@@ -10,7 +10,7 @@ import java.util.UUID;
 public interface WeeklyLogbookService {
     List<WeeklyLogbookResponse> getLogbooksByPlacement(UUID placementId);
     WeeklyLogbookResponse getLogbookById(UUID id);
-    WeeklyLogbookResponse submitLogbook(WeeklyLogbookRequest request);
+    WeeklyLogbookResponse submitLogbook(UUID studentId, WeeklyLogbookRequest request);
     WeeklyLogbookResponse reviewByMentor(UUID id, UUID mentorUserId, LogbookStatus status, String mentorFeedback);
     WeeklyLogbookResponse commentByLecturer(UUID id, UUID lecturerUserId, String lecturerComment);
 }

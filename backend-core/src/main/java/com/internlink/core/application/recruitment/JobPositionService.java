@@ -13,7 +13,7 @@ public interface JobPositionService {
     List<JobPositionResponse> getJobsByTerm(UUID termId);
     List<JobPositionResponse> getApprovedJobs(UUID termId);
     JobPositionResponse getJobById(UUID id);
-    JobPositionResponse createJob(JobPositionRequest request);
+    JobPositionResponse createJob(JobPositionRequest request, UUID createdByUserId);
     JobPositionResponse updateJob(UUID id, JobPositionRequest request);
     JobPositionResponse reviewJob(UUID id, JobStatus status, String facultyFeedback, UUID approvedByUserId);
-}
+}

@@ -9,6 +9,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.time.Duration;
 
 @Slf4j
 @Component
@@ -37,6 +38,7 @@ public class AiServiceClient {
                 .bodyValue(requestBody)
                 .retrieve()
                 .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
+                .timeout(Duration.ofSeconds(10))
                 .blockOptional()
                 .orElse(Map.of("normalized_skills", List.of(), "status", "EMPTY_RESPONSE"));
         } catch (Exception ex) {
@@ -74,6 +76,7 @@ public class AiServiceClient {
                 .bodyValue(requestBody)
                 .retrieve()
                 .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
+                .timeout(Duration.ofSeconds(10))
                 .blockOptional()
                 .orElse(Map.of("rankings", List.of()));
 

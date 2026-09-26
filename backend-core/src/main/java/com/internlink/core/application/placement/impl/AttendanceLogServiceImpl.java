@@ -10,6 +10,8 @@ import com.internlink.core.infrastructure.persistence.jpa.JpaUserRepository;
 import com.internlink.core.presentation.placement.dto.request.AttendanceLogRequest;
 import com.internlink.core.presentation.placement.dto.response.AttendanceLogResponse;
 import com.internlink.core.shared.enums.AttendanceStatus;
+import com.internlink.core.shared.enums.PlacementStatus;
+import com.internlink.core.shared.enums.UserRole;
 import com.internlink.core.shared.exception.BadRequestException;
 import com.internlink.core.shared.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -50,9 +52,19 @@ public class AttendanceLogServiceImpl implements AttendanceLogService {
 
     @Override
     @Transactional
-    public AttendanceLogResponse checkIn(AttendanceLogRequest request) {
+    public AttendanceLogResponse checkIn(UUID studentId, AttendanceLogRequest request) {
         InternshipPlacement placement = placementRepository.findById(request.getPlacementId())
             .orElseThrow(() -> new ResourceNotFoundException("InternshipPlacement", "id", request.getPlacementId()));
+
+        if (!placement.getStudent().getId().equals(studentId)) {
+            throw new BadRequestException("Sinh viên không thuộc lần thực tập này");
+        }
+        if (placement.getStatus() != PlacementStatus.ACTIVE) {
+            throw new BadRequestException("Chỉ có thể chấm công khi lần thực tập đang ACTIVE");
+        }
+        if (attendanceRepository.findByPlacementIdAndWorkDate(request.getPlacementId(), request.getWorkDate()).isPresent()) {
+            throw new BadRequestException("Đã tồn tại phiên chấm công cho ngày này");
+        }
 
         AttendanceLog log = AttendanceLog.builder()
             .placement(placement)
@@ -68,15 +80,22 @@ public class AttendanceLogServiceImpl implements AttendanceLogService {
 
     @Override
     @Transactional
-    public AttendanceLogResponse checkOut(UUID id, Map<String, Object> checkOutLocation) {
+    public AttendanceLogResponse checkOut(UUID id, UUID studentId, Map<String, Object> checkOutLocation) {
         AttendanceLog log = attendanceRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("AttendanceLog", "id", id));
+
+        if (!log.getPlacement().getStudent().getId().equals(studentId)) {
+            throw new BadRequestException("Bạn không có quyền Check-out phiên chấm công này");
+        }
 
         if (log.getStatus() != AttendanceStatus.OPEN) {
             throw new BadRequestException("Phiên chấm công này đã được Check-out hoặc đã đóng");
         }
 
         OffsetDateTime checkOutTime = OffsetDateTime.now();
+        if (checkOutTime.isBefore(log.getCheckInAt())) {
+            throw new BadRequestException("Thời gian Check-out không thể trước thời gian Check-in");
+        }
         log.setCheckOutAt(checkOutTime);
         log.setCheckOutLocation(checkOutLocation != null ? checkOutLocation : Map.of());
 
@@ -98,6 +117,18 @@ public class AttendanceLogServiceImpl implements AttendanceLogService {
 
         User mentor = userRepository.findById(mentorUserId)
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", mentorUserId));
+
+        if (mentor.getRole() != UserRole.ADMIN
+            && !log.getPlacement().getMentor().getId().equals(mentorUserId)) {
+            throw new BadRequestException("Người dùng không phải Mentor của lần thực tập này");
+        }
+        if (log.getStatus() != AttendanceStatus.PENDING_CONFIRMATION) {
+            throw new BadRequestException("Chỉ có thể xác nhận phiên đang PENDING_CONFIRMATION");
+        }
+        if (status != AttendanceStatus.CONFIRMED && status != AttendanceStatus.REJECTED
+            && status != AttendanceStatus.DISPUTED) {
+            throw new BadRequestException("Trạng thái xác nhận chấm công không hợp lệ");
+        }
 
         log.setStatus(status);
         log.setConfirmedBy(mentor);

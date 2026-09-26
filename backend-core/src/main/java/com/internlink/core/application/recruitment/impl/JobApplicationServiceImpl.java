@@ -13,6 +13,8 @@ import com.internlink.core.presentation.recruitment.dto.request.JobApplicationRe
 import com.internlink.core.presentation.recruitment.dto.response.JobApplicationResponse;
 import com.internlink.core.shared.enums.ApplicationStatus;
 import com.internlink.core.shared.enums.JobStatus;
+import com.internlink.core.shared.enums.DocumentType;
+import com.internlink.core.shared.enums.UserRole;
 import com.internlink.core.shared.exception.BadRequestException;
 import com.internlink.core.shared.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -61,6 +63,10 @@ public class JobApplicationServiceImpl implements JobApplicationService {
         User student = userRepository.findById(studentId)
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", studentId));
 
+        if (student.getRole() != UserRole.STUDENT) {
+            throw new BadRequestException("Chỉ sinh viên mới có thể nộp hồ sơ ứng tuyển");
+        }
+
         JobPosition job = jobPositionRepository.findById(request.getJobId())
             .orElseThrow(() -> new ResourceNotFoundException("JobPosition", "id", request.getJobId()));
 
@@ -74,6 +80,10 @@ public class JobApplicationServiceImpl implements JobApplicationService {
 
         Document cvDoc = documentRepository.findById(request.getSubmittedCvDocumentId())
             .orElseThrow(() -> new ResourceNotFoundException("Document", "id", request.getSubmittedCvDocumentId()));
+
+        if (!cvDoc.getOwner().getId().equals(studentId) || cvDoc.getDocumentType() != DocumentType.CV) {
+            throw new BadRequestException("Tài liệu nộp kèm phải là CV thuộc sở hữu của sinh viên");
+        }
 
         JobApplication application = JobApplication.builder()
             .job(job)
@@ -93,8 +103,25 @@ public class JobApplicationServiceImpl implements JobApplicationService {
         JobApplication app = applicationRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("JobApplication", "id", id));
 
+        if (!isValidTransition(app.getStatus(), status)) {
+            throw new BadRequestException("Chuyển trạng thái hồ sơ không hợp lệ: " + app.getStatus() + " -> " + status);
+        }
+
         app.setStatus(status);
         return mapToResponse(applicationRepository.save(app));
+    }
+
+    private boolean isValidTransition(ApplicationStatus current, ApplicationStatus next) {
+        return switch (current) {
+            case SUBMITTED -> next == ApplicationStatus.REVIEWING || next == ApplicationStatus.REJECTED
+                || next == ApplicationStatus.WITHDRAWN;
+            case REVIEWING -> next == ApplicationStatus.INTERVIEWING || next == ApplicationStatus.OFFERED
+                || next == ApplicationStatus.REJECTED || next == ApplicationStatus.WITHDRAWN;
+            case INTERVIEWING -> next == ApplicationStatus.OFFERED || next == ApplicationStatus.REJECTED
+                || next == ApplicationStatus.WITHDRAWN;
+            case OFFERED -> next == ApplicationStatus.REJECTED || next == ApplicationStatus.WITHDRAWN;
+            case REJECTED, WITHDRAWN -> false;
+        };
     }
 
     private JobApplicationResponse mapToResponse(JobApplication entity) {

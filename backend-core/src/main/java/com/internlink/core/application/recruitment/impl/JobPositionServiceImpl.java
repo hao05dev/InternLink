@@ -73,7 +73,7 @@ public class JobPositionServiceImpl implements JobPositionService {
 
     @Override
     @Transactional
-    public JobPositionResponse createJob(JobPositionRequest request) {
+    public JobPositionResponse createJob(JobPositionRequest request, UUID createdByUserId) {
         Company company = companyRepository.findById(request.getCompanyId())
             .orElseThrow(() -> new ResourceNotFoundException("Company", "id", request.getCompanyId()));
 
@@ -86,6 +86,14 @@ public class JobPositionServiceImpl implements JobPositionService {
 
         Department department = departmentRepository.findById(request.getDepartmentId())
             .orElseThrow(() -> new ResourceNotFoundException("Department", "id", request.getDepartmentId()));
+
+        if (!term.getDepartment().getId().equals(department.getId())) {
+            throw new BadRequestException("Khoa thẩm định phải trùng với khoa quản lý kỳ thực tập");
+        }
+
+        // Track COMPANY_REP nao tao vi tri (phuc vu kiem tra quyen ky thoa thuan)
+        User createdBy = userRepository.findById(createdByUserId)
+            .orElseThrow(() -> new ResourceNotFoundException("User", "id", createdByUserId));
 
         JobPosition job = JobPosition.builder()
             .company(company)
@@ -100,7 +108,8 @@ public class JobPositionServiceImpl implements JobPositionService {
             .targetLearningOutcomes(request.getTargetLearningOutcomes() != null ? request.getTargetLearningOutcomes() : List.of())
             .benefits(request.getBenefits() != null ? request.getBenefits() : List.of())
             .stipendAmount(request.getStipendAmount())
-            .status(request.getStatus() != null ? request.getStatus() : JobStatus.DRAFT)
+            .status(JobStatus.DRAFT)
+            .createdBy(createdBy)
             .build();
 
         return mapToResponse(jobPositionRepository.save(job));
@@ -111,6 +120,10 @@ public class JobPositionServiceImpl implements JobPositionService {
     public JobPositionResponse updateJob(UUID id, JobPositionRequest request) {
         JobPosition job = jobPositionRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("JobPosition", "id", id));
+
+        if (job.getStatus() != JobStatus.DRAFT && job.getStatus() != JobStatus.REJECTED) {
+            throw new BadRequestException("Chỉ có thể chỉnh sửa vị trí ở trạng thái DRAFT hoặc REJECTED");
+        }
 
         job.setTitle(request.getTitle().trim());
         job.setWorkFormat(request.getWorkFormat());
@@ -130,6 +143,10 @@ public class JobPositionServiceImpl implements JobPositionService {
     public JobPositionResponse reviewJob(UUID id, JobStatus status, String facultyFeedback, UUID approvedByUserId) {
         JobPosition job = jobPositionRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("JobPosition", "id", id));
+
+        if (status != JobStatus.APPROVED && status != JobStatus.REJECTED) {
+            throw new BadRequestException("Kết quả thẩm định chỉ có thể là APPROVED hoặc REJECTED");
+        }
 
         User approver = userRepository.findById(approvedByUserId)
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", approvedByUserId));

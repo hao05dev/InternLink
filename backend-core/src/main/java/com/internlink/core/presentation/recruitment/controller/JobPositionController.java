@@ -57,9 +57,10 @@ public class JobPositionController {
     @PostMapping
     @PreAuthorize("hasAnyRole('COMPANY_REP', 'ADMIN')")
     public ResponseEntity<ApiResponse<JobPositionResponse>> createJob(
+        @AuthenticationPrincipal CustomUserDetail userDetail,
         @Valid @RequestBody JobPositionRequest request
     ) {
-        JobPositionResponse response = jobPositionService.createJob(request);
+        JobPositionResponse response = jobPositionService.createJob(request, userDetail.getId());
         return ResponseEntity.status(HttpStatus.CREATED)
             .body(ApiResponse.success("Đăng tin tuyển dụng thành công", response));
     }

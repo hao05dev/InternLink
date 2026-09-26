@@ -36,9 +36,10 @@ public class WeeklyLogbookController {
     @PostMapping
     @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<ApiResponse<WeeklyLogbookResponse>> submitLogbook(
+        @AuthenticationPrincipal CustomUserDetail userDetail,
         @Valid @RequestBody WeeklyLogbookRequest request
     ) {
-        WeeklyLogbookResponse response = logbookService.submitLogbook(request);
+        WeeklyLogbookResponse response = logbookService.submitLogbook(userDetail.getId(), request);
         return ResponseEntity.status(HttpStatus.CREATED)
             .body(ApiResponse.success("Nộp nhật ký thực tập tuần thành công", response));
     }

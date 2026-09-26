@@ -11,6 +11,6 @@ public interface PlacementTaskService {
     List<PlacementTaskResponse> getTasksByPlacement(UUID placementId);
     PlacementTaskResponse getTaskById(UUID id);
     PlacementTaskResponse createTask(UUID mentorId, PlacementTaskRequest request);
-    PlacementTaskResponse submitTask(UUID id, String submissionSummary);
-    PlacementTaskResponse reviewTask(UUID id, TaskStatus status, String mentorFeedback, Integer progressPercent);
+    PlacementTaskResponse submitTask(UUID id, UUID studentId, String submissionSummary);
+    PlacementTaskResponse reviewTask(UUID id, UUID reviewerId, TaskStatus status, String mentorFeedback, Integer progressPercent);
 }

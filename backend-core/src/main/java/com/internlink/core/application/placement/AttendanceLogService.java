@@ -11,7 +11,7 @@ import java.util.UUID;
 public interface AttendanceLogService {
     List<AttendanceLogResponse> getAttendanceByPlacement(UUID placementId);
     AttendanceLogResponse getAttendanceById(UUID id);
-    AttendanceLogResponse checkIn(AttendanceLogRequest request);
-    AttendanceLogResponse checkOut(UUID id, Map<String, Object> checkOutLocation);
+    AttendanceLogResponse checkIn(UUID studentId, AttendanceLogRequest request);
+    AttendanceLogResponse checkOut(UUID id, UUID studentId, Map<String, Object> checkOutLocation);
     AttendanceLogResponse confirmAttendance(UUID id, UUID mentorUserId, AttendanceStatus status);
 }
