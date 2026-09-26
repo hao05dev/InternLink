@@ -9,6 +9,7 @@ import com.internlink.core.infrastructure.persistence.jpa.JpaRubricEvaluationRep
 import com.internlink.core.infrastructure.persistence.jpa.JpaUserRepository;
 import com.internlink.core.presentation.evaluation.dto.request.RubricEvaluationRequest;
 import com.internlink.core.presentation.evaluation.dto.response.RubricEvaluationResponse;
+import com.internlink.core.shared.enums.UserRole;
 import com.internlink.core.shared.exception.BadRequestException;
 import com.internlink.core.shared.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -52,6 +53,22 @@ public class RubricEvaluationServiceImpl implements RubricEvaluationService {
         User evaluator = userRepository.findById(evaluatorId)
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", evaluatorId));
 
+        if (evaluator.getRole() != UserRole.COMPANY_MENTOR && evaluator.getRole() != UserRole.LECTURER) {
+            throw new BadRequestException("Chỉ Mentor doanh nghiệp hoặc Giảng viên được gửi đánh giá Rubric");
+        }
+        if (evaluator.getRole() == UserRole.COMPANY_MENTOR
+            && !placement.getMentor().getId().equals(evaluatorId)) {
+            throw new BadRequestException("Mentor không phụ trách lần thực tập này");
+        }
+        if (evaluator.getRole() == UserRole.LECTURER
+            && !placement.getLecturer().getId().equals(evaluatorId)) {
+            throw new BadRequestException("Giảng viên không phụ trách lần thực tập này");
+        }
+        String evaluationStatus = request.getStatus() != null ? request.getStatus().toUpperCase() : "SUBMITTED";
+        if (!evaluationStatus.equals("DRAFT") && !evaluationStatus.equals("SUBMITTED")) {
+            throw new BadRequestException("Trạng thái đánh giá chỉ có thể là DRAFT hoặc SUBMITTED");
+        }
+
         // Kiểm tra xem đã có đánh giá cho đợt, người chấm và giai đoạn này chưa
         RubricEvaluation evaluation = rubricRepository
             .findByPlacementIdAndEvaluatorIdAndEvaluationStage(request.getPlacementId(), evaluatorId, request.getEvaluationStage())
@@ -66,8 +83,8 @@ public class RubricEvaluationServiceImpl implements RubricEvaluationService {
         evaluation.setCriteriaScores(request.getCriteriaScores());
         evaluation.setFinalScore(request.getFinalScore());
         evaluation.setQualitativeFeedback(request.getQualitativeFeedback());
-        evaluation.setStatus(request.getStatus() != null ? request.getStatus() : "SUBMITTED");
-        evaluation.setSubmittedAt(OffsetDateTime.now());
+        evaluation.setStatus(evaluationStatus);
+        evaluation.setSubmittedAt(evaluationStatus.equals("SUBMITTED") ? OffsetDateTime.now() : null);
 
         return mapToResponse(rubricRepository.save(evaluation));
     }

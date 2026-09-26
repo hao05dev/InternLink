@@ -47,6 +47,13 @@ public class StudentProfileServiceImpl implements StudentProfileService {
         AcademicProgram program = academicProgramRepository.findById(request.getProgramId())
             .orElseThrow(() -> new ResourceNotFoundException("AcademicProgram", "id", request.getProgramId()));
 
+        String studentCode = request.getStudentCode().trim().toUpperCase();
+        studentProfileRepository.findByStudentCode(studentCode)
+            .filter(existing -> !existing.getUserId().equals(userId))
+            .ifPresent(existing -> {
+                throw new BadRequestException("Mã số sinh viên '" + studentCode + "' đã được sử dụng");
+            });
+
         StudentProfile profile = studentProfileRepository.findById(userId)
             .orElse(StudentProfile.builder()
                 .userId(userId)
@@ -54,7 +61,7 @@ public class StudentProfileServiceImpl implements StudentProfileService {
                 .build());
 
         profile.setProgram(program);
-        profile.setStudentCode(request.getStudentCode().trim().toUpperCase());
+        profile.setStudentCode(studentCode);
         profile.setGpa(request.getGpa());
         profile.setGithubUrl(request.getGithubUrl());
         profile.setBio(request.getBio());

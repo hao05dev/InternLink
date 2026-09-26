@@ -42,7 +42,7 @@ public class RubricEvaluationController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('COMPANY_MENTOR', 'LECTURER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('COMPANY_MENTOR', 'LECTURER')")
     public ResponseEntity<ApiResponse<RubricEvaluationResponse>> submitEvaluation(
         @AuthenticationPrincipal CustomUserDetail userDetail,
         @Valid @RequestBody RubricEvaluationRequest request

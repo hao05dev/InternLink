@@ -55,9 +55,10 @@ public class PlacementTaskController {
     @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<ApiResponse<PlacementTaskResponse>> submitTask(
         @PathVariable UUID id,
+        @AuthenticationPrincipal CustomUserDetail userDetail,
         @RequestBody String submissionSummary
     ) {
-        PlacementTaskResponse response = taskService.submitTask(id, submissionSummary);
+        PlacementTaskResponse response = taskService.submitTask(id, userDetail.getId(), submissionSummary);
         return ResponseEntity.ok(ApiResponse.success("Nộp báo cáo nhiệm vụ thành công", response));
     }
 
@@ -65,11 +66,12 @@ public class PlacementTaskController {
     @PreAuthorize("hasAnyRole('COMPANY_MENTOR', 'ADMIN')")
     public ResponseEntity<ApiResponse<PlacementTaskResponse>> reviewTask(
         @PathVariable UUID id,
+        @AuthenticationPrincipal CustomUserDetail userDetail,
         @RequestParam TaskStatus status,
         @RequestParam(required = false) String mentorFeedback,
         @RequestParam(required = false) Integer progressPercent
     ) {
-        PlacementTaskResponse response = taskService.reviewTask(id, status, mentorFeedback, progressPercent);
+        PlacementTaskResponse response = taskService.reviewTask(id, userDetail.getId(), status, mentorFeedback, progressPercent);
         return ResponseEntity.ok(ApiResponse.success("Đánh giá nhiệm vụ thành công", response));
     }
 }

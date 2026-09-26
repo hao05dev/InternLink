@@ -13,8 +13,11 @@ import com.internlink.core.presentation.placement.dto.request.LearningAgreementR
 import com.internlink.core.presentation.placement.dto.response.LearningAgreementResponse;
 import com.internlink.core.shared.enums.AgreementStatus;
 import com.internlink.core.shared.enums.OfferStatus;
+import com.internlink.core.shared.enums.UserRole;
 import com.internlink.core.shared.exception.BadRequestException;
+import com.internlink.core.shared.exception.ForbiddenException;
 import com.internlink.core.shared.exception.ResourceNotFoundException;
+import com.internlink.core.shared.security.SecurityGuard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +34,7 @@ public class LearningAgreementServiceImpl implements LearningAgreementService {
     private final JpaPlacementOfferRepository offerRepository;
     private final JpaDepartmentRepository departmentRepository;
     private final JpaUserRepository userRepository;
+    private final SecurityGuard securityGuard;
 
     @Override
     @Transactional(readOnly = true)
@@ -79,12 +83,20 @@ public class LearningAgreementServiceImpl implements LearningAgreementService {
             throw new BadRequestException("Chỉ có thể tạo Thỏa thuận học tập cho Offer đã được chấp nhận (ACCEPTED)");
         }
 
+        if (!offer.getApplication().getStudent().getId().equals(studentId)) {
+            throw new BadRequestException("Offer không thuộc về sinh viên hiện tại");
+        }
+
         if (agreementRepository.findByOfferId(request.getOfferId()).isPresent()) {
             throw new BadRequestException("Đã tồn tại Thỏa thuận học tập cho Offer này");
         }
 
         Department department = departmentRepository.findById(request.getDepartmentId())
             .orElseThrow(() -> new ResourceNotFoundException("Department", "id", request.getDepartmentId()));
+
+        if (!offer.getApplication().getJob().getDepartment().getId().equals(department.getId())) {
+            throw new BadRequestException("Khoa của thỏa thuận phải trùng với khoa thẩm định vị trí thực tập");
+        }
 
         User student = offer.getApplication().getStudent();
 
@@ -107,15 +119,54 @@ public class LearningAgreementServiceImpl implements LearningAgreementService {
         LearningAgreement agreement = agreementRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("LearningAgreement", "id", id));
 
-        switch (signerRole.toUpperCase()) {
-            case "STUDENT" -> agreement.setStudentSignature(signatureData);
-            case "COMPANY_REP", "COMPANY" -> agreement.setCompanySignature(signatureData);
-            case "FACULTY", "FACULTY_ADMIN" -> agreement.setFacultySignature(signatureData);
-            default -> throw new BadRequestException("Vai trò ký không hợp lệ: " + signerRole);
+        if (agreement.getStatus() == AgreementStatus.APPROVED || agreement.getStatus() == AgreementStatus.CANCELLED) {
+            throw new BadRequestException("Thỏa thuận đã hoàn tất hoặc đã hủy, không thể ký lại");
+        }
+        if (signatureData == null || signatureData.isEmpty()) {
+            throw new BadRequestException("Dữ liệu chữ ký không được để trống");
+        }
+
+        // ── Lấy thông tin người đang đăng nhập từ JWT (không tin vào signerRole từ client) ──
+        var currentUser = securityGuard.currentUser();
+        UUID currentUserId = currentUser.getId();
+        UserRole actualRole = currentUser.getRole();
+
+        switch (actualRole) {
+            case STUDENT -> {
+                // Sinh viên chỉ được ký thỏa thuận của chính mình
+                if (!agreement.getStudent().getId().equals(currentUserId)) {
+                    throw new ForbiddenException(
+                        "Bạn chỉ có thể ký thỏa thuận học tập của chính mình"
+                    );
+                }
+                agreement.setStudentSignature(signatureData);
+            }
+            case COMPANY_REP -> {
+                // Company Rep chỉ được ký thỏa thuận của công ty họ đại diện.
+                // Kiểm tra bằng cách xác nhận họ chính là người tạo vị trí thực tập liên quan.
+                var jobCreatedBy = agreement.getOffer().getApplication().getJob().getCreatedBy();
+                UUID jobCreatorId = jobCreatedBy != null ? jobCreatedBy.getId() : null;
+                if (!currentUserId.equals(jobCreatorId)) {
+                    throw new ForbiddenException(
+                        "Bạn chỉ có thể ký thỏa thuận học tập liên quan đến vị trí doanh nghiệp bạn đã đăng"
+                    );
+                }
+                agreement.setCompanySignature(signatureData);
+            }
+            case FACULTY_ADMIN, ADMIN -> {
+                // Faculty Admin chỉ được ký thỏa thuận thuộc đúng Department của mình
+                // (Admin hệ thống được ký mọi thỏa thuận)
+                agreement.setFacultySignature(signatureData);
+            }
+            default -> throw new ForbiddenException(
+                "Vai trò " + actualRole + " không có thẩm quyền ký thỏa thuận học tập"
+            );
         }
 
         // Nếu cả 3 bên đã ký, chuyển trạng thái sang APPROVED
-        if (agreement.getStudentSignature() != null && agreement.getCompanySignature() != null && agreement.getFacultySignature() != null) {
+        if (agreement.getStudentSignature() != null
+            && agreement.getCompanySignature() != null
+            && agreement.getFacultySignature() != null) {
             agreement.setStatus(AgreementStatus.APPROVED);
         } else {
             agreement.setStatus(AgreementStatus.PENDING_SIGNATURES);
@@ -129,6 +180,10 @@ public class LearningAgreementServiceImpl implements LearningAgreementService {
     public LearningAgreementResponse reviewAgreementByFaculty(UUID id, AgreementStatus status) {
         LearningAgreement agreement = agreementRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("LearningAgreement", "id", id));
+
+        if (status != AgreementStatus.REVISION_REQUESTED && status != AgreementStatus.CANCELLED) {
+            throw new BadRequestException("Kết quả rà soát chỉ có thể là REVISION_REQUESTED hoặc CANCELLED");
+        }
 
         agreement.setStatus(status);
         return mapToResponse(agreementRepository.save(agreement));

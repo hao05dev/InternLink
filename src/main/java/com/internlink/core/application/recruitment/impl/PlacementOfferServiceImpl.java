@@ -13,6 +13,7 @@ import com.internlink.core.shared.enums.ApplicationStatus;
 import com.internlink.core.shared.enums.OfferStatus;
 import com.internlink.core.shared.exception.BadRequestException;
 import com.internlink.core.shared.exception.ResourceNotFoundException;
+import com.internlink.core.shared.security.SecurityGuard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +28,7 @@ public class PlacementOfferServiceImpl implements PlacementOfferService {
     private final JpaPlacementOfferRepository offerRepository;
     private final JpaJobApplicationRepository applicationRepository;
     private final JpaUserRepository userRepository;
+    private final SecurityGuard securityGuard;
 
     @Override
     @Transactional(readOnly = true)
@@ -54,6 +56,19 @@ public class PlacementOfferServiceImpl implements PlacementOfferService {
             throw new BadRequestException("Đã phát hành Offer cho đơn ứng tuyển này rồi");
         }
 
+        if (application.getStatus() != ApplicationStatus.REVIEWING
+            && application.getStatus() != ApplicationStatus.INTERVIEWING) {
+            throw new BadRequestException("Chỉ có thể phát hành Offer cho hồ sơ đang được xem xét hoặc phỏng vấn");
+        }
+
+        if (request.getStartDate().isAfter(request.getEndDate())) {
+            throw new BadRequestException("Ngày bắt đầu Offer phải trước hoặc bằng ngày kết thúc");
+        }
+
+        if (!request.getExpiresAt().isAfter(OffsetDateTime.now())) {
+            throw new BadRequestException("Thời hạn phản hồi Offer phải ở tương lai");
+        }
+
         User mentor = null;
         if (request.getProposedMentorId() != null) {
             mentor = userRepository.findById(request.getProposedMentorId())
@@ -79,13 +94,24 @@ public class PlacementOfferServiceImpl implements PlacementOfferService {
     }
 
     @Override
-    @Transactional
+    @Transactional(noRollbackFor = BadRequestException.class)
     public PlacementOfferResponse respondToOffer(UUID id, OfferStatus status) {
+        // ── Bước 1: Xác minh người đang đăng nhập là sinh viên chủ của offer ──
+        UUID currentUserId = securityGuard.currentUser().getId();
+
         PlacementOffer offer = offerRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("PlacementOffer", "id", id));
 
+        UUID offerOwnerStudentId = offer.getApplication().getStudent().getId();
+        securityGuard.requireSelf(currentUserId, offerOwnerStudentId,
+            "Offer #" + id + " — chỉ sinh viên nhận offer mới được phản hồi");
+
         if (offer.getStatus() != OfferStatus.SENT) {
             throw new BadRequestException("Offer này đã được phản hồi hoặc không còn hiệu lực");
+        }
+
+        if (status != OfferStatus.ACCEPTED && status != OfferStatus.DECLINED) {
+            throw new BadRequestException("Sinh viên chỉ có thể ACCEPTED hoặc DECLINED Offer");
         }
 
         if (OffsetDateTime.now().isAfter(offer.getExpiresAt())) {
@@ -96,6 +122,11 @@ public class PlacementOfferServiceImpl implements PlacementOfferService {
 
         offer.setStatus(status);
         offer.setRespondedAt(OffsetDateTime.now());
+
+        if (status == OfferStatus.DECLINED) {
+            offer.getApplication().setStatus(ApplicationStatus.REJECTED);
+            applicationRepository.save(offer.getApplication());
+        }
 
         return mapToResponse(offerRepository.save(offer));
     }

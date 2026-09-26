@@ -10,6 +10,8 @@ import com.internlink.core.infrastructure.persistence.jpa.JpaWeeklyLogbookReposi
 import com.internlink.core.presentation.placement.dto.request.WeeklyLogbookRequest;
 import com.internlink.core.presentation.placement.dto.response.WeeklyLogbookResponse;
 import com.internlink.core.shared.enums.LogbookStatus;
+import com.internlink.core.shared.enums.PlacementStatus;
+import com.internlink.core.shared.enums.UserRole;
 import com.internlink.core.shared.exception.BadRequestException;
 import com.internlink.core.shared.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -46,9 +48,22 @@ public class WeeklyLogbookServiceImpl implements WeeklyLogbookService {
 
     @Override
     @Transactional
-    public WeeklyLogbookResponse submitLogbook(WeeklyLogbookRequest request) {
+    public WeeklyLogbookResponse submitLogbook(UUID studentId, WeeklyLogbookRequest request) {
         InternshipPlacement placement = placementRepository.findById(request.getPlacementId())
             .orElseThrow(() -> new ResourceNotFoundException("InternshipPlacement", "id", request.getPlacementId()));
+
+        if (!placement.getStudent().getId().equals(studentId)) {
+            throw new BadRequestException("Sinh viên không thuộc lần thực tập này");
+        }
+        if (placement.getStatus() != PlacementStatus.ACTIVE) {
+            throw new BadRequestException("Chỉ có thể nộp nhật ký khi lần thực tập đang ACTIVE");
+        }
+        if (request.getPeriodStart().isAfter(request.getPeriodEnd())) {
+            throw new BadRequestException("Ngày bắt đầu tuần phải trước hoặc bằng ngày kết thúc tuần");
+        }
+        if (request.getTotalHours().signum() < 0) {
+            throw new BadRequestException("Tổng số giờ không thể âm");
+        }
 
         if (logbookRepository.existsByPlacementIdAndWeekNumber(request.getPlacementId(), request.getWeekNumber())) {
             throw new BadRequestException("Nhật ký cho tuần " + request.getWeekNumber() + " đã tồn tại trong đợt thực tập này");
@@ -78,6 +93,16 @@ public class WeeklyLogbookServiceImpl implements WeeklyLogbookService {
         User mentor = userRepository.findById(mentorUserId)
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", mentorUserId));
 
+        if (mentor.getRole() != UserRole.ADMIN && !logbook.getPlacement().getMentor().getId().equals(mentorUserId)) {
+            throw new BadRequestException("Người dùng không phải Mentor của lần thực tập này");
+        }
+        if (logbook.getStatus() != LogbookStatus.SUBMITTED) {
+            throw new BadRequestException("Chỉ có thể đánh giá nhật ký đang SUBMITTED");
+        }
+        if (status != LogbookStatus.APPROVED_BY_MENTOR && status != LogbookStatus.REVISION_REQUESTED) {
+            throw new BadRequestException("Kết quả đánh giá không hợp lệ");
+        }
+
         logbook.setStatus(status);
         logbook.setMentorFeedback(mentorFeedback != null ? mentorFeedback.trim() : null);
         logbook.setMentorReviewedBy(mentor);
@@ -94,6 +119,11 @@ public class WeeklyLogbookServiceImpl implements WeeklyLogbookService {
 
         User lecturer = userRepository.findById(lecturerUserId)
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", lecturerUserId));
+
+        if (lecturer.getRole() != UserRole.ADMIN
+            && !logbook.getPlacement().getLecturer().getId().equals(lecturerUserId)) {
+            throw new BadRequestException("Người dùng không phải Giảng viên phụ trách lần thực tập này");
+        }
 
         logbook.setLecturerComment(lecturerComment != null ? lecturerComment.trim() : null);
         logbook.setLecturerCommentedBy(lecturer);

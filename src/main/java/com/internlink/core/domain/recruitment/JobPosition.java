@@ -87,4 +87,10 @@ public class JobPosition extends BaseEntity {
 
     @Column(name = "approved_at")
     private OffsetDateTime approvedAt;
+
+    /** User tạo vị trí thực tập (COMPANY_REP). Dùng để kiểm tra quyền ký thỏa thuận. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by_user_id")
+    private User createdBy;
 }
+

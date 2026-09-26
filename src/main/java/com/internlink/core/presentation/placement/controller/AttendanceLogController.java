@@ -37,9 +37,10 @@ public class AttendanceLogController {
     @PostMapping("/check-in")
     @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<ApiResponse<AttendanceLogResponse>> checkIn(
+        @AuthenticationPrincipal CustomUserDetail userDetail,
         @Valid @RequestBody AttendanceLogRequest request
     ) {
-        AttendanceLogResponse response = attendanceService.checkIn(request);
+        AttendanceLogResponse response = attendanceService.checkIn(userDetail.getId(), request);
         return ResponseEntity.status(HttpStatus.CREATED)
             .body(ApiResponse.success("Check-in chấm công thành công", response));
     }
@@ -48,9 +49,10 @@ public class AttendanceLogController {
     @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<ApiResponse<AttendanceLogResponse>> checkOut(
         @PathVariable UUID id,
+        @AuthenticationPrincipal CustomUserDetail userDetail,
         @RequestBody(required = false) Map<String, Object> checkOutLocation
     ) {
-        AttendanceLogResponse response = attendanceService.checkOut(id, checkOutLocation);
+        AttendanceLogResponse response = attendanceService.checkOut(id, userDetail.getId(), checkOutLocation);
         return ResponseEntity.ok(ApiResponse.success("Check-out chấm công thành công", response));
     }
 

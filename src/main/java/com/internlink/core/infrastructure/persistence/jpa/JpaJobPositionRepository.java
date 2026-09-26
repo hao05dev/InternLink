@@ -15,4 +15,5 @@ public interface JpaJobPositionRepository extends JpaRepository<JobPosition, UUI
     List<JobPosition> findByTermId(UUID termId);
     List<JobPosition> findByTermIdAndStatus(UUID termId, JobStatus status);
     List<JobPosition> findByDepartmentIdAndStatus(UUID departmentId, JobStatus status);
+    boolean existsByCompanyId(UUID companyId);
 }

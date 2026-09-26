@@ -46,6 +46,11 @@ public class StudentRosterServiceImpl implements StudentRosterService {
             AcademicProgram program = programRepository.findById(item.getProgramId())
                 .orElseThrow(() -> new ResourceNotFoundException("AcademicProgram", "id", item.getProgramId()));
 
+            if (!program.getDepartment().getId().equals(term.getDepartment().getId())) {
+                throw new com.internlink.core.shared.exception.BadRequestException(
+                    "Ngành học không thuộc khoa quản lý kỳ thực tập");
+            }
+
             // Nếu đã tồn tại trong kỳ thì cập nhật, nếu chưa thì tạo mới
             StudentRoster roster = rosterRepository
                 .findByTermIdAndStudentCode(termId, item.getStudentCode().trim().toUpperCase())
