@@ -27,9 +27,23 @@ public class FinalResultResponse {
     private BigDecimal complianceScore;
     private Map<String, Object> componentBreakdown;
     private BigDecimal finalScore;
+
+    /** Điểm hệ 4 theo Quy chế đào tạo Đại học Cần Thơ (CTU) */
+    private BigDecimal scoreScale4;
+
+    /** Điểm chữ theo Quy chế đào tạo CTU (A, B+, B, C+, C, D+, D, F) */
+    private String letterGrade;
+
+    /** Xếp loại kết quả (Xuất sắc, Giỏi, Khá, Trung bình, Kém) */
+    private String classification;
+
     private ResultStatus resultStatus;
     private UUID decidedByUserId;
     private String decidedByName;
+
+    /** Cờ đánh dấu điểm đã được công bố chính thức cho sinh viên xem */
+    private Boolean isPublished;
+
     private OffsetDateTime publishedAt;
     private OffsetDateTime finalizedAt;
     private OffsetDateTime createdAt;

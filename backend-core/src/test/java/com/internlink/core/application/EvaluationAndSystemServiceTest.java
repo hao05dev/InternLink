@@ -66,7 +66,7 @@ class EvaluationAndSystemServiceTest {
     void setUp() {
         rubricService = new RubricEvaluationServiceImpl(rubricRepository, placementRepository, userRepository);
         finalResultService = new FinalResultServiceImpl(finalResultRepository, placementRepository,
-            userRepository, studentProfileRepository);
+            userRepository, studentProfileRepository, rubricRepository, securityGuard);
         profileService = new StudentProfileServiceImpl(studentProfileRepository, userRepository, programRepository);
         notificationService = new NotificationServiceImpl(notificationRepository, userRepository);
         documentService = new DocumentServiceImpl(documentRepository, userRepository, securityGuard, storageServiceRouter);
@@ -112,10 +112,13 @@ class EvaluationAndSystemServiceTest {
         when(studentProfileRepository.findById(placement.getStudent().getId())).thenReturn(Optional.empty());
         FinalResultRequest request = FinalResultRequest.builder().placementId(placement.getId())
             .mentorScore(new BigDecimal("8")).lecturerScore(new BigDecimal("7"))
-            .complianceScore(new BigDecimal("10")).resultStatus(ResultStatus.PASSED).build();
+            .complianceScore(new BigDecimal("10")).resultStatus(ResultStatus.PASSED)
+            .publishImmediately(true).build();
 
-        assertThat(finalResultService.calculateAndFinalizeResult(admin.getId(), request).getFinalScore())
-            .isEqualByComparingTo("8.00");
+        var response = finalResultService.calculateAndFinalizeResult(admin.getId(), request);
+        assertThat(response.getFinalScore()).isEqualByComparingTo("8.00");
+        assertThat(response.getScoreScale4()).isEqualByComparingTo("3.5");
+        assertThat(response.getLetterGrade()).isEqualTo("B+");
         assertThat(placement.getStatus()).isEqualTo(PlacementStatus.COMPLETED);
     }
 
