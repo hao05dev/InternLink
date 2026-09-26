@@ -1,6 +1,8 @@
 package com.internlink.core.application.placement.impl;
 
 import com.internlink.core.application.placement.InternshipPlacementService;
+import com.internlink.core.application.system.AuditLogService;
+import com.internlink.core.application.system.NotificationService;
 import com.internlink.core.domain.auth.User;
 import com.internlink.core.domain.placement.InternshipPlacement;
 import com.internlink.core.domain.placement.LearningAgreement;
@@ -12,6 +14,7 @@ import com.internlink.core.shared.enums.PlacementStatus;
 import com.internlink.core.shared.exception.BadRequestException;
 import com.internlink.core.shared.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +24,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class InternshipPlacementServiceImpl implements InternshipPlacementService {
@@ -30,19 +34,10 @@ public class InternshipPlacementServiceImpl implements InternshipPlacementServic
     private final JpaUserRepository userRepository;
     private final JpaStudentProfileRepository studentProfileRepository;
     private final JpaFinalResultRepository finalResultRepository;
+    private final AuditLogService auditLogService;
+    private final NotificationService notificationService;
 
     // ── State Machine: chuyển trạng thái hợp lệ cho Placement ───────────────
-    //
-    //   PREPARING → ACTIVE → PAUSED → ACTIVE (được phép đảo lại)
-    //   ACTIVE    → COMPLETED | TERMINATED | TRANSFERRED
-    //   PAUSED    → TERMINATED | TRANSFERRED
-    //
-    // Sơ đồ:
-    //   PREPARING ──► ACTIVE ──► COMPLETED
-    //                   │ ▲         (cuối)
-    //                   │ │
-    //                 PAUSED ──► TERMINATED | TRANSFERRED
-    //                              (cuối)
     private static final Map<PlacementStatus, Set<PlacementStatus>> VALID_TRANSITIONS = Map.of(
         PlacementStatus.PREPARING,    Set.of(PlacementStatus.ACTIVE),
         PlacementStatus.ACTIVE,       Set.of(PlacementStatus.PAUSED,
@@ -133,19 +128,41 @@ public class InternshipPlacementServiceImpl implements InternshipPlacementServic
             .workSchedule(Map.of())
             .build();
 
-        return mapToResponse(placementRepository.save(placement));
+        InternshipPlacement saved = placementRepository.save(placement);
+
+        // ── Hooks: AuditLog & Notification ────────────────────────────────
+        auditLogService.logAction(
+            lecturerId,
+            "ACTIVATE_PLACEMENT",
+            "InternshipPlacement",
+            saved.getId(),
+            "SUCCESS",
+            Map.of("agreementId", agreementId, "mentorId", mentor.getId(), "studentId", agreement.getStudent().getId()),
+            null
+        );
+
+        UUID studentId = agreement.getStudent().getId();
+        notificationService.sendNotification(
+            studentId,
+            "PLACEMENT_ACTIVATED",
+            "Đợt thực tập đã được kích hoạt",
+            "Đợt thực tập của bạn tại " + agreement.getCompany().getCompanyName() + " đã được tạo. Trạng thái: Chuẩn bị (PREPARING).",
+            "/placements/" + saved.getId()
+        );
+
+        notificationService.sendNotification(
+            mentor.getId(),
+            "MENTOR_ASSIGNED",
+            "Phân công hướng dẫn thực tập",
+            "Bạn được phân công làm Mentor hướng dẫn sinh viên " + agreement.getStudent().getFullName(),
+            "/placements/" + saved.getId()
+        );
+
+        return mapToResponse(saved);
     }
 
     /**
      * Chuyển trạng thái placement theo State Machine có kiểm soát.
-     *
-     * <p>Điều kiện tiên quyết theo từng bước đích:
-     * <ul>
-     *   <li>COMPLETED: placement phải có FinalResult được công bố</li>
-     *   <li>TERMINATED: cho phép tự do (do sự cố, chấm dứt sớm)</li>
-     *   <li>TRANSFERRED: cho phép tự do (chuyển đơn vị)</li>
-     * </ul>
-     * </p>
      */
     @Override
     @Transactional
@@ -178,7 +195,28 @@ public class InternshipPlacementServiceImpl implements InternshipPlacementServic
         }
 
         placement.setStatus(newStatus);
-        return mapToResponse(placementRepository.save(placement));
+        InternshipPlacement saved = placementRepository.save(placement);
+
+        // ── Hooks: AuditLog & Notification ────────────────────────────────
+        auditLogService.logAction(
+            null,
+            "UPDATE_PLACEMENT_STATUS_" + newStatus.name(),
+            "InternshipPlacement",
+            saved.getId(),
+            "SUCCESS",
+            Map.of("previousStatus", currentStatus.name(), "newStatus", newStatus.name()),
+            null
+        );
+
+        notificationService.sendNotification(
+            placement.getStudent().getId(),
+            "PLACEMENT_STATUS_CHANGED",
+            "Trạng thái thực tập cập nhật",
+            "Đợt thực tập của bạn đã chuyển sang trạng thái: " + newStatus.name(),
+            "/placements/" + saved.getId()
+        );
+
+        return mapToResponse(saved);
     }
 
     private InternshipPlacementResponse mapToResponse(InternshipPlacement entity) {

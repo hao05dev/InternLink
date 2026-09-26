@@ -22,6 +22,8 @@ import com.internlink.core.presentation.company.dto.request.CompanyRequest;
 import com.internlink.core.presentation.exception_case.dto.request.InternshipCaseRequest;
 import com.internlink.core.presentation.organization.dto.request.*;
 import com.internlink.core.shared.enums.*;
+import com.internlink.core.application.system.AuditLogService;
+import com.internlink.core.application.system.NotificationService;
 import com.internlink.core.shared.exception.BadRequestException;
 import com.internlink.core.shared.exception.UnauthorizedException;
 import jakarta.servlet.http.HttpServletResponse;
@@ -62,6 +64,8 @@ class CoreServicesTest {
     @Mock JpaInternshipCaseRepository caseRepository;
     @Mock JpaAuditLogRepository auditRepository;
     @Mock JpaFinalResultRepository finalResultRepository;
+    @Mock AuditLogService auditLogService;
+    @Mock NotificationService notificationService;
     @Mock AuthenticationManager authenticationManager;
     @Mock JwtUtil jwtUtil;
     @Mock CookieUtils cookieUtils;
@@ -145,7 +149,7 @@ class CoreServicesTest {
     @Test
     void placementActivationRequiresApprovedAgreement() {
         InternshipPlacementServiceImpl service = new InternshipPlacementServiceImpl(
-            placementRepository, agreementRepository, userRepository, profileRepository, finalResultRepository);
+            placementRepository, agreementRepository, userRepository, profileRepository, finalResultRepository, auditLogService, notificationService);
         LearningAgreement agreement = LearningAgreement.builder().status(AgreementStatus.DRAFT).build();
         agreement.setId(UUID.randomUUID());
         when(agreementRepository.findById(agreement.getId())).thenReturn(Optional.of(agreement));

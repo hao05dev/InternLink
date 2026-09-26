@@ -1,6 +1,8 @@
 package com.internlink.core.application.placement.impl;
 
 import com.internlink.core.application.placement.LearningAgreementService;
+import com.internlink.core.application.system.AuditLogService;
+import com.internlink.core.application.system.NotificationService;
 import com.internlink.core.domain.auth.User;
 import com.internlink.core.domain.organization.Department;
 import com.internlink.core.domain.placement.LearningAgreement;
@@ -19,6 +21,7 @@ import com.internlink.core.shared.exception.ForbiddenException;
 import com.internlink.core.shared.exception.ResourceNotFoundException;
 import com.internlink.core.shared.security.SecurityGuard;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class LearningAgreementServiceImpl implements LearningAgreementService {
@@ -35,6 +39,8 @@ public class LearningAgreementServiceImpl implements LearningAgreementService {
     private final JpaDepartmentRepository departmentRepository;
     private final JpaUserRepository userRepository;
     private final SecurityGuard securityGuard;
+    private final AuditLogService auditLogService;
+    private final NotificationService notificationService;
 
     @Override
     @Transactional(readOnly = true)
@@ -54,19 +60,6 @@ public class LearningAgreementServiceImpl implements LearningAgreementService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<LearningAgreementResponse> getAgreementsByDepartment(UUID departmentId, AgreementStatus status) {
-        if (status != null) {
-            return agreementRepository.findByDepartmentIdAndStatus(departmentId, status).stream()
-                .map(this::mapToResponse)
-                .toList();
-        }
-        return agreementRepository.findByDepartmentId(departmentId).stream()
-            .map(this::mapToResponse)
-            .toList();
-    }
-
-    @Override
-    @Transactional(readOnly = true)
     public List<LearningAgreementResponse> getAgreementsByStudent(UUID studentId) {
         return agreementRepository.findByStudentId(studentId).stream()
             .map(this::mapToResponse)
@@ -74,8 +67,24 @@ public class LearningAgreementServiceImpl implements LearningAgreementService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<LearningAgreementResponse> getAgreementsByDepartment(UUID departmentId) {
+        return agreementRepository.findByDepartmentId(departmentId).stream()
+            .map(this::mapToResponse)
+            .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<LearningAgreementResponse> getAgreementsByStatus(AgreementStatus status) {
+        return agreementRepository.findByStatus(status).stream()
+            .map(this::mapToResponse)
+            .toList();
+    }
+
+    @Override
     @Transactional
-    public LearningAgreementResponse createAgreement(UUID studentId, LearningAgreementRequest request) {
+    public LearningAgreementResponse createAgreementFromOffer(UUID studentId, LearningAgreementRequest request) {
         PlacementOffer offer = offerRepository.findById(request.getOfferId())
             .orElseThrow(() -> new ResourceNotFoundException("PlacementOffer", "id", request.getOfferId()));
 
@@ -110,7 +119,28 @@ public class LearningAgreementServiceImpl implements LearningAgreementService {
             .status(AgreementStatus.DRAFT)
             .build();
 
-        return mapToResponse(agreementRepository.save(agreement));
+        LearningAgreement saved = agreementRepository.save(agreement);
+
+        // ── Hooks: AuditLog & Notification ────────────────────────────────
+        auditLogService.logAction(
+            studentId,
+            "CREATE_AGREEMENT",
+            "LearningAgreement",
+            saved.getId(),
+            "SUCCESS",
+            Map.of("offerId", request.getOfferId()),
+            null
+        );
+
+        notificationService.sendNotification(
+            studentId,
+            "AGREEMENT_CREATED",
+            "Thỏa thuận học tập đã khởi tạo",
+            "Thỏa thuận học tập 3 bên đã được tạo. Vui lòng ký số để hoàn tất.",
+            "/agreements/" + saved.getId()
+        );
+
+        return mapToResponse(saved);
     }
 
     @Override
@@ -164,15 +194,52 @@ public class LearningAgreementServiceImpl implements LearningAgreementService {
         }
 
         // Nếu cả 3 bên đã ký, chuyển trạng thái sang APPROVED
-        if (agreement.getStudentSignature() != null
+        boolean fullySigned = agreement.getStudentSignature() != null
             && agreement.getCompanySignature() != null
-            && agreement.getFacultySignature() != null) {
+            && agreement.getFacultySignature() != null;
+
+        if (fullySigned) {
             agreement.setStatus(AgreementStatus.APPROVED);
         } else {
             agreement.setStatus(AgreementStatus.PENDING_SIGNATURES);
         }
 
-        return mapToResponse(agreementRepository.save(agreement));
+        LearningAgreement saved = agreementRepository.save(agreement);
+
+        // ── Hooks: AuditLog & Notification ────────────────────────────────
+        auditLogService.logAction(
+            currentUserId,
+            "SIGN_AGREEMENT_" + actualRole.name(),
+            "LearningAgreement",
+            saved.getId(),
+            "SUCCESS",
+            Map.of("status", saved.getStatus().name()),
+            null
+        );
+
+        if (fullySigned) {
+            UUID studentId = agreement.getStudent().getId();
+            notificationService.sendNotification(
+                studentId,
+                "AGREEMENT_APPROVED",
+                "Thỏa thuận học tập đã được duyệt",
+                "Thỏa thuận 3 bên của bạn đã hoàn tất chữ ký và được phê duyệt chính thức.",
+                "/agreements/" + saved.getId()
+            );
+
+            var jobCreatedBy = agreement.getOffer().getApplication().getJob().getCreatedBy();
+            if (jobCreatedBy != null) {
+                notificationService.sendNotification(
+                    jobCreatedBy.getId(),
+                    "AGREEMENT_APPROVED",
+                    "Thỏa thuận học tập đã hoàn tất",
+                    "Thỏa thuận 3 bên với sinh viên " + agreement.getStudent().getFullName() + " đã hoàn tất chữ ký.",
+                    "/agreements/" + saved.getId()
+                );
+            }
+        }
+
+        return mapToResponse(saved);
     }
 
     @Override
@@ -186,7 +253,31 @@ public class LearningAgreementServiceImpl implements LearningAgreementService {
         }
 
         agreement.setStatus(status);
-        return mapToResponse(agreementRepository.save(agreement));
+        LearningAgreement saved = agreementRepository.save(agreement);
+
+        UUID currentUserId = securityGuard.currentUser() != null ? securityGuard.currentUser().getId() : null;
+        auditLogService.logAction(
+            currentUserId,
+            "REVIEW_AGREEMENT_" + status.name(),
+            "LearningAgreement",
+            saved.getId(),
+            "SUCCESS",
+            Map.of("status", status.name()),
+            null
+        );
+
+        // Thông báo cho sinh viên nếu cần chỉnh sửa
+        if (status == AgreementStatus.REVISION_REQUESTED) {
+            notificationService.sendNotification(
+                agreement.getStudent().getId(),
+                "AGREEMENT_REVISION",
+                "Yêu cầu chỉnh sửa thỏa thuận học tập",
+                "Khoa đã yêu cầu chỉnh sửa thỏa thuận học tập của bạn. Vui lòng kiểm tra lại nội dung.",
+                "/agreements/" + saved.getId()
+            );
+        }
+
+        return mapToResponse(saved);
     }
 
     private LearningAgreementResponse mapToResponse(LearningAgreement entity) {

@@ -13,6 +13,9 @@ import com.internlink.core.infrastructure.persistence.jpa.*;
 import com.internlink.core.presentation.placement.dto.request.AttendanceLogRequest;
 import com.internlink.core.presentation.placement.dto.request.WeeklyLogbookRequest;
 import com.internlink.core.shared.enums.*;
+import com.internlink.core.shared.security.SecurityGuard;
+import com.internlink.core.application.system.AuditLogService;
+import com.internlink.core.application.system.NotificationService;
 import com.internlink.core.shared.exception.BadRequestException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -43,6 +46,9 @@ class PlacementWorkflowServiceTest {
     @Mock JpaLearningAgreementRepository agreementRepository;
     @Mock JpaPlacementOfferRepository offerRepository;
     @Mock JpaDepartmentRepository departmentRepository;
+    @Mock SecurityGuard securityGuard;
+    @Mock AuditLogService auditLogService;
+    @Mock NotificationService notificationService;
 
     private AttendanceLogServiceImpl attendanceService;
     private PlacementTaskServiceImpl taskService;
@@ -55,7 +61,7 @@ class PlacementWorkflowServiceTest {
         taskService = new PlacementTaskServiceImpl(taskRepository, placementRepository, userRepository);
         logbookService = new WeeklyLogbookServiceImpl(logbookRepository, placementRepository, userRepository);
         agreementService = new LearningAgreementServiceImpl(agreementRepository, offerRepository,
-            departmentRepository, userRepository);
+            departmentRepository, userRepository, securityGuard, auditLogService, notificationService);
         lenient().when(attendanceRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         lenient().when(placementRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         lenient().when(taskRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));

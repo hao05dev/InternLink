@@ -2,6 +2,8 @@ package com.internlink.core.application.evaluation.impl;
 
 import com.internlink.core.application.evaluation.CtuGradingHelper;
 import com.internlink.core.application.evaluation.FinalResultService;
+import com.internlink.core.application.system.AuditLogService;
+import com.internlink.core.application.system.NotificationService;
 import com.internlink.core.domain.auth.User;
 import com.internlink.core.domain.evaluation.FinalResult;
 import com.internlink.core.domain.evaluation.RubricEvaluation;
@@ -37,6 +39,8 @@ public class FinalResultServiceImpl implements FinalResultService {
     private final JpaStudentProfileRepository studentProfileRepository;
     private final JpaRubricEvaluationRepository rubricRepository;
     private final SecurityGuard securityGuard;
+    private final AuditLogService auditLogService;
+    private final NotificationService notificationService;
 
     /**
      * Xem kết quả có kiểm tra quyền:
@@ -123,7 +127,6 @@ public class FinalResultServiceImpl implements FinalResultService {
                     "Cần có ít nhất đánh giá từ Mentor doanh nghiệp hoặc Giảng viên hướng dẫn trước khi tổng hợp điểm.");
         }
 
-        // Nếu thiếu một trong hai, lấy điểm bên còn lại bù hoặc gán 0 kèm thông tin cảnh báo
         BigDecimal effectiveMentor = mentorScore != null ? mentorScore : BigDecimal.ZERO;
         BigDecimal effectiveLecturer = lecturerScore != null ? lecturerScore : BigDecimal.ZERO;
 
@@ -187,6 +190,41 @@ public class FinalResultServiceImpl implements FinalResultService {
         }
 
         FinalResult saved = finalResultRepository.save(result);
+
+        // ── Hooks: AuditLog & Notification nếu công bố ───────────────────
+        if (publish) {
+            auditLogService.logAction(
+                decidedByUserId,
+                "FINALIZE_AND_PUBLISH_RESULT",
+                "FinalResult",
+                saved.getId(),
+                "SUCCESS",
+                Map.of("finalScore", total10, "status", resolvedStatus.name()),
+                null
+            );
+
+            UUID studentId = placement.getStudent().getId();
+            notificationService.sendNotification(
+                studentId,
+                "FINAL_RESULT_PUBLISHED",
+                "Kết quả thực tập chính thức đã công bố",
+                String.format("Kết quả thực tập của bạn: Điểm %.2f (Điểm chữ %s, Thang 4: %.1f). Kết quả: %s.",
+                    total10, ctuGrade.getLetterGrade(), ctuGrade.getScoreScale4(),
+                    resolvedStatus == ResultStatus.PASSED ? "ĐẠT" : "KHÔNG ĐẠT"),
+                "/final-results/placement/" + placement.getId()
+            );
+        } else {
+            auditLogService.logAction(
+                decidedByUserId,
+                "DRAFT_FINAL_RESULT",
+                "FinalResult",
+                saved.getId(),
+                "SUCCESS",
+                Map.of("finalScore", total10, "isDraft", true),
+                null
+            );
+        }
+
         log.info("Tổng hợp điểm thực tập cho placement {}: thang 10={}, hệ 4={}, điểm chữ={}, published={}",
             placement.getId(), total10, ctuGrade.getScoreScale4(), ctuGrade.getLetterGrade(), publish);
 
@@ -220,6 +258,31 @@ public class FinalResultServiceImpl implements FinalResultService {
         }
 
         FinalResult saved = finalResultRepository.save(result);
+
+        // ── Hooks: AuditLog & Notification ────────────────────────────────
+        CtuGradingHelper.CtuGrade ctuGrade = CtuGradingHelper.convertFromScale10(saved.getFinalScore());
+
+        auditLogService.logAction(
+            publishedByUserId,
+            "PUBLISH_FINAL_RESULT",
+            "FinalResult",
+            saved.getId(),
+            "SUCCESS",
+            Map.of("finalScore", saved.getFinalScore(), "status", saved.getResultStatus().name()),
+            null
+        );
+
+        UUID studentId = result.getPlacement().getStudent().getId();
+        notificationService.sendNotification(
+            studentId,
+            "FINAL_RESULT_PUBLISHED",
+            "Kết quả thực tập chính thức đã công bố",
+            String.format("Kết quả thực tập của bạn: Điểm %.2f (Điểm chữ %s, Thang 4: %.1f). Kết quả: %s.",
+                saved.getFinalScore(), ctuGrade.getLetterGrade(), ctuGrade.getScoreScale4(),
+                saved.getResultStatus() == ResultStatus.PASSED ? "ĐẠT" : "KHÔNG ĐẠT"),
+            "/final-results/placement/" + placementId
+        );
+
         log.info("Đã công bố chính thức kết quả thực tập cho placement {}", placementId);
         return mapToResponse(saved);
     }

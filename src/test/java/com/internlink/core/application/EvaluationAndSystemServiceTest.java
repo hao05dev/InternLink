@@ -22,6 +22,7 @@ import com.internlink.core.presentation.evaluation.dto.request.RubricEvaluationR
 import com.internlink.core.presentation.student.dto.request.StudentProfileRequest;
 import com.internlink.core.shared.enums.*;
 import com.internlink.core.shared.security.SecurityGuard;
+import com.internlink.core.application.system.AuditLogService;
 import com.internlink.core.infrastructure.integration.storage.StorageServiceRouter;
 import com.internlink.core.shared.exception.BadRequestException;
 import com.internlink.core.shared.exception.ForbiddenException;
@@ -54,6 +55,7 @@ class EvaluationAndSystemServiceTest {
     @Mock JpaNotificationRepository notificationRepository;
     @Mock JpaDocumentRepository documentRepository;
     @Mock SecurityGuard securityGuard;
+    @Mock AuditLogService auditLogService;
     @Mock StorageServiceRouter storageServiceRouter;
 
     private RubricEvaluationServiceImpl rubricService;
@@ -66,7 +68,7 @@ class EvaluationAndSystemServiceTest {
     void setUp() {
         rubricService = new RubricEvaluationServiceImpl(rubricRepository, placementRepository, userRepository);
         finalResultService = new FinalResultServiceImpl(finalResultRepository, placementRepository,
-            userRepository, studentProfileRepository, rubricRepository, securityGuard);
+            userRepository, studentProfileRepository, rubricRepository, securityGuard, auditLogService, notificationService);
         profileService = new StudentProfileServiceImpl(studentProfileRepository, userRepository, programRepository);
         notificationService = new NotificationServiceImpl(notificationRepository, userRepository);
         documentService = new DocumentServiceImpl(documentRepository, userRepository, securityGuard, storageServiceRouter);

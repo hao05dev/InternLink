@@ -1,6 +1,8 @@
 package com.internlink.core.application.recruitment.impl;
 
 import com.internlink.core.application.recruitment.PlacementOfferService;
+import com.internlink.core.application.system.AuditLogService;
+import com.internlink.core.application.system.NotificationService;
 import com.internlink.core.domain.auth.User;
 import com.internlink.core.domain.recruitment.JobApplication;
 import com.internlink.core.domain.recruitment.PlacementOffer;
@@ -15,12 +17,15 @@ import com.internlink.core.shared.exception.BadRequestException;
 import com.internlink.core.shared.exception.ResourceNotFoundException;
 import com.internlink.core.shared.security.SecurityGuard;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.util.Map;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PlacementOfferServiceImpl implements PlacementOfferService {
@@ -29,6 +34,8 @@ public class PlacementOfferServiceImpl implements PlacementOfferService {
     private final JpaJobApplicationRepository applicationRepository;
     private final JpaUserRepository userRepository;
     private final SecurityGuard securityGuard;
+    private final AuditLogService auditLogService;
+    private final NotificationService notificationService;
 
     @Override
     @Transactional(readOnly = true)
@@ -58,15 +65,7 @@ public class PlacementOfferServiceImpl implements PlacementOfferService {
 
         if (application.getStatus() != ApplicationStatus.REVIEWING
             && application.getStatus() != ApplicationStatus.INTERVIEWING) {
-            throw new BadRequestException("Chỉ có thể phát hành Offer cho hồ sơ đang được xem xét hoặc phỏng vấn");
-        }
-
-        if (request.getStartDate().isAfter(request.getEndDate())) {
-            throw new BadRequestException("Ngày bắt đầu Offer phải trước hoặc bằng ngày kết thúc");
-        }
-
-        if (!request.getExpiresAt().isAfter(OffsetDateTime.now())) {
-            throw new BadRequestException("Thời hạn phản hồi Offer phải ở tương lai");
+            throw new BadRequestException("Chỉ có thể phát hành Offer khi hồ sơ ở trạng thái REVIEWING hoặc INTERVIEWING");
         }
 
         User mentor = null;
@@ -75,13 +74,22 @@ public class PlacementOfferServiceImpl implements PlacementOfferService {
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", request.getProposedMentorId()));
         }
 
+        if (request.getStartDate().isAfter(request.getEndDate())) {
+            throw new BadRequestException("Ngày bắt đầu thực tập phải trước ngày kết thúc");
+        }
+
+        if (request.getExpiresAt().isBefore(OffsetDateTime.now())) {
+            throw new BadRequestException("Thời hạn phản hồi Offer phải ở tương lai");
+        }
+
         PlacementOffer offer = PlacementOffer.builder()
             .application(application)
+            .student(application.getStudent())
             .proposedMentor(mentor)
             .startDate(request.getStartDate())
             .endDate(request.getEndDate())
             .stipend(request.getStipend())
-            .termsSnapshot(request.getTermsSnapshot() != null ? request.getTermsSnapshot() : java.util.Map.of())
+            .termsSnapshot(request.getTermsSnapshot() != null ? request.getTermsSnapshot() : Map.of())
             .expiresAt(request.getExpiresAt())
             .status(OfferStatus.SENT)
             .build();
@@ -90,7 +98,32 @@ public class PlacementOfferServiceImpl implements PlacementOfferService {
         application.setStatus(ApplicationStatus.OFFERED);
         applicationRepository.save(application);
 
-        return mapToResponse(offerRepository.save(offer));
+        PlacementOffer saved = offerRepository.save(offer);
+
+        // ── Hooks: AuditLog & Notification ────────────────────────────────
+        UUID studentId = application.getStudent().getId();
+        String jobTitle = application.getJob().getTitle();
+        String companyName = application.getJob().getCompany().getCompanyName();
+
+        auditLogService.logAction(
+            mentor != null ? mentor.getId() : null,
+            "CREATE_OFFER",
+            "PlacementOffer",
+            saved.getId(),
+            "SUCCESS",
+            Map.of("studentId", studentId, "jobTitle", jobTitle, "companyName", companyName),
+            null
+        );
+
+        notificationService.sendNotification(
+            studentId,
+            "OFFER_RECEIVED",
+            "Lời mời thực tập mới",
+            "Bạn nhận được lời mời thực tập cho vị trí '" + jobTitle + "' từ " + companyName,
+            "/offers/" + saved.getId()
+        );
+
+        return mapToResponse(saved);
     }
 
     @Override
@@ -128,7 +161,35 @@ public class PlacementOfferServiceImpl implements PlacementOfferService {
             applicationRepository.save(offer.getApplication());
         }
 
-        return mapToResponse(offerRepository.save(offer));
+        PlacementOffer saved = offerRepository.save(offer);
+
+        // ── Hooks: AuditLog & Notification ────────────────────────────────
+        auditLogService.logAction(
+            currentUserId,
+            "RESPOND_OFFER_" + status.name(),
+            "PlacementOffer",
+            saved.getId(),
+            "SUCCESS",
+            Map.of("responseStatus", status.name()),
+            null
+        );
+
+        User jobCreator = offer.getApplication().getJob().getCreatedBy();
+        if (jobCreator != null) {
+            String studentName = offer.getApplication().getStudent().getFullName();
+            String jobTitle = offer.getApplication().getJob().getTitle();
+            String actionDesc = status == OfferStatus.ACCEPTED ? "chấp nhận" : "từ chối";
+
+            notificationService.sendNotification(
+                jobCreator.getId(),
+                "OFFER_RESPONSE",
+                "Sinh viên " + actionDesc + " lời mời thực tập",
+                "Sinh viên " + studentName + " đã " + actionDesc + " offer vị trí '" + jobTitle + "'.",
+                "/offers/" + saved.getId()
+            );
+        }
+
+        return mapToResponse(saved);
     }
 
     private PlacementOfferResponse mapToResponse(PlacementOffer entity) {
@@ -145,8 +206,8 @@ public class PlacementOfferServiceImpl implements PlacementOfferService {
             .endDate(entity.getEndDate())
             .stipend(entity.getStipend())
             .termsSnapshot(entity.getTermsSnapshot())
-            .expiresAt(entity.getExpiresAt())
             .status(entity.getStatus())
+            .expiresAt(entity.getExpiresAt())
             .respondedAt(entity.getRespondedAt())
             .createdAt(entity.getCreatedAt())
             .build();
