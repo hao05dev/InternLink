@@ -9,9 +9,11 @@ import java.util.UUID;
 
 public interface JobPositionService {
     List<JobPositionResponse> getAllJobs();
+    List<JobPositionResponse> getAllJobs(String keyword, UUID termId, UUID companyId);
     List<JobPositionResponse> getJobsByCompany(UUID companyId);
     List<JobPositionResponse> getJobsByTerm(UUID termId);
     List<JobPositionResponse> getApprovedJobs(UUID termId);
+    List<JobPositionResponse> getApprovedJobs(UUID termId, String keyword);
     JobPositionResponse getJobById(UUID id);
     JobPositionResponse createJob(JobPositionRequest request, UUID createdByUserId);
     JobPositionResponse updateJob(UUID id, JobPositionRequest request);
