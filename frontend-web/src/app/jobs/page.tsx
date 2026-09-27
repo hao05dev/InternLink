@@ -11,6 +11,7 @@ import { JobPosition, WorkFormat } from "@/types/job";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PublicShell } from "@/components/layouts/public-shell";
 
 export default function JobsPage() {
     const [jobs, setJobs] = useState<JobPosition[]>([]);
@@ -72,7 +73,8 @@ export default function JobsPage() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 py-8">
+        <PublicShell>
+            <div className="min-h-screen bg-slate-50 py-8">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 {/* Header Banner */}
                 <div className="bg-gradient-to-r from-sky-900 via-sky-800 to-indigo-900 rounded-2xl p-6 sm:p-10 text-white shadow-md mb-8">
@@ -362,6 +364,7 @@ export default function JobsPage() {
                     </div>
                 </div>
             </div>
-        </div>
+            </div>
+        </PublicShell>
     );
 }

@@ -6,6 +6,7 @@ import { ArrowLeft, Calendar, Clock, User, Share2, Tag, BookOpen, ChevronRight }
 import { BLOG_POSTS } from "@/data/blog-posts";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PublicShell } from "@/components/layouts/public-shell";
 
 export default function BlogPostDetailPage() {
     const params = useParams();
@@ -15,7 +16,8 @@ export default function BlogPostDetailPage() {
     const relatedPosts = BLOG_POSTS.filter(p => p.id !== post.id).slice(0, 2);
 
     return (
-        <div className="min-h-screen bg-slate-50 py-10">
+        <PublicShell>
+            <div className="min-h-screen bg-slate-50 py-10">
             <div className="max-w-4xl mx-auto px-4 sm:px-6 space-y-8">
                 {/* Back link */}
                 <div className="flex items-center gap-2 text-xs text-slate-500">
@@ -132,6 +134,7 @@ export default function BlogPostDetailPage() {
                     </div>
                 </div>
             </div>
-        </div>
+            </div>
+        </PublicShell>
     );
 }

@@ -1,14 +1,14 @@
 'use client';
 
 import { authService, getCurrentUser, LoginCredentials } from "@/services/auth.service";
-import { UserSummary } from "@/types/auth";
+import { UserSummary, AuthResponse } from "@/types/auth";
 import { createContext, useContext, useEffect, useState } from "react";
 
 interface AuthContextType {
     user: UserSummary | null;
     isLoading: boolean;
     isAuthenticated: boolean;
-    login: (credentials: LoginCredentials) => Promise<void>;
+    login: (credentials: LoginCredentials) => Promise<AuthResponse>;
     logout: () => Promise<void>;
     refreshUser: () => Promise<void>;
 }
@@ -33,15 +33,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         fetchUser();
     }, []);
 
-    const login = async (credentials: LoginCredentials) => {
-        await authService.login(credentials);
+    const login = async (credentials: LoginCredentials): Promise<AuthResponse> => {
+        const authData = await authService.login(credentials);
         await fetchUser();
-    }
+        return authData;
+    };
 
     const logout = async () => {
         await authService.logout();
         setUser(null);
-    }
+    };
     return (
         <AuthContext.Provider value={{ user, isLoading, isAuthenticated: !!user, login, logout, refreshUser: fetchUser }}>
             {children}

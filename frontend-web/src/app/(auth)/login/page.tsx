@@ -24,9 +24,17 @@ export default function LoginPage() {
         setIsLoading(true);
 
         try {
-            await login({ email: email.trim(), password });
-            // Sau khi đăng nhập thành công, chuyển hướng về trang chủ
-            router.push("/");
+            const authData = await login({ email: email.trim(), password });
+            const roleRedirects: Record<string, string> = {
+                STUDENT: "/student/dashboard",
+                COMPANY_REP: "/company/dashboard",
+                COMPANY_MENTOR: "/mentor/dashboard",
+                FACULTY_ADMIN: "/faculty/dashboard",
+                LECTURER: "/lecturer/dashboard",
+                ADMIN: "/admin/dashboard",
+            };
+            const targetUrl = roleRedirects[authData.role] || "/";
+            router.push(targetUrl);
         } catch (err: any) {
             if (err instanceof ApiError) {
                 setErrorMsg(err.message || "Tài khoản hoặc mật khẩu không chính xác");

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { BookOpen, Clock, Calendar, ChevronRight, User, Tag, Sparkles } from "lucide-react";
 import { BLOG_POSTS, BlogPost } from "@/data/blog-posts";
 import { Badge } from "@/components/ui/badge";
+import { PublicShell } from "@/components/layouts/public-shell";
 
 export default function CareerGuidePage() {
     const [selectedCategory, setSelectedCategory] = useState<string>("ALL");
@@ -18,7 +19,8 @@ export default function CareerGuidePage() {
     const featuredPost = BLOG_POSTS[0];
 
     return (
-        <div className="min-h-screen bg-slate-50 py-10">
+        <PublicShell>
+            <div className="min-h-screen bg-slate-50 py-10">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
                 {/* Header Title */}
                 <div className="text-center max-w-3xl mx-auto space-y-3">
@@ -161,6 +163,7 @@ export default function CareerGuidePage() {
                     ))}
                 </div>
             </div>
-        </div>
+            </div>
+        </PublicShell>
     );
 }

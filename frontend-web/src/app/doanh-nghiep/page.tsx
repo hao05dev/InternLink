@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Building2, MapPin, Globe, Users, ExternalLink, CheckCircle2, ChevronRight, Briefcase } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PublicShell } from "@/components/layouts/public-shell";
 
 const PARTNER_COMPANIES = [
     {
@@ -46,7 +47,8 @@ const PARTNER_COMPANIES = [
 
 export default function CompaniesPage() {
     return (
-        <div className="min-h-screen bg-slate-50 py-10">
+        <PublicShell>
+            <div className="min-h-screen bg-slate-50 py-10">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
                 {/* Header */}
                 <div className="text-center max-w-3xl mx-auto space-y-3">
@@ -131,6 +133,7 @@ export default function CompaniesPage() {
                     ))}
                 </div>
             </div>
-        </div>
+            </div>
+        </PublicShell>
     );
 }

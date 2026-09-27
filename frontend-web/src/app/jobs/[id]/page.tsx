@@ -13,6 +13,7 @@ import { JobPosition } from "@/types/job";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/auth-context";
+import { PublicShell } from "@/components/layouts/public-shell";
 
 export default function JobDetailPage() {
     const params = useParams();
@@ -96,7 +97,8 @@ export default function JobDetailPage() {
     }
 
     return (
-        <div className="min-h-screen bg-slate-50/70 py-8">
+        <PublicShell>
+            <div className="min-h-screen bg-slate-50/70 py-8">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
                 {/* Breadcrumbs Navigation */}
                 <div className="flex items-center gap-2 text-xs text-slate-500">
@@ -562,6 +564,7 @@ export default function JobDetailPage() {
                     </div>
                 </div>
             )}
-        </div>
+            </div>
+        </PublicShell>
     );
 }

@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { SmartJobSearch } from "@/components/modules/smart-job-search";
 import { Button } from "@/components/ui/button";
+import { PublicShell } from "@/components/layouts/public-shell";
 
 // Dữ liệu mẫu vị trí thực tập thực tế của các doanh nghiệp đối tác
 const FEATURED_JOBS = [
@@ -114,7 +115,8 @@ const WORKFLOW_PHASES = [
 
 export default function Home() {
   return (
-    <div className="space-y-20 pb-20">
+    <PublicShell>
+      <div className="space-y-20 pb-20">
       {/* 1. HERO SECTION */}
       <section className="bg-gradient-to-b from-sky-50/80 via-white to-slate-50 pt-16 pb-20 border-b border-slate-200">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-6">
@@ -389,6 +391,7 @@ export default function Home() {
           ))}
         </div>
       </section>
-    </div>
+      </div>
+    </PublicShell>
   );
 }
