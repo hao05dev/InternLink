@@ -8,6 +8,7 @@ import com.internlink.core.domain.ai_matching.StudentSkillId;
 import com.internlink.core.domain.auth.User;
 import com.internlink.core.domain.recruitment.JobPosition;
 import com.internlink.core.domain.recruitment.JobSkill;
+import com.internlink.core.domain.system.Document;
 import com.internlink.core.infrastructure.integration.ai.AiServiceClient;
 import com.internlink.core.infrastructure.persistence.jpa.*;
 import com.internlink.core.presentation.ai_matching.dto.response.AiMatchScoreResponse;
@@ -18,8 +19,13 @@ import com.internlink.core.shared.enums.AiRunType;
 import com.internlink.core.shared.enums.JobStatus;
 import com.internlink.core.shared.enums.RequirementType;
 import com.internlink.core.shared.enums.SkillSource;
+import com.internlink.core.shared.enums.UserRole;
+import com.internlink.core.shared.enums.DocumentType;
+import com.internlink.core.shared.exception.BadRequestException;
+import com.internlink.core.shared.exception.ForbiddenException;
 import com.internlink.core.shared.exception.ResourceNotFoundException;
 import com.internlink.core.shared.security.SecurityGuard;
+import com.internlink.core.shared.security.ResourceAuthorization;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -40,6 +46,10 @@ public class AiMatchingServiceImpl implements AiMatchingService {
     private final JpaJobPositionRepository jobPositionRepository;
     private final JpaJobSkillRepository jobSkillRepository;
     private final JpaUserRepository userRepository;
+    private final JpaDocumentRepository documentRepository;
+    private final JpaJobApplicationRepository applicationRepository;
+    private final JpaInternshipPlacementRepository placementRepository;
+    private final JpaStudentProfileRepository studentProfileRepository;
     private final AiServiceClient aiServiceClient;
     private final SecurityGuard securityGuard;
 
@@ -54,7 +64,25 @@ public class AiMatchingServiceImpl implements AiMatchingService {
     @Override
     @Transactional(readOnly = true)
     public List<StudentSkillResponse> getSkillsByStudent(UUID studentId) {
+        UUID actorId = securityGuard.currentUser().getId();
+        User actor = userRepository.findById(actorId)
+            .orElseThrow(() -> new ResourceNotFoundException("User", "id", actorId));
+        boolean isSelf = actorId.equals(studentId);
+        boolean facultyAccess = actor.getRole() == UserRole.FACULTY_ADMIN
+            && studentProfileRepository.findByUserId(studentId)
+                .map(profile -> ResourceAuthorization.managesDepartment(
+                    actor, profile.getProgram().getDepartment().getId())).orElse(false);
+        boolean lecturerAccess = actor.getRole() == UserRole.LECTURER
+            && placementRepository.findByStudentId(studentId).stream()
+                .anyMatch(placement -> actorId.equals(placement.getLecturer().getId()));
+        boolean companyAccess = actor.getRole() == UserRole.COMPANY_REP
+            && applicationRepository.findByStudentId(studentId).stream()
+                .anyMatch(app -> ResourceAuthorization.representsCompany(
+                    actor, app.getJob().getCompany().getId()));
+        ResourceAuthorization.require(isSelf || ResourceAuthorization.isAdmin(actor)
+            || facultyAccess || lecturerAccess || companyAccess);
         return studentSkillRepository.findByIdStudentId(studentId).stream()
+            .filter(skill -> isSelf || Boolean.TRUE.equals(skill.getIsConfirmed()))
             .map(this::mapStudentSkillToResponse)
             .toList();
     }
@@ -62,8 +90,23 @@ public class AiMatchingServiceImpl implements AiMatchingService {
     @Override
     @Transactional
     public List<StudentSkillResponse> syncCvSkills(UUID studentId, UUID documentId, String cvText) {
+        if (!studentId.equals(securityGuard.currentUser().getId())) {
+            throw new ForbiddenException("Chỉ sinh viên sở hữu CV mới được đồng bộ kỹ năng");
+        }
         User student = userRepository.findById(studentId)
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", studentId));
+        if (cvText == null || cvText.isBlank()) {
+            throw new BadRequestException("Nội dung CV không được để trống");
+        }
+        Document cvDocument = null;
+        if (documentId != null) {
+            cvDocument = documentRepository.findById(documentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Document", "id", documentId));
+            if (!cvDocument.getOwner().getId().equals(studentId)
+                || cvDocument.getDocumentType() != DocumentType.CV) {
+                throw new ForbiddenException("Tài liệu nguồn phải là CV thuộc sở hữu của sinh viên");
+            }
+        }
 
         // 1. Gọi sang AI Microservice để trích xuất kỹ năng
         Map<String, Object> aiResult = aiServiceClient.extractSkills(cvText);
@@ -72,7 +115,8 @@ public class AiMatchingServiceImpl implements AiMatchingService {
         AiRun run = AiRun.builder()
             .runType(AiRunType.CV_EXTRACTION)
             .student(student)
-            .status(AiRunStatus.COMPLETED)
+            .sourceDocument(cvDocument)
+            .status("FAILED".equals(aiResult.get("status")) ? AiRunStatus.FAILED : AiRunStatus.COMPLETED)
             .modelName("skills-extraction-transformer")
             .inputHash(Integer.toHexString(cvText != null ? cvText.hashCode() : 0))
             .inputSnapshot(Map.of("text_length", cvText != null ? cvText.length() : 0))
@@ -94,8 +138,11 @@ public class AiMatchingServiceImpl implements AiMatchingService {
             if (taxonomyOpt.isEmpty()) continue;
 
             StudentSkillId id = new StudentSkillId(studentId, skillId);
-            StudentSkill studentSkill = studentSkillRepository.findById(id)
-                .orElse(StudentSkill.builder()
+            Optional<StudentSkill> existing = studentSkillRepository.findById(id);
+            if (existing.isPresent() && existing.get().getSource() != SkillSource.CV_AI) {
+                continue;
+            }
+            StudentSkill studentSkill = existing.orElse(StudentSkill.builder()
                     .id(id)
                     .student(student)
                     .skill(taxonomyOpt.get())
@@ -105,13 +152,12 @@ public class AiMatchingServiceImpl implements AiMatchingService {
             Object conf = item.get("confidence");
             if (conf instanceof Number num) {
                 studentSkill.setConfidence(BigDecimal.valueOf(num.doubleValue()));
-            } else if (studentSkill.getConfidence() == null) {
-                studentSkill.setConfidence(BigDecimal.ONE);
             }
 
             // HUMAN-IN-THE-LOOP: Kỹ năng do AI tự động trích xuất từ CV phải để ở trạng thái
             // chưa xác nhận (isConfirmed = false) để sinh viên rà soát và xác nhận thủ công.
             studentSkill.setIsConfirmed(false);
+            studentSkill.setEvidenceDocument(cvDocument);
 
             skillsToSave.add(studentSkill);
         }
@@ -167,12 +213,17 @@ public class AiMatchingServiceImpl implements AiMatchingService {
             .map(js -> js.getSkill().getId())
             .toList();
 
+        String studentBio = studentProfileRepository.findByUserId(studentId)
+            .map(profile -> profile.getBio())
+            .orElse("");
+
         // Gọi AI Service với đầy đủ ngữ cảnh (tiêu đề, mô tả, mandatory vs optional)
         Map<String, Object> matchResult = aiServiceClient.calculateMatchScore(
             studentId,
             jobId,
             job.getTitle(),
             job.getDescription(),
+            studentBio,
             studentSkills,
             mandatorySkillIds,
             optionalSkillIds
@@ -298,6 +349,7 @@ public class AiMatchingServiceImpl implements AiMatchingService {
             .source(entity.getSource())
             .confidence(entity.getConfidence())
             .isConfirmed(entity.getIsConfirmed())
+            .evidenceDocumentId(entity.getEvidenceDocument() != null ? entity.getEvidenceDocument().getId() : null)
             .createdAt(entity.getCreatedAt())
             .build();
     }

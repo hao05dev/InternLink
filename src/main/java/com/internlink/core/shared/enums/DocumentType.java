@@ -6,5 +6,7 @@ public enum DocumentType {
     EVIDENCE,
     CERTIFICATE,
     REPORT,
+    ACCEPTANCE_LETTER,
+    EXTERNAL_EVALUATION,
     EXTERNAL_LINK
 }

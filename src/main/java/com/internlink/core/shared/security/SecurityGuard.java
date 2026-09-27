@@ -118,12 +118,7 @@ public class SecurityGuard {
         boolean isAdmin = user.getRole() == UserRole.ADMIN
             || user.getRole() == UserRole.FACULTY_ADMIN;
         boolean isOwner = currentUserId.equals(ownerUserId);
-        // Giảng viên và Company Rep được phép đọc tài liệu liên quan đến sinh viên mình phụ trách;
-        // quyền đó được kiểm tra tại lớp service với ngữ cảnh placement cụ thể.
-        // Ở đây chỉ chặn các trường hợp hoàn toàn không liên quan.
-        if (!isOwner && !isAdmin
-            && user.getRole() != UserRole.LECTURER
-            && user.getRole() != UserRole.COMPANY_REP) {
+        if (!isOwner && !isAdmin) {
             throw new ForbiddenException("Bạn không có quyền xem tài liệu này");
         }
     }

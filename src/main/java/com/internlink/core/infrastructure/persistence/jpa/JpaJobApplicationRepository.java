@@ -15,6 +15,7 @@ public interface JpaJobApplicationRepository extends JpaRepository<JobApplicatio
     List<JobApplication> findByStudentId(UUID studentId);
     List<JobApplication> findByJobId(UUID jobId);
     Optional<JobApplication> findByJobIdAndStudentId(UUID jobId, UUID studentId);
+    List<JobApplication> findBySubmittedCvDocumentId(UUID documentId);
     List<JobApplication> findByJobIdAndStatus(UUID jobId, ApplicationStatus status);
     boolean existsByJobIdAndStudentId(UUID jobId, UUID studentId);
 

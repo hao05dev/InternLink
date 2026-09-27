@@ -10,6 +10,7 @@ import com.internlink.core.domain.recruitment.JobPosition;
 import com.internlink.core.domain.recruitment.PlacementOffer;
 import com.internlink.core.domain.system.Document;
 import com.internlink.core.infrastructure.persistence.jpa.*;
+import com.internlink.core.infrastructure.security.CustomUserDetail;
 import com.internlink.core.presentation.placement.dto.request.AttendanceLogRequest;
 import com.internlink.core.presentation.placement.dto.request.WeeklyLogbookRequest;
 import com.internlink.core.shared.enums.*;
@@ -17,6 +18,7 @@ import com.internlink.core.shared.security.SecurityGuard;
 import com.internlink.core.application.system.AuditLogService;
 import com.internlink.core.application.system.NotificationService;
 import com.internlink.core.shared.exception.BadRequestException;
+import com.internlink.core.shared.exception.ForbiddenException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -59,7 +61,7 @@ class PlacementWorkflowServiceTest {
     void setUp() {
         attendanceService = new AttendanceLogServiceImpl(attendanceRepository, placementRepository, userRepository);
         taskService = new PlacementTaskServiceImpl(taskRepository, placementRepository, userRepository);
-        logbookService = new WeeklyLogbookServiceImpl(logbookRepository, placementRepository, userRepository);
+        logbookService = new WeeklyLogbookServiceImpl(logbookRepository, placementRepository, userRepository, securityGuard);
         agreementService = new LearningAgreementServiceImpl(agreementRepository, offerRepository,
             departmentRepository, userRepository, securityGuard, auditLogService, notificationService);
         lenient().when(attendanceRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
@@ -153,6 +155,19 @@ class PlacementWorkflowServiceTest {
     }
 
     @Test
+    void unrelatedStudentCannotReadAnotherPlacementLogbook() {
+        InternshipPlacement placement = placement();
+        User outsider = user(UserRole.STUDENT);
+        when(placementRepository.findById(placement.getId())).thenReturn(Optional.of(placement));
+        when(securityGuard.currentUser()).thenReturn(CustomUserDetail.create(outsider));
+        when(userRepository.findById(outsider.getId())).thenReturn(Optional.of(outsider));
+
+        assertThatThrownBy(() -> logbookService.getLogbooksByPlacement(placement.getId()))
+            .isInstanceOf(ForbiddenException.class);
+        verify(logbookRepository, never()).findByPlacementIdOrderByWeekNumberAsc(any());
+    }
+
+    @Test
     void agreementCanOnlyBeCreatedByOfferOwner() {
         PlacementOffer offer = offer();
         when(offerRepository.findById(offer.getId())).thenReturn(Optional.of(offer));
@@ -175,8 +190,11 @@ class PlacementWorkflowServiceTest {
             .companySignature(Map.of("signed", true)).build();
         agreement.setId(UUID.randomUUID());
         when(agreementRepository.findById(agreement.getId())).thenReturn(Optional.of(agreement));
+        User admin = user(UserRole.ADMIN);
+        when(securityGuard.currentUser()).thenReturn(CustomUserDetail.create(admin));
+        when(userRepository.findById(admin.getId())).thenReturn(Optional.of(admin));
 
-        assertThat(agreementService.signAgreement(agreement.getId(), "FACULTY_ADMIN", Map.of("signed", true)).getStatus())
+        assertThat(agreementService.signAgreement(agreement.getId(), "ADMIN", Map.of("signed", true)).getStatus())
             .isEqualTo(AgreementStatus.APPROVED);
     }
 

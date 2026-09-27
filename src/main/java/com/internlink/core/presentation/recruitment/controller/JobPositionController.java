@@ -25,6 +25,7 @@ public class JobPositionController {
     private final JobPositionService jobPositionService;
 
     @GetMapping
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<List<JobPositionResponse>>> getAllJobs(
         @RequestParam(required = false) UUID termId,
         @RequestParam(required = false) UUID companyId
@@ -73,6 +74,12 @@ public class JobPositionController {
     ) {
         JobPositionResponse response = jobPositionService.updateJob(id, request);
         return ResponseEntity.ok(ApiResponse.success("Cập nhật vị trí thực tập thành công", response));
+    }
+
+    @PatchMapping("/{id}/submit")
+    @PreAuthorize("hasAnyRole('COMPANY_REP', 'ADMIN')")
+    public ResponseEntity<ApiResponse<JobPositionResponse>> submitJob(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.success(jobPositionService.submitJob(id)));
     }
 
     @PatchMapping("/{id}/review")

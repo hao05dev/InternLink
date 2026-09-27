@@ -22,12 +22,15 @@ public class CloMetric {
     /** Tổng số sinh viên tham gia các vị trí thực tập cam kết chuẩn đầu ra này */
     private Long targetStudentsCount;
 
-    /** Số sinh viên đạt kết quả ĐẠT (PASSED) */
+    /** Số sinh viên đạt điểm tổng kết trong nhóm vị trí có mục tiêu CLO này. */
     private Long passedStudentsCount;
 
-    /** Tỷ lệ đạt chuẩn đầu ra (%) */
+    /** Chỉ số thay thế: tỷ lệ đạt điểm tổng kết, chưa phải mức đạt CLO trực tiếp. */
     private BigDecimal attainmentRate;
 
-    /** Điểm trung bình của sinh viên thuộc chuẩn đầu ra này (thang 10) */
+    /** Điểm tổng kết trung bình của nhóm sinh viên (thang 10). */
     private BigDecimal averageScore;
+
+    /** Giúp frontend ghi nhãn đúng cho chỉ số thay thế. */
+    private String measurementMethod;
 }

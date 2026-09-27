@@ -25,6 +25,7 @@ public class WeeklyLogbookResponse {
     private String tasksCompleted;
     private String learningReflection;
     private BigDecimal totalHours;
+    private Boolean wasLate;
     private LogbookStatus status;
     private String mentorFeedback;
     private UUID mentorReviewedBy;

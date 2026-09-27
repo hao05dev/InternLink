@@ -63,6 +63,9 @@ public class StudentRosterServiceImpl implements StudentRosterService {
             roster.setOfficialEmail(item.getOfficialEmail().trim().toLowerCase());
             roster.setFullName(item.getFullName().trim());
             roster.setAcademicYear(item.getAcademicYear().trim());
+            if (item.getInternshipCourseCode() == null || item.getInternshipCourseCode().isBlank())
+                throw new com.internlink.core.shared.exception.BadRequestException("Cần mã học phần thực tập theo chương trình đào tạo");
+            roster.setInternshipCourseCode(item.getInternshipCourseCode().trim().toUpperCase());
             roster.setEligibilityStatus(item.getEligibilityStatus());
             roster.setEligibilityNote(item.getEligibilityNote());
 
@@ -85,6 +88,7 @@ public class StudentRosterServiceImpl implements StudentRosterService {
             .officialEmail(entity.getOfficialEmail())
             .fullName(entity.getFullName())
             .academicYear(entity.getAcademicYear())
+            .internshipCourseCode(entity.getInternshipCourseCode())
             .eligibilityStatus(entity.getEligibilityStatus())
             .eligibilityNote(entity.getEligibilityNote())
             .claimedUserId(entity.getClaimedUser() != null ? entity.getClaimedUser().getId() : null)

@@ -62,6 +62,9 @@ public class AttendanceLogServiceImpl implements AttendanceLogService {
         if (placement.getStatus() != PlacementStatus.ACTIVE) {
             throw new BadRequestException("Chỉ có thể chấm công khi lần thực tập đang ACTIVE");
         }
+        if (placement.getMentor() == null) {
+            throw new BadRequestException("Chấm công trực tuyến chỉ áp dụng cho nơi thực tập tham gia hệ thống");
+        }
         if (attendanceRepository.findByPlacementIdAndWorkDate(request.getPlacementId(), request.getWorkDate()).isPresent()) {
             throw new BadRequestException("Đã tồn tại phiên chấm công cho ngày này");
         }
@@ -118,8 +121,8 @@ public class AttendanceLogServiceImpl implements AttendanceLogService {
         User mentor = userRepository.findById(mentorUserId)
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", mentorUserId));
 
-        if (mentor.getRole() != UserRole.ADMIN
-            && !log.getPlacement().getMentor().getId().equals(mentorUserId)) {
+        if (log.getPlacement().getMentor() == null || (mentor.getRole() != UserRole.ADMIN
+            && !log.getPlacement().getMentor().getId().equals(mentorUserId))) {
             throw new BadRequestException("Người dùng không phải Mentor của lần thực tập này");
         }
         if (log.getStatus() != AttendanceStatus.PENDING_CONFIRMATION) {

@@ -15,5 +15,6 @@ public interface JobPositionService {
     JobPositionResponse getJobById(UUID id);
     JobPositionResponse createJob(JobPositionRequest request, UUID createdByUserId);
     JobPositionResponse updateJob(UUID id, JobPositionRequest request);
+    JobPositionResponse submitJob(UUID id);
     JobPositionResponse reviewJob(UUID id, JobStatus status, String facultyFeedback, UUID approvedByUserId);
-}
+}

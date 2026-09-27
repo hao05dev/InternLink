@@ -39,6 +39,8 @@ public class StudentRoster extends BaseEntity {
 
     @Column(name = "academic_year", nullable = false, length = 20)
     private String academicYear;
+    @Column(name = "internship_course_code", length = 30)
+    private String internshipCourseCode;
 
     @Enumerated(EnumType.STRING)
     @Builder.Default

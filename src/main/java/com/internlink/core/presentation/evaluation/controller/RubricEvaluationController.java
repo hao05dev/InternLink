@@ -24,7 +24,7 @@ public class RubricEvaluationController {
     private final RubricEvaluationService evaluationService;
 
     @GetMapping("/placement/{placementId}")
-    @PreAuthorize("hasAnyRole('STUDENT', 'COMPANY_MENTOR', 'LECTURER', 'FACULTY_ADMIN', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('COMPANY_MENTOR', 'LECTURER', 'FACULTY_ADMIN', 'ADMIN')")
     public ResponseEntity<ApiResponse<List<RubricEvaluationResponse>>> getEvaluationsByPlacement(
         @PathVariable UUID placementId
     ) {
@@ -33,7 +33,7 @@ public class RubricEvaluationController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('STUDENT', 'COMPANY_MENTOR', 'LECTURER', 'FACULTY_ADMIN', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('COMPANY_MENTOR', 'LECTURER', 'FACULTY_ADMIN', 'ADMIN')")
     public ResponseEntity<ApiResponse<RubricEvaluationResponse>> getEvaluationById(
         @PathVariable UUID id
     ) {

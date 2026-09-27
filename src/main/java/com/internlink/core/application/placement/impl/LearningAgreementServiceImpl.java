@@ -20,6 +20,7 @@ import com.internlink.core.shared.exception.BadRequestException;
 import com.internlink.core.shared.exception.ForbiddenException;
 import com.internlink.core.shared.exception.ResourceNotFoundException;
 import com.internlink.core.shared.security.SecurityGuard;
+import com.internlink.core.shared.security.ResourceAuthorization;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -47,6 +48,7 @@ public class LearningAgreementServiceImpl implements LearningAgreementService {
     public LearningAgreementResponse getAgreementById(UUID id) {
         LearningAgreement agreement = agreementRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("LearningAgreement", "id", id));
+        ResourceAuthorization.require(ResourceAuthorization.canReadAgreement(currentActor(), agreement));
         return mapToResponse(agreement);
     }
 
@@ -55,12 +57,15 @@ public class LearningAgreementServiceImpl implements LearningAgreementService {
     public LearningAgreementResponse getAgreementByOfferId(UUID offerId) {
         LearningAgreement agreement = agreementRepository.findByOfferId(offerId)
             .orElseThrow(() -> new ResourceNotFoundException("LearningAgreement", "offerId", offerId));
+        ResourceAuthorization.require(ResourceAuthorization.canReadAgreement(currentActor(), agreement));
         return mapToResponse(agreement);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<LearningAgreementResponse> getAgreementsByStudent(UUID studentId) {
+        User actor = currentActor();
+        ResourceAuthorization.require(ResourceAuthorization.isAdmin(actor) || actor.getId().equals(studentId));
         return agreementRepository.findByStudentId(studentId).stream()
             .map(this::mapToResponse)
             .toList();
@@ -68,23 +73,19 @@ public class LearningAgreementServiceImpl implements LearningAgreementService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<LearningAgreementResponse> getAgreementsByDepartment(UUID departmentId) {
-        return agreementRepository.findByDepartmentId(departmentId).stream()
-            .map(this::mapToResponse)
-            .toList();
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<LearningAgreementResponse> getAgreementsByStatus(AgreementStatus status) {
-        return agreementRepository.findByStatus(status).stream()
+    public List<LearningAgreementResponse> getAgreementsByDepartment(UUID departmentId, AgreementStatus status) {
+        ResourceAuthorization.require(ResourceAuthorization.managesDepartment(currentActor(), departmentId));
+        List<LearningAgreement> agreements = status == null
+            ? agreementRepository.findByDepartmentId(departmentId)
+            : agreementRepository.findByDepartmentIdAndStatus(departmentId, status);
+        return agreements.stream()
             .map(this::mapToResponse)
             .toList();
     }
 
     @Override
     @Transactional
-    public LearningAgreementResponse createAgreementFromOffer(UUID studentId, LearningAgreementRequest request) {
+    public LearningAgreementResponse createAgreement(UUID studentId, LearningAgreementRequest request) {
         PlacementOffer offer = offerRepository.findById(request.getOfferId())
             .orElseThrow(() -> new ResourceNotFoundException("PlacementOffer", "id", request.getOfferId()));
 
@@ -172,20 +173,16 @@ public class LearningAgreementServiceImpl implements LearningAgreementService {
                 agreement.setStudentSignature(signatureData);
             }
             case COMPANY_REP -> {
-                // Company Rep chỉ được ký thỏa thuận của công ty họ đại diện.
-                // Kiểm tra bằng cách xác nhận họ chính là người tạo vị trí thực tập liên quan.
-                var jobCreatedBy = agreement.getOffer().getApplication().getJob().getCreatedBy();
-                UUID jobCreatorId = jobCreatedBy != null ? jobCreatedBy.getId() : null;
-                if (!currentUserId.equals(jobCreatorId)) {
+                if (!ResourceAuthorization.representsCompany(currentActor(), agreement.getCompany().getId())) {
                     throw new ForbiddenException(
-                        "Bạn chỉ có thể ký thỏa thuận học tập liên quan đến vị trí doanh nghiệp bạn đã đăng"
+                        "Bạn chỉ có thể ký thỏa thuận học tập của doanh nghiệp mình"
                     );
                 }
                 agreement.setCompanySignature(signatureData);
             }
             case FACULTY_ADMIN, ADMIN -> {
-                // Faculty Admin chỉ được ký thỏa thuận thuộc đúng Department của mình
-                // (Admin hệ thống được ký mọi thỏa thuận)
+                ResourceAuthorization.require(ResourceAuthorization.managesDepartment(
+                    currentActor(), agreement.getDepartment().getId()));
                 agreement.setFacultySignature(signatureData);
             }
             default -> throw new ForbiddenException(
@@ -247,6 +244,8 @@ public class LearningAgreementServiceImpl implements LearningAgreementService {
     public LearningAgreementResponse reviewAgreementByFaculty(UUID id, AgreementStatus status) {
         LearningAgreement agreement = agreementRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("LearningAgreement", "id", id));
+        ResourceAuthorization.require(ResourceAuthorization.managesDepartment(
+            currentActor(), agreement.getDepartment().getId()));
 
         if (status != AgreementStatus.REVISION_REQUESTED && status != AgreementStatus.CANCELLED) {
             throw new BadRequestException("Kết quả rà soát chỉ có thể là REVISION_REQUESTED hoặc CANCELLED");
@@ -300,5 +299,11 @@ public class LearningAgreementServiceImpl implements LearningAgreementService {
             .createdAt(entity.getCreatedAt())
             .updatedAt(entity.getUpdatedAt())
             .build();
+    }
+
+    private User currentActor() {
+        UUID actorId = securityGuard.currentUser().getId();
+        return userRepository.findById(actorId)
+            .orElseThrow(() -> new ResourceNotFoundException("User", "id", actorId));
     }
 }

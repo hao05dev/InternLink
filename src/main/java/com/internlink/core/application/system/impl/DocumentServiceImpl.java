@@ -8,6 +8,14 @@ import com.internlink.core.infrastructure.integration.storage.StorageServiceRout
 import com.internlink.core.infrastructure.integration.storage.StoredFileInfo;
 import com.internlink.core.infrastructure.persistence.jpa.JpaDocumentRepository;
 import com.internlink.core.infrastructure.persistence.jpa.JpaUserRepository;
+import com.internlink.core.infrastructure.persistence.jpa.JpaJobApplicationRepository;
+import com.internlink.core.infrastructure.persistence.jpa.JpaStudentFoundApplicationRepository;
+import com.internlink.core.infrastructure.persistence.jpa.JpaLearningAgreementRepository;
+import com.internlink.core.infrastructure.persistence.jpa.JpaInternshipPlacementRepository;
+import com.internlink.core.infrastructure.persistence.jpa.JpaPlacementTaskRepository;
+import com.internlink.core.infrastructure.persistence.jpa.JpaWeeklyLogbookRepository;
+import com.internlink.core.infrastructure.persistence.jpa.JpaRubricEvaluationRepository;
+import com.internlink.core.infrastructure.persistence.jpa.JpaInternshipCaseRepository;
 import com.internlink.core.presentation.system.dto.response.DocumentDownloadInfo;
 import com.internlink.core.presentation.system.dto.response.DocumentResponse;
 import com.internlink.core.shared.enums.ContextType;
@@ -16,6 +24,7 @@ import com.internlink.core.shared.enums.StorageProvider;
 import com.internlink.core.shared.exception.BadRequestException;
 import com.internlink.core.shared.exception.ResourceNotFoundException;
 import com.internlink.core.shared.security.SecurityGuard;
+import com.internlink.core.shared.security.ResourceAuthorization;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
@@ -35,11 +44,21 @@ public class DocumentServiceImpl implements DocumentService {
     private final JpaUserRepository userRepository;
     private final SecurityGuard securityGuard;
     private final StorageServiceRouter storageServiceRouter;
+    private final JpaJobApplicationRepository applicationRepository;
+    private final JpaStudentFoundApplicationRepository studentFoundApplicationRepository;
+    private final JpaLearningAgreementRepository agreementRepository;
+    private final JpaInternshipPlacementRepository placementRepository;
+    private final JpaPlacementTaskRepository taskRepository;
+    private final JpaWeeklyLogbookRepository logbookRepository;
+    private final JpaRubricEvaluationRepository rubricRepository;
+    private final JpaInternshipCaseRepository caseRepository;
 
     @Override
     @Transactional(readOnly = true)
     public List<DocumentResponse> getDocumentsByContext(ContextType contextType, UUID contextId) {
+        User actor = currentActor();
         return documentRepository.findByContextTypeAndContextId(contextType, contextId).stream()
+            .filter(doc -> canReadDocument(actor, doc))
             .map(doc -> mapToResponse(doc, false)) // context listing: ẩn URL để tránh rò rỉ hàng loạt
             .toList();
     }
@@ -70,9 +89,8 @@ public class DocumentServiceImpl implements DocumentService {
     public DocumentResponse getDocumentByIdForUser(UUID id, UUID currentUserId) {
         Document doc = documentRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Document", "id", id));
-
-        // Kiểm tra quyền đọc — ném ForbiddenException nếu hoàn toàn không liên quan
-        securityGuard.requireDocumentReadAccess(currentUserId, doc.getOwner().getId());
+        User actor = currentActor();
+        ResourceAuthorization.require(actor.getId().equals(currentUserId) && canReadDocument(actor, doc));
 
         // Chỉ chủ sở hữu hoặc Admin mới thấy URL lưu trữ thực tế
         boolean canSeeUrl = securityGuard.isSelfOrAdmin(currentUserId, doc.getOwner().getId());
@@ -93,6 +111,7 @@ public class DocumentServiceImpl implements DocumentService {
     ) {
         User owner = userRepository.findById(ownerId)
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", ownerId));
+        requireUploadAccess(ownerId, contextType, contextId);
 
         if (file == null || file.isEmpty()) {
             throw new BadRequestException("Tệp tải lên không được rỗng");
@@ -136,9 +155,8 @@ public class DocumentServiceImpl implements DocumentService {
     public DocumentDownloadInfo downloadDocument(UUID documentId, UUID requestingUserId) {
         Document doc = documentRepository.findById(documentId)
             .orElseThrow(() -> new ResourceNotFoundException("Document", "id", documentId));
-
-        // Kiểm tra quyền hạn tải tệp
-        securityGuard.requireDocumentReadAccess(requestingUserId, doc.getOwner().getId());
+        User actor = currentActor();
+        ResourceAuthorization.require(actor.getId().equals(requestingUserId) && canReadDocument(actor, doc));
 
         // Định tuyến đến nhà cung cấp lưu trữ đã lưu tài liệu này
         StorageService storageService = storageServiceRouter.getStorageService(doc.getStorageProvider());
@@ -174,6 +192,7 @@ public class DocumentServiceImpl implements DocumentService {
         if (externalUrl == null || externalUrl.isBlank()) {
             throw new BadRequestException("Đường dẫn tài liệu không được để trống");
         }
+        requireUploadAccess(ownerId, contextType, contextId);
 
         Document doc = Document.builder()
             .owner(owner)
@@ -190,6 +209,58 @@ public class DocumentServiceImpl implements DocumentService {
             .build();
 
         return mapToResponse(documentRepository.save(doc), true);
+    }
+
+    private User currentActor() {
+        UUID actorId = securityGuard.currentUser().getId();
+        return userRepository.findById(actorId)
+            .orElseThrow(() -> new ResourceNotFoundException("User", "id", actorId));
+    }
+
+    private void requireUploadAccess(UUID ownerId, ContextType contextType, UUID contextId) {
+        User actor = currentActor();
+        ResourceAuthorization.require(actor.getId().equals(ownerId)
+            && canAccessContext(actor, contextType, contextId));
+    }
+
+    private boolean canReadDocument(User actor, Document document) {
+        if (actor.getId().equals(document.getOwner().getId()) || ResourceAuthorization.isAdmin(actor)) {
+            return true;
+        }
+        if (document.getContextType() == ContextType.PROFILE) {
+            return document.getDocumentType() == DocumentType.CV
+                && applicationRepository.findBySubmittedCvDocumentId(document.getId()).stream()
+                    .anyMatch(app -> ResourceAuthorization.canReadApplication(actor, app));
+        }
+        return canAccessContext(actor, document.getContextType(), document.getContextId());
+    }
+
+    private boolean canAccessContext(User actor, ContextType contextType, UUID contextId) {
+        if (contextType == null || contextId == null) return false;
+        return switch (contextType) {
+            case PROFILE -> actor.getId().equals(contextId);
+            case APPLICATION -> applicationRepository.findById(contextId)
+                .map(app -> ResourceAuthorization.canReadApplication(actor, app)).orElse(false);
+            case SELF_FOUND -> studentFoundApplicationRepository.findById(contextId)
+                .map(app -> actor.getId().equals(app.getStudent().getId())
+                    || ResourceAuthorization.managesDepartment(actor, app.getTerm().getDepartment().getId())
+                    || actor.getRole() == com.internlink.core.shared.enums.UserRole.LECTURER
+                        && placementRepository.findByStudentFoundApplicationId(app.getId())
+                            .map(p -> p.getLecturer().getId().equals(actor.getId())).orElse(false))
+                .orElse(false);
+            case AGREEMENT -> agreementRepository.findById(contextId)
+                .map(agreement -> ResourceAuthorization.canReadAgreement(actor, agreement)).orElse(false);
+            case PLACEMENT -> placementRepository.findById(contextId)
+                .map(placement -> ResourceAuthorization.canReadPlacement(actor, placement)).orElse(false);
+            case TASK -> taskRepository.findById(contextId)
+                .map(task -> ResourceAuthorization.canReadPlacement(actor, task.getPlacement())).orElse(false);
+            case LOGBOOK -> logbookRepository.findById(contextId)
+                .map(logbook -> ResourceAuthorization.canReadPlacement(actor, logbook.getPlacement())).orElse(false);
+            case EVALUATION -> rubricRepository.findById(contextId)
+                .map(rubric -> ResourceAuthorization.canReadPlacement(actor, rubric.getPlacement())).orElse(false);
+            case CASE -> caseRepository.findById(contextId)
+                .map(caseFile -> ResourceAuthorization.canReadPlacement(actor, caseFile.getPlacement())).orElse(false);
+        };
     }
 
     /**

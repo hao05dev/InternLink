@@ -13,4 +13,5 @@ public interface JobApplicationService {
     JobApplicationResponse getApplicationById(UUID id);
     JobApplicationResponse applyJob(UUID studentId, JobApplicationRequest request);
     JobApplicationResponse updateApplicationStatus(UUID id, ApplicationStatus status);
+    JobApplicationResponse withdrawApplication(UUID id);
 }

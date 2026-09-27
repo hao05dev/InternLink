@@ -13,4 +13,5 @@ public interface WeeklyLogbookService {
     WeeklyLogbookResponse submitLogbook(UUID studentId, WeeklyLogbookRequest request);
     WeeklyLogbookResponse reviewByMentor(UUID id, UUID mentorUserId, LogbookStatus status, String mentorFeedback);
     WeeklyLogbookResponse commentByLecturer(UUID id, UUID lecturerUserId, String lecturerComment);
+    WeeklyLogbookResponse reviewByLecturer(UUID id, UUID lecturerUserId, LogbookStatus status, String feedback);
 }

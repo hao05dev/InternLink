@@ -11,8 +11,11 @@ import com.internlink.core.infrastructure.persistence.jpa.*;
 import com.internlink.core.presentation.placement.dto.response.InternshipPlacementResponse;
 import com.internlink.core.shared.enums.AgreementStatus;
 import com.internlink.core.shared.enums.PlacementStatus;
+import com.internlink.core.shared.enums.UserRole;
 import com.internlink.core.shared.exception.BadRequestException;
 import com.internlink.core.shared.exception.ResourceNotFoundException;
+import com.internlink.core.shared.security.ResourceAuthorization;
+import com.internlink.core.shared.security.SecurityGuard;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -34,6 +37,8 @@ public class InternshipPlacementServiceImpl implements InternshipPlacementServic
     private final JpaUserRepository userRepository;
     private final JpaStudentProfileRepository studentProfileRepository;
     private final JpaFinalResultRepository finalResultRepository;
+    private final JpaInternshipTermRepository termRepository;
+    private final SecurityGuard securityGuard;
     private final AuditLogService auditLogService;
     private final NotificationService notificationService;
 
@@ -55,6 +60,10 @@ public class InternshipPlacementServiceImpl implements InternshipPlacementServic
     @Override
     @Transactional(readOnly = true)
     public List<InternshipPlacementResponse> getPlacementsByTerm(UUID termId) {
+        var term = termRepository.findById(termId)
+            .orElseThrow(() -> new ResourceNotFoundException("InternshipTerm", "id", termId));
+        ResourceAuthorization.require(ResourceAuthorization.managesDepartment(
+            currentActor(), term.getDepartment().getId()));
         return placementRepository.findByTermId(termId).stream()
             .map(this::mapToResponse)
             .toList();
@@ -63,6 +72,9 @@ public class InternshipPlacementServiceImpl implements InternshipPlacementServic
     @Override
     @Transactional(readOnly = true)
     public List<InternshipPlacementResponse> getPlacementsByStudent(UUID studentId) {
+        User actor = currentActor();
+        ResourceAuthorization.require(ResourceAuthorization.isAdmin(actor)
+            || actor.getRole() == UserRole.STUDENT && actor.getId().equals(studentId));
         return placementRepository.findByStudentId(studentId).stream()
             .map(this::mapToResponse)
             .toList();
@@ -71,6 +83,9 @@ public class InternshipPlacementServiceImpl implements InternshipPlacementServic
     @Override
     @Transactional(readOnly = true)
     public List<InternshipPlacementResponse> getPlacementsByMentor(UUID mentorId) {
+        User actor = currentActor();
+        ResourceAuthorization.require(ResourceAuthorization.isAdmin(actor)
+            || actor.getRole() == UserRole.COMPANY_MENTOR && actor.getId().equals(mentorId));
         return placementRepository.findByMentorId(mentorId).stream()
             .map(this::mapToResponse)
             .toList();
@@ -79,6 +94,9 @@ public class InternshipPlacementServiceImpl implements InternshipPlacementServic
     @Override
     @Transactional(readOnly = true)
     public List<InternshipPlacementResponse> getPlacementsByLecturer(UUID lecturerId) {
+        User actor = currentActor();
+        ResourceAuthorization.require(ResourceAuthorization.isAdmin(actor)
+            || actor.getRole() == UserRole.LECTURER && actor.getId().equals(lecturerId));
         return placementRepository.findByLecturerId(lecturerId).stream()
             .map(this::mapToResponse)
             .toList();
@@ -89,6 +107,7 @@ public class InternshipPlacementServiceImpl implements InternshipPlacementServic
     public InternshipPlacementResponse getPlacementById(UUID id) {
         InternshipPlacement placement = placementRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("InternshipPlacement", "id", id));
+        ResourceAuthorization.require(ResourceAuthorization.canReadPlacement(currentActor(), placement));
         return mapToResponse(placement);
     }
 
@@ -101,6 +120,8 @@ public class InternshipPlacementServiceImpl implements InternshipPlacementServic
         if (agreement.getStatus() != AgreementStatus.APPROVED) {
             throw new BadRequestException("Thỏa thuận 3 bên phải được phê duyệt (APPROVED) trước khi kích hoạt thực tập");
         }
+        ResourceAuthorization.require(ResourceAuthorization.managesDepartment(
+            currentActor(), agreement.getDepartment().getId()));
 
         if (placementRepository.findByAgreementId(agreementId).isPresent()) {
             throw new BadRequestException("Lần thực tập đã được kích hoạt từ thỏa thuận này rồi");
@@ -108,6 +129,9 @@ public class InternshipPlacementServiceImpl implements InternshipPlacementServic
 
         User lecturer = userRepository.findById(lecturerId)
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", lecturerId));
+        ResourceAuthorization.require(lecturer.getRole() == UserRole.LECTURER
+            && lecturer.getDepartment() != null
+            && lecturer.getDepartment().getId().equals(agreement.getDepartment().getId()));
 
         User mentor = agreement.getOffer().getProposedMentor();
         if (mentor == null) {
@@ -169,6 +193,8 @@ public class InternshipPlacementServiceImpl implements InternshipPlacementServic
     public InternshipPlacementResponse updatePlacementStatus(UUID id, PlacementStatus newStatus) {
         InternshipPlacement placement = placementRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("InternshipPlacement", "id", id));
+        ResourceAuthorization.require(ResourceAuthorization.managesDepartment(
+            currentActor(), placement.getTerm().getDepartment().getId()));
 
         PlacementStatus currentStatus = placement.getStatus();
 
@@ -182,6 +208,16 @@ public class InternshipPlacementServiceImpl implements InternshipPlacementServic
         }
 
         // ── 2. Điều kiện tiên quyết theo bước đích ───────────────────────────
+        if (newStatus == PlacementStatus.ACTIVE
+            && (placement.getAssessmentScheme() == null
+                || !Set.of("APPROVED", "RETIRED").contains(placement.getAssessmentScheme().getStatus()))) {
+            throw new BadRequestException("Cần gán phương án đánh giá đã duyệt trước khi bắt đầu thực tập");
+        }
+        if (newStatus == PlacementStatus.ACTIVE && "STUDENT_FOUND".equals(placement.getSource())
+            && (placement.getStudentFoundApplication() == null
+                || placement.getStudentFoundApplication().getAcceptanceDocument() == null
+                || !"ACTIVE".equals(placement.getStudentFoundApplication().getAcceptanceDocument().getStatus())))
+            throw new BadRequestException("Thư tiếp nhận của nơi tự tìm không còn hợp lệ");
         if (newStatus == PlacementStatus.COMPLETED) {
             // Phải có FinalResult đã được công bố trước khi COMPLETED
             boolean hasFinalResult = finalResultRepository.findByPlacementId(id)
@@ -226,14 +262,19 @@ public class InternshipPlacementServiceImpl implements InternshipPlacementServic
 
         return InternshipPlacementResponse.builder()
             .id(entity.getId())
-            .agreementId(entity.getAgreement().getId())
+            .agreementId(entity.getAgreement() != null ? entity.getAgreement().getId() : null)
+            .source(entity.getSource())
+            .studentFoundApplicationId(entity.getStudentFoundApplication() != null ? entity.getStudentFoundApplication().getId() : null)
+            .assessmentSchemeId(entity.getAssessmentScheme() != null ? entity.getAssessmentScheme().getId() : null)
             .studentId(entity.getStudent().getId())
             .studentName(entity.getStudent().getFullName())
             .studentCode(studentCode)
-            .companyId(entity.getCompany().getId())
-            .companyName(entity.getCompany().getCompanyName())
-            .mentorId(entity.getMentor().getId())
-            .mentorName(entity.getMentor().getFullName())
+            .companyId(entity.getCompany() != null ? entity.getCompany().getId() : null)
+            .companyName(entity.getCompany() != null ? entity.getCompany().getCompanyName()
+                : entity.getStudentFoundApplication().getHostName())
+            .externalHostAddress(entity.getStudentFoundApplication() != null ? entity.getStudentFoundApplication().getHostAddress() : null)
+            .mentorId(entity.getMentor() != null ? entity.getMentor().getId() : null)
+            .mentorName(entity.getMentor() != null ? entity.getMentor().getFullName() : null)
             .lecturerId(entity.getLecturer().getId())
             .lecturerName(entity.getLecturer().getFullName())
             .termId(entity.getTerm().getId())
@@ -245,5 +286,11 @@ public class InternshipPlacementServiceImpl implements InternshipPlacementServic
             .status(entity.getStatus())
             .createdAt(entity.getCreatedAt())
             .build();
+    }
+
+    private User currentActor() {
+        UUID actorId = securityGuard.currentUser().getId();
+        return userRepository.findById(actorId)
+            .orElseThrow(() -> new ResourceNotFoundException("User", "id", actorId));
     }
 }

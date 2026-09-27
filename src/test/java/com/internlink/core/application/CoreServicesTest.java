@@ -26,6 +26,7 @@ import com.internlink.core.application.system.AuditLogService;
 import com.internlink.core.application.system.NotificationService;
 import com.internlink.core.shared.exception.BadRequestException;
 import com.internlink.core.shared.exception.UnauthorizedException;
+import com.internlink.core.shared.security.SecurityGuard;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -66,6 +67,7 @@ class CoreServicesTest {
     @Mock JpaFinalResultRepository finalResultRepository;
     @Mock AuditLogService auditLogService;
     @Mock NotificationService notificationService;
+    @Mock SecurityGuard securityGuard;
     @Mock AuthenticationManager authenticationManager;
     @Mock JwtUtil jwtUtil;
     @Mock CookieUtils cookieUtils;
@@ -130,7 +132,7 @@ class CoreServicesTest {
         when(programRepository.findById(program.getId())).thenReturn(Optional.of(program));
         StudentRosterImportItem item = StudentRosterImportItem.builder().programId(program.getId())
             .studentCode("B20").officialEmail("student@example.com").fullName("Student")
-            .academicYear("2020").build();
+            .academicYear("2020").internshipCourseCode("CT518E").build();
 
         assertThatThrownBy(() -> service.importRosterList(term.getId(), List.of(item)))
             .isInstanceOf(BadRequestException.class);
@@ -149,7 +151,8 @@ class CoreServicesTest {
     @Test
     void placementActivationRequiresApprovedAgreement() {
         InternshipPlacementServiceImpl service = new InternshipPlacementServiceImpl(
-            placementRepository, agreementRepository, userRepository, profileRepository, finalResultRepository, auditLogService, notificationService);
+            placementRepository, agreementRepository, userRepository, profileRepository, finalResultRepository,
+            termRepository, securityGuard, auditLogService, notificationService);
         LearningAgreement agreement = LearningAgreement.builder().status(AgreementStatus.DRAFT).build();
         agreement.setId(UUID.randomUUID());
         when(agreementRepository.findById(agreement.getId())).thenReturn(Optional.of(agreement));

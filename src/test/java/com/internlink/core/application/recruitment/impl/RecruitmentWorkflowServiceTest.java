@@ -4,11 +4,15 @@ import com.internlink.core.domain.auth.User;
 import com.internlink.core.domain.company.Company;
 import com.internlink.core.domain.organization.Department;
 import com.internlink.core.domain.organization.InternshipTerm;
+import com.internlink.core.domain.organization.AcademicProgram;
+import com.internlink.core.domain.organization.StudentRoster;
+import com.internlink.core.domain.student.StudentProfile;
 import com.internlink.core.domain.recruitment.JobApplication;
 import com.internlink.core.domain.recruitment.JobPosition;
 import com.internlink.core.domain.recruitment.PlacementOffer;
 import com.internlink.core.domain.system.Document;
 import com.internlink.core.infrastructure.persistence.jpa.*;
+import com.internlink.core.infrastructure.security.CustomUserDetail;
 import com.internlink.core.presentation.recruitment.dto.request.JobApplicationRequest;
 import com.internlink.core.presentation.recruitment.dto.request.JobPositionRequest;
 import com.internlink.core.presentation.recruitment.dto.request.PlacementOfferRequest;
@@ -19,6 +23,7 @@ import com.internlink.core.application.system.NotificationService;
 import com.internlink.core.infrastructure.persistence.jpa.JpaStudentProfileRepository;
 import com.internlink.core.infrastructure.persistence.jpa.JpaStudentRosterRepository;
 import com.internlink.core.shared.exception.BadRequestException;
+import com.internlink.core.shared.exception.ForbiddenException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -63,9 +68,9 @@ class RecruitmentWorkflowServiceTest {
     @BeforeEach
     void setUp() {
         jobService = new JobPositionServiceImpl(jobRepository, companyRepository, termRepository,
-            departmentRepository, userRepository, jobSkillRepository, taxonomyRepository);
+            departmentRepository, userRepository, jobSkillRepository, taxonomyRepository, securityGuard);
         applicationService = new JobApplicationServiceImpl(applicationRepository, jobRepository,
-            userRepository, documentRepository, studentProfileRepository, studentRosterRepository);
+            userRepository, documentRepository, studentProfileRepository, studentRosterRepository, offerRepository, securityGuard);
         offerService = new PlacementOfferServiceImpl(offerRepository, applicationRepository, userRepository, securityGuard, auditLogService, notificationService);
         lenient().when(jobRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         lenient().when(applicationRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
@@ -77,14 +82,18 @@ class RecruitmentWorkflowServiceTest {
         Department department = department();
         InternshipTerm term = term(department);
         Company company = company();
+        User representative = user(UserRole.COMPANY_REP);
+        representative.setCompany(company);
         when(companyRepository.findById(company.getId())).thenReturn(Optional.of(company));
         when(termRepository.findById(term.getId())).thenReturn(Optional.of(term));
         when(departmentRepository.findById(department.getId())).thenReturn(Optional.of(department));
+        when(userRepository.findById(representative.getId())).thenReturn(Optional.of(representative));
+        when(securityGuard.currentUser()).thenReturn(CustomUserDetail.create(representative));
 
         JobPositionRequest request = jobRequest(company.getId(), term.getId(), department.getId());
         request.setStatus(JobStatus.APPROVED);
 
-        assertThat(jobService.createJob(request).getStatus()).isEqualTo(JobStatus.DRAFT);
+        assertThat(jobService.createJob(request, representative.getId()).getStatus()).isEqualTo(JobStatus.DRAFT);
     }
 
     @Test
@@ -97,18 +106,60 @@ class RecruitmentWorkflowServiceTest {
         when(termRepository.findById(term.getId())).thenReturn(Optional.of(term));
         when(departmentRepository.findById(otherDepartment.getId())).thenReturn(Optional.of(otherDepartment));
 
-        assertThatThrownBy(() -> jobService.createJob(jobRequest(company.getId(), term.getId(), otherDepartment.getId())))
+        assertThatThrownBy(() -> jobService.createJob(jobRequest(company.getId(), term.getId(), otherDepartment.getId()), UUID.randomUUID()))
             .isInstanceOf(BadRequestException.class);
+    }
+
+    @Test
+    void representativeCannotCreateJobForAnotherCompany() {
+        Department department = department();
+        InternshipTerm term = term(department);
+        Company targetCompany = company();
+        User representative = user(UserRole.COMPANY_REP);
+        representative.setCompany(company());
+        when(companyRepository.findById(targetCompany.getId())).thenReturn(Optional.of(targetCompany));
+        when(termRepository.findById(term.getId())).thenReturn(Optional.of(term));
+        when(departmentRepository.findById(department.getId())).thenReturn(Optional.of(department));
+        when(userRepository.findById(representative.getId())).thenReturn(Optional.of(representative));
+        when(securityGuard.currentUser()).thenReturn(CustomUserDetail.create(representative));
+
+        assertThatThrownBy(() -> jobService.createJob(
+            jobRequest(targetCompany.getId(), term.getId(), department.getId()), representative.getId()))
+            .isInstanceOf(ForbiddenException.class);
+        verify(jobRepository, never()).save(any());
+    }
+
+    @Test
+    void studentCannotReadAnotherStudentsOffer() {
+        JobApplication application = application(ApplicationStatus.OFFERED);
+        PlacementOffer offer = PlacementOffer.builder().application(application).build();
+        offer.setId(UUID.randomUUID());
+        User stranger = user(UserRole.STUDENT);
+        when(offerRepository.findById(offer.getId())).thenReturn(Optional.of(offer));
+        when(securityGuard.currentUser()).thenReturn(CustomUserDetail.create(stranger));
+        when(userRepository.findById(stranger.getId())).thenReturn(Optional.of(stranger));
+
+        assertThatThrownBy(() -> offerService.getOfferById(offer.getId()))
+            .isInstanceOf(ForbiddenException.class);
     }
 
     @Test
     void applyJobRejectsCvOwnedByAnotherUser() {
         User student = user(UserRole.STUDENT);
         JobPosition job = job(company(), term(department()), department(), JobStatus.APPROVED);
+        job.getTerm().setStatus(TermStatus.APPLICATION_OPEN);
+        job.getTerm().setApplicationDeadline(OffsetDateTime.now().plusDays(2));
+        AcademicProgram program = AcademicProgram.builder().code("CNTT").name("CNTT").build();
+        StudentProfile profile = StudentProfile.builder().user(student).program(program).build();
+        StudentRoster roster = StudentRoster.builder().eligibilityStatus(EligibilityStatus.ELIGIBLE).build();
         Document foreignCv = Document.builder().owner(user(UserRole.STUDENT)).documentType(DocumentType.CV).build();
         foreignCv.setId(UUID.randomUUID());
         when(userRepository.findById(student.getId())).thenReturn(Optional.of(student));
         when(jobRepository.findById(job.getId())).thenReturn(Optional.of(job));
+        when(studentProfileRepository.findByUserId(student.getId())).thenReturn(Optional.of(profile));
+        when(studentRosterRepository.findByTermIdAndClaimedUserId(job.getTerm().getId(), student.getId()))
+            .thenReturn(Optional.of(roster));
+        when(securityGuard.currentUser()).thenReturn(CustomUserDetail.create(student));
         when(applicationRepository.existsByJobIdAndStudentId(job.getId(), student.getId())).thenReturn(false);
         when(documentRepository.findById(foreignCv.getId())).thenReturn(Optional.of(foreignCv));
 
@@ -123,7 +174,11 @@ class RecruitmentWorkflowServiceTest {
     @Test
     void applicationStatusRejectsInvalidJump() {
         JobApplication application = application(ApplicationStatus.SUBMITTED);
+        User representative = user(UserRole.COMPANY_REP);
+        representative.setCompany(application.getJob().getCompany());
         when(applicationRepository.findById(application.getId())).thenReturn(Optional.of(application));
+        when(userRepository.findById(representative.getId())).thenReturn(Optional.of(representative));
+        when(securityGuard.currentUser()).thenReturn(CustomUserDetail.create(representative));
 
         assertThatThrownBy(() -> applicationService.updateApplicationStatus(
             application.getId(), ApplicationStatus.OFFERED))
@@ -133,7 +188,11 @@ class RecruitmentWorkflowServiceTest {
     @Test
     void createOfferRequiresActiveReviewAndValidDates() {
         JobApplication application = application(ApplicationStatus.SUBMITTED);
+        User representative = user(UserRole.COMPANY_REP);
+        representative.setCompany(application.getJob().getCompany());
         when(applicationRepository.findById(application.getId())).thenReturn(Optional.of(application));
+        when(userRepository.findById(representative.getId())).thenReturn(Optional.of(representative));
+        when(securityGuard.currentUser()).thenReturn(CustomUserDetail.create(representative));
         when(offerRepository.findByApplicationId(application.getId())).thenReturn(Optional.empty());
 
         PlacementOfferRequest request = offerRequest(application.getId());
@@ -153,6 +212,7 @@ class RecruitmentWorkflowServiceTest {
             .build();
         offer.setId(UUID.randomUUID());
         when(offerRepository.findById(offer.getId())).thenReturn(Optional.of(offer));
+        when(securityGuard.currentUser()).thenReturn(CustomUserDetail.create(application.getStudent()));
 
         assertThat(offerService.respondToOffer(offer.getId(), OfferStatus.DECLINED).getStatus())
             .isEqualTo(OfferStatus.DECLINED);
@@ -169,6 +229,7 @@ class RecruitmentWorkflowServiceTest {
             .build();
         offer.setId(UUID.randomUUID());
         when(offerRepository.findById(offer.getId())).thenReturn(Optional.of(offer));
+        when(securityGuard.currentUser()).thenReturn(CustomUserDetail.create(offer.getApplication().getStudent()));
 
         assertThatThrownBy(() -> offerService.respondToOffer(offer.getId(), OfferStatus.WITHDRAWN))
             .isInstanceOf(BadRequestException.class);
@@ -205,7 +266,7 @@ class RecruitmentWorkflowServiceTest {
     private JobPosition job(Company company, InternshipTerm term, Department department, JobStatus status) {
         JobPosition value = JobPosition.builder().company(company).term(term).department(department)
             .title("Java Intern").workFormat(WorkFormat.HYBRID).location("CT")
-            .description("Description").status(status).build();
+            .description("Description").vacancies(2).status(status).build();
         value.setId(UUID.randomUUID());
         return value;
     }

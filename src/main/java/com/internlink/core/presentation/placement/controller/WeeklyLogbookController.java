@@ -66,4 +66,13 @@ public class WeeklyLogbookController {
         WeeklyLogbookResponse response = logbookService.commentByLecturer(id, userDetail.getId(), lecturerComment);
         return ResponseEntity.ok(ApiResponse.success("GVHD nhận xét nhật ký tuần thành công", response));
     }
+
+    @PatchMapping("/{id}/lecturer-review")
+    @PreAuthorize("hasRole('LECTURER')")
+    public ResponseEntity<ApiResponse<WeeklyLogbookResponse>> reviewByLecturer(
+        @PathVariable UUID id, @RequestParam LogbookStatus status,
+        @RequestParam(required = false) String feedback,
+        @AuthenticationPrincipal CustomUserDetail userDetail) {
+        return ResponseEntity.ok(ApiResponse.success(logbookService.reviewByLecturer(id, userDetail.getId(), status, feedback)));
+    }
 }
