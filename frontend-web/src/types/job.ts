@@ -13,6 +13,11 @@ export interface JobPosition {
     id: string;
     companyId: string;
     companyName: string;
+    companyLogo?: string;
+    companyScale?: string;
+    companyIndustry?: string;
+    companyWebsite?: string;
+    companyAddress?: string;
     termId: string;
     termName?: string;
     departmentId?: string;
@@ -22,6 +27,7 @@ export interface JobPosition {
     location: string;
     vacancies: number;
     description: string;
+    requirements?: string[];
     targetProgramCodes?: string[];
     targetLearningOutcomes?: string[];
     benefits?: string[];
@@ -31,5 +37,8 @@ export interface JobPosition {
     skills?: JobSkill[];
     mandatorySkillIds?: string[];
     optionalSkillIds?: string[];
+    deadline?: string;
+    applicantCount?: number;
+    experienceLevel?: string;
     createdAt?: string;
 }

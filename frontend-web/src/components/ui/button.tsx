@@ -3,12 +3,13 @@ import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-    variant?: "primary" | "secondary" | "outline" | "ghost" | "danger";
+    variant?: "default" | "primary" | "secondary" | "outline" | "ghost" | "danger";
     size?: "sm" | "md" | "lg";
     isLoading?: boolean;
 }
 
 const variantStyles: Record<NonNullable<ButtonProps["variant"]>, string> = {
+    default: "bg-sky-700 text-white hover:bg-sky-800 shadow-sm",
     primary: "bg-blue-600 text-white hover:bg-blue-700 shadow-sm",
     secondary: "bg-slate-100 text-slate-900 hover:bg-slate-200",
     outline: "border border-slate-300 bg-white hover:bg-slate-50 text-slate-700",
