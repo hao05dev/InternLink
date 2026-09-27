@@ -3,6 +3,9 @@
 # ====================================================================
 mo_ta_luan_van.txt
 internlink.sql
+/frontend-web/.agent
+/frontend-web/.agents
+/frontend-web/skills-lock.json
 /docs
 !/docs/
 /docs/**

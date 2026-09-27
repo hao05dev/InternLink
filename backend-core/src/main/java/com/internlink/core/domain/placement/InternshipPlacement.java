@@ -5,6 +5,7 @@ import com.internlink.core.shared.enums.PlacementStatus;
 import com.internlink.core.domain.auth.User;
 import com.internlink.core.domain.company.Company;
 import com.internlink.core.domain.organization.InternshipTerm;
+import com.internlink.core.domain.evaluation.AssessmentScheme;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -25,7 +26,7 @@ import java.util.Map;
 public class InternshipPlacement extends BaseEntity {
 
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "agreement_id", nullable = false, unique = true)
+    @JoinColumn(name = "agreement_id", unique = true)
     private LearningAgreement agreement;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -33,12 +34,24 @@ public class InternshipPlacement extends BaseEntity {
     private User student;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "company_id", nullable = false)
+    @JoinColumn(name = "company_id")
     private Company company;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "mentor_id", nullable = false)
+    @JoinColumn(name = "mentor_id")
     private User mentor;
+
+    @Builder.Default
+    @Column(name = "source", nullable = false, length = 20)
+    private String source = "PARTNER_PORTAL";
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "student_found_application_id", unique = true)
+    private StudentFoundApplication studentFoundApplication;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "assessment_scheme_id")
+    private AssessmentScheme assessmentScheme;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "lecturer_id", nullable = false)

@@ -21,6 +21,7 @@ public class AcademicProgramResponse {
     private String code;
     private String name;
     private String degreeLevel;
+    private String track;
     private Boolean isActive;
     private OffsetDateTime createdAt;
 }

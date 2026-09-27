@@ -363,7 +363,7 @@
     ]
   },
   {
-    "id": "SK-REST",
+    "id": "SK-REST-API",
     "name": "RESTful API",
     "category": "Architecture",
     "synonyms": [

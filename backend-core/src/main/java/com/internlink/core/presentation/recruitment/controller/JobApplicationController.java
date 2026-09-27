@@ -71,4 +71,10 @@ public class JobApplicationController {
         JobApplicationResponse response = applicationService.updateApplicationStatus(id, status);
         return ResponseEntity.ok(ApiResponse.success("Cập nhật trạng thái đơn ứng tuyển thành công", response));
     }
+
+    @PatchMapping("/{id}/withdraw")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ResponseEntity<ApiResponse<JobApplicationResponse>> withdraw(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.success(applicationService.withdrawApplication(id)));
+    }
 }

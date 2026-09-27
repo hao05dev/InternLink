@@ -157,7 +157,7 @@ classDiagram
 ### M6: Phân hệ Đánh giá Rubric, Điểm số & Phúc khảo (Rubric Evaluation & Appeals)
 * **Trách nhiệm**:
   * Phiếu đánh giá Rubric giữa kỳ và cuối kỳ chuẩn hóa theo 8 nhóm năng lực NACE.
-  * Tổng hợp điểm trọng số (Mentor DN: 40%, Giảng viên: 40%, Báo cáo/Nhật ký: 20%).
+  * Tổng hợp điểm theo phương án đánh giá có phiên bản của từng ngành, khóa, học phần và kỳ thực tập; không dùng trọng số mặc định.
   * Quy trình khiếu nại & phúc khảo minh bạch (Appeals Committee).
   * Đối chiếu chuẩn đầu ra và thống kê khoảng thiếu năng lực thực tế.
 

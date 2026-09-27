@@ -20,11 +20,15 @@ public class InternshipPlacementResponse {
 
     private UUID id;
     private UUID agreementId;
+    private String source;
+    private UUID studentFoundApplicationId;
+    private UUID assessmentSchemeId;
     private UUID studentId;
     private String studentName;
     private String studentCode;
     private UUID companyId;
     private String companyName;
+    private String externalHostAddress;
     private UUID mentorId;
     private String mentorName;
     private UUID lecturerId;

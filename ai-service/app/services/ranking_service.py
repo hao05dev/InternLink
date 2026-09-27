@@ -38,10 +38,13 @@ class RankingService:
         matched_optional = student_set.intersection(optional_set)
 
         # Trọng số tính điểm: Bắt buộc chiếm 80%, mong muốn chiếm 20%
-        mand_score = len(matched_mandatory) / len(mandatory_set) if mandatory_set else 1.0
-        opt_score = len(matched_optional) / len(optional_set) if optional_set else 1.0
+        mand_score = len(matched_mandatory) / len(mandatory_set) if mandatory_set else 0.0
+        opt_score = len(matched_optional) / len(optional_set) if optional_set else 0.0
 
-        skill_score = (mand_score * 0.8) + (opt_score * 0.2)
+        if mandatory_set and optional_set:
+            skill_score = (mand_score * 0.8) + (opt_score * 0.2)
+        else:
+            skill_score = mand_score if mandatory_set else opt_score
         all_matched = list(matched_mandatory.union(matched_optional))
         all_missing = list(missing_mandatory)
 

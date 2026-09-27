@@ -17,6 +17,8 @@ public interface JpaInternshipPlacementRepository extends JpaRepository<Internsh
     List<InternshipPlacement> findByMentorId(UUID mentorId);
     List<InternshipPlacement> findByLecturerId(UUID lecturerId);
     List<InternshipPlacement> findByTermId(UUID termId);
+    List<InternshipPlacement> findByTermIdAndStudentId(UUID termId, UUID studentId);
+    Optional<InternshipPlacement> findByStudentFoundApplicationId(UUID studentFoundApplicationId);
     List<InternshipPlacement> findByTermIdAndStatus(UUID termId, PlacementStatus status);
 
     /**

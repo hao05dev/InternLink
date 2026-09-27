@@ -19,6 +19,8 @@ import com.internlink.core.shared.enums.RequirementType;
 import com.internlink.core.shared.enums.VerificationStatus;
 import com.internlink.core.shared.exception.BadRequestException;
 import com.internlink.core.shared.exception.ResourceNotFoundException;
+import com.internlink.core.shared.security.ResourceAuthorization;
+import com.internlink.core.shared.security.SecurityGuard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,11 +42,14 @@ public class JobPositionServiceImpl implements JobPositionService {
     private final JpaUserRepository userRepository;
     private final JpaJobSkillRepository jobSkillRepository;
     private final JpaSkillTaxonomyRepository taxonomyRepository;
+    private final SecurityGuard securityGuard;
 
     @Override
     @Transactional(readOnly = true)
     public List<JobPositionResponse> getAllJobs() {
+        User actor = currentActor();
         return jobPositionRepository.findAll().stream()
+            .filter(job -> canReadJob(actor, job))
             .map(this::mapToResponse)
             .toList();
     }
@@ -52,7 +57,9 @@ public class JobPositionServiceImpl implements JobPositionService {
     @Override
     @Transactional(readOnly = true)
     public List<JobPositionResponse> getJobsByCompany(UUID companyId) {
+        User actor = currentActor();
         return jobPositionRepository.findByCompanyId(companyId).stream()
+            .filter(job -> canReadJob(actor, job))
             .map(this::mapToResponse)
             .toList();
     }
@@ -60,7 +67,9 @@ public class JobPositionServiceImpl implements JobPositionService {
     @Override
     @Transactional(readOnly = true)
     public List<JobPositionResponse> getJobsByTerm(UUID termId) {
+        User actor = currentActor();
         return jobPositionRepository.findByTermId(termId).stream()
+            .filter(job -> canReadJob(actor, job))
             .map(this::mapToResponse)
             .toList();
     }
@@ -78,6 +87,9 @@ public class JobPositionServiceImpl implements JobPositionService {
     public JobPositionResponse getJobById(UUID id) {
         JobPosition job = jobPositionRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("JobPosition", "id", id));
+        if (job.getStatus() != JobStatus.APPROVED) {
+            ResourceAuthorization.require(canReadJob(currentActor(), job));
+        }
         return mapToResponse(job);
     }
 
@@ -104,6 +116,9 @@ public class JobPositionServiceImpl implements JobPositionService {
         // Track COMPANY_REP nào tạo vị trí (phục vụ kiểm tra quyền ký thỏa thuận)
         User createdBy = userRepository.findById(createdByUserId)
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", createdByUserId));
+        ResourceAuthorization.require(createdByUserId.equals(securityGuard.currentUser().getId())
+            && (ResourceAuthorization.isAdmin(createdBy)
+                || ResourceAuthorization.representsCompany(createdBy, company.getId())));
 
         JobPosition job = JobPosition.builder()
             .company(company)
@@ -133,9 +148,17 @@ public class JobPositionServiceImpl implements JobPositionService {
     public JobPositionResponse updateJob(UUID id, JobPositionRequest request) {
         JobPosition job = jobPositionRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("JobPosition", "id", id));
+        User actor = currentActor();
+        ResourceAuthorization.require(ResourceAuthorization.isAdmin(actor)
+            || ResourceAuthorization.representsCompany(actor, job.getCompany().getId()));
 
         if (job.getStatus() != JobStatus.DRAFT && job.getStatus() != JobStatus.REJECTED) {
             throw new BadRequestException("Chỉ có thể chỉnh sửa vị trí ở trạng thái DRAFT hoặc REJECTED");
+        }
+        if (!job.getCompany().getId().equals(request.getCompanyId())
+            || !job.getTerm().getId().equals(request.getTermId())
+            || !job.getDepartment().getId().equals(request.getDepartmentId())) {
+            throw new BadRequestException("Không thể đổi doanh nghiệp, kỳ hoặc khoa của vị trí đã tạo");
         }
 
         job.setTitle(request.getTitle().trim());
@@ -159,6 +182,25 @@ public class JobPositionServiceImpl implements JobPositionService {
 
     @Override
     @Transactional
+    public JobPositionResponse submitJob(UUID id) {
+        JobPosition job = jobPositionRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("JobPosition", "id", id));
+        User actor = currentActor();
+        ResourceAuthorization.require(ResourceAuthorization.isAdmin(actor)
+            || ResourceAuthorization.representsCompany(actor, job.getCompany().getId()));
+        if (job.getStatus() != JobStatus.DRAFT && job.getStatus() != JobStatus.REJECTED) {
+            throw new BadRequestException("Chỉ có thể gửi duyệt vị trí DRAFT hoặc REJECTED");
+        }
+        if (jobSkillRepository.findByIdJobId(id).stream()
+            .noneMatch(skill -> skill.getRequirementType() == RequirementType.MANDATORY)) {
+            throw new BadRequestException("Vị trí cần ít nhất một kỹ năng bắt buộc trước khi gửi duyệt");
+        }
+        job.setStatus(JobStatus.PENDING_APPROVAL);
+        return mapToResponse(jobPositionRepository.save(job));
+    }
+
+    @Override
+    @Transactional
     public JobPositionResponse reviewJob(UUID id, JobStatus status, String facultyFeedback, UUID approvedByUserId) {
         JobPosition job = jobPositionRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("JobPosition", "id", id));
@@ -166,9 +208,14 @@ public class JobPositionServiceImpl implements JobPositionService {
         if (status != JobStatus.APPROVED && status != JobStatus.REJECTED) {
             throw new BadRequestException("Kết quả thẩm định chỉ có thể là APPROVED hoặc REJECTED");
         }
+        if (job.getStatus() != JobStatus.PENDING_APPROVAL) {
+            throw new BadRequestException("Chỉ có thể thẩm định vị trí đã gửi duyệt");
+        }
 
         User approver = userRepository.findById(approvedByUserId)
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", approvedByUserId));
+        ResourceAuthorization.require(approvedByUserId.equals(securityGuard.currentUser().getId())
+            && ResourceAuthorization.managesDepartment(approver, job.getDepartment().getId()));
 
         job.setStatus(status);
         job.setFacultyFeedback(facultyFeedback);
@@ -178,24 +225,37 @@ public class JobPositionServiceImpl implements JobPositionService {
         return mapToResponse(jobPositionRepository.save(job));
     }
 
+    private User currentActor() {
+        UUID actorId = securityGuard.currentUser().getId();
+        return userRepository.findById(actorId)
+            .orElseThrow(() -> new ResourceNotFoundException("User", "id", actorId));
+    }
+
+    private boolean canReadJob(User actor, JobPosition job) {
+        return job.getStatus() == JobStatus.APPROVED || ResourceAuthorization.isAdmin(actor)
+            || ResourceAuthorization.managesDepartment(actor, job.getDepartment().getId())
+            || ResourceAuthorization.representsCompany(actor, job.getCompany().getId());
+    }
+
     private void saveJobSkills(JobPosition job, JobPositionRequest request) {
         List<JobSkill> skillsToSave = new ArrayList<>();
 
         // 1. Lưu từ danh sách skills chi tiết nếu có
         if (request.getSkills() != null && !request.getSkills().isEmpty()) {
             for (JobSkillRequest skillReq : request.getSkills()) {
-                if (skillReq.getSkillId() == null) continue;
-                taxonomyRepository.findById(skillReq.getSkillId()).ifPresent(taxonomy -> {
-                    JobSkill jobSkill = JobSkill.builder()
-                        .id(new JobSkillId(job.getId(), taxonomy.getId()))
-                        .job(job)
-                        .skill(taxonomy)
-                        .requirementType(skillReq.getRequirementType() != null ? skillReq.getRequirementType() : RequirementType.MANDATORY)
-                        .requiredLevel(skillReq.getRequiredLevel())
-                        .weight(skillReq.getWeight() != null ? skillReq.getWeight() : BigDecimal.ONE)
-                        .build();
-                    skillsToSave.add(jobSkill);
-                });
+                if (skillReq == null || skillReq.getSkillId() == null || skillReq.getSkillId().isBlank()) {
+                    throw new BadRequestException("Mã kỹ năng không được để trống");
+                }
+                SkillTaxonomy taxonomy = requireSkill(skillReq.getSkillId());
+                JobSkill jobSkill = JobSkill.builder()
+                    .id(new JobSkillId(job.getId(), taxonomy.getId()))
+                    .job(job)
+                    .skill(taxonomy)
+                    .requirementType(skillReq.getRequirementType() != null ? skillReq.getRequirementType() : RequirementType.MANDATORY)
+                    .requiredLevel(skillReq.getRequiredLevel())
+                    .weight(skillReq.getWeight() != null ? skillReq.getWeight() : BigDecimal.ONE)
+                    .build();
+                skillsToSave.add(jobSkill);
             }
         }
 
@@ -203,16 +263,15 @@ public class JobPositionServiceImpl implements JobPositionService {
         if (request.getMandatorySkillIds() != null && !request.getMandatorySkillIds().isEmpty()) {
             for (String skillId : request.getMandatorySkillIds()) {
                 if (skillsToSave.stream().noneMatch(s -> s.getId().getSkillId().equals(skillId))) {
-                    taxonomyRepository.findById(skillId).ifPresent(taxonomy -> {
-                        JobSkill jobSkill = JobSkill.builder()
-                            .id(new JobSkillId(job.getId(), taxonomy.getId()))
-                            .job(job)
-                            .skill(taxonomy)
-                            .requirementType(RequirementType.MANDATORY)
-                            .weight(BigDecimal.ONE)
-                            .build();
-                        skillsToSave.add(jobSkill);
-                    });
+                    SkillTaxonomy taxonomy = requireSkill(skillId);
+                    JobSkill jobSkill = JobSkill.builder()
+                        .id(new JobSkillId(job.getId(), taxonomy.getId()))
+                        .job(job)
+                        .skill(taxonomy)
+                        .requirementType(RequirementType.MANDATORY)
+                        .weight(BigDecimal.ONE)
+                        .build();
+                    skillsToSave.add(jobSkill);
                 }
             }
         }
@@ -221,16 +280,15 @@ public class JobPositionServiceImpl implements JobPositionService {
         if (request.getOptionalSkillIds() != null && !request.getOptionalSkillIds().isEmpty()) {
             for (String skillId : request.getOptionalSkillIds()) {
                 if (skillsToSave.stream().noneMatch(s -> s.getId().getSkillId().equals(skillId))) {
-                    taxonomyRepository.findById(skillId).ifPresent(taxonomy -> {
-                        JobSkill jobSkill = JobSkill.builder()
-                            .id(new JobSkillId(job.getId(), taxonomy.getId()))
-                            .job(job)
-                            .skill(taxonomy)
-                            .requirementType(RequirementType.OPTIONAL)
-                            .weight(BigDecimal.valueOf(0.5))
-                            .build();
-                        skillsToSave.add(jobSkill);
-                    });
+                    SkillTaxonomy taxonomy = requireSkill(skillId);
+                    JobSkill jobSkill = JobSkill.builder()
+                        .id(new JobSkillId(job.getId(), taxonomy.getId()))
+                        .job(job)
+                        .skill(taxonomy)
+                        .requirementType(RequirementType.OPTIONAL)
+                        .weight(BigDecimal.valueOf(0.5))
+                        .build();
+                    skillsToSave.add(jobSkill);
                 }
             }
         }
@@ -238,6 +296,14 @@ public class JobPositionServiceImpl implements JobPositionService {
         if (!skillsToSave.isEmpty()) {
             jobSkillRepository.saveAll(skillsToSave);
         }
+    }
+
+    private SkillTaxonomy requireSkill(String skillId) {
+        if (skillId == null || skillId.isBlank()) {
+            throw new BadRequestException("Mã kỹ năng không được để trống");
+        }
+        return taxonomyRepository.findById(skillId)
+            .orElseThrow(() -> new BadRequestException("Kỹ năng không tồn tại trong từ điển: " + skillId));
     }
 
     private JobPositionResponse mapToResponse(JobPosition entity) {

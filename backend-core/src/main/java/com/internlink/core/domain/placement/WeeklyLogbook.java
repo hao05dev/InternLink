@@ -44,6 +44,9 @@ public class WeeklyLogbook extends BaseEntity {
     @Column(name = "total_hours", precision = 5, scale = 2, nullable = false)
     private BigDecimal totalHours;
 
+    @Column(name = "was_late", nullable = false)
+    private Boolean wasLate;
+
     @Enumerated(EnumType.STRING)
     @Builder.Default
     @Column(name = "status", nullable = false, length = 30)

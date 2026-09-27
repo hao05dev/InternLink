@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -63,7 +64,7 @@ public class JobPositionRequest {
 
     /** Danh sách kỹ năng yêu cầu chi tiết (kèm trọng số và phân loại) */
     @Builder.Default
-    private List<JobSkillRequest> skills = List.of();
+    private List<@Valid JobSkillRequest> skills = List.of();
 
     /** Hỗ trợ truyền nhanh danh sách ID kỹ năng bắt buộc */
     @Builder.Default

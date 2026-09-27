@@ -58,7 +58,7 @@ public class PlacementTaskServiceImpl implements PlacementTaskService {
         if (placement.getStatus() != PlacementStatus.ACTIVE) {
             throw new BadRequestException("Chỉ có thể giao nhiệm vụ cho lần thực tập đang ACTIVE");
         }
-        if (mentor.getRole() != UserRole.ADMIN && !placement.getMentor().getId().equals(mentorId)) {
+        if (placement.getMentor() == null || (mentor.getRole() != UserRole.ADMIN && !placement.getMentor().getId().equals(mentorId))) {
             throw new BadRequestException("Người dùng không phải Mentor của lần thực tập này");
         }
 
@@ -108,7 +108,8 @@ public class PlacementTaskServiceImpl implements PlacementTaskService {
 
         User reviewer = userRepository.findById(reviewerId)
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", reviewerId));
-        if (reviewer.getRole() != UserRole.ADMIN && !task.getPlacement().getMentor().getId().equals(reviewerId)) {
+        if (task.getPlacement().getMentor() == null || (reviewer.getRole() != UserRole.ADMIN
+            && !task.getPlacement().getMentor().getId().equals(reviewerId))) {
             throw new BadRequestException("Người dùng không phải Mentor của lần thực tập này");
         }
         if (task.getStatus() != TaskStatus.SUBMITTED) {

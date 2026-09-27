@@ -8,6 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Data
@@ -25,4 +26,5 @@ public class StudentSkillResponse {
     private BigDecimal confidence;
     private Boolean isConfirmed;
     private UUID evidenceDocumentId;
+    private OffsetDateTime createdAt;
 }

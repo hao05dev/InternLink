@@ -151,11 +151,13 @@ public class CloReportServiceImpl implements CloReportService {
 
             cloMetrics.add(CloMetric.builder()
                 .cloCode(cloCode)
-                .description("Chuẩn đầu ra thực tập: " + cloCode)
+                .description("Tỷ lệ đạt điểm tổng kết của nhóm vị trí có mục tiêu " + cloCode
+                    + "; chưa đo trực tiếp mức đạt chuẩn đầu ra")
                 .targetStudentsCount(targetCount)
                 .passedStudentsCount(cloPassedCount)
                 .attainmentRate(attainmentRate)
                 .averageScore(cloAvgScore)
+                .measurementMethod("PLACEMENT_RESULT_PROXY")
                 .build());
         }
 

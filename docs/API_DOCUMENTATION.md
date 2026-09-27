@@ -4,6 +4,8 @@
 **Base URL**: `/api/v1`  
 **Authentication**: Bearer JWT (`Authorization: Bearer <token>`)
 
+> **API đánh giá thực tập hiện hành:** Xem [CTU_ASSESSMENT_BACKEND.md](CTU_ASSESSMENT_BACKEND.md) cho luồng sinh viên tự tìm nơi và phương án chấm điểm theo học phần. Các ví dụ Rubric và tổng hợp điểm cũ trong tài liệu này không dùng để tính điểm học phần chính thức.
+
 ---
 
 ## 1. QUY CHUẨN CHUNG (GENERAL CONVENTIONS)

@@ -10,6 +10,7 @@ import com.internlink.core.domain.system.Document;
 import com.internlink.core.infrastructure.persistence.jpa.JpaDocumentRepository;
 import com.internlink.core.infrastructure.persistence.jpa.JpaJobApplicationRepository;
 import com.internlink.core.infrastructure.persistence.jpa.JpaJobPositionRepository;
+import com.internlink.core.infrastructure.persistence.jpa.JpaPlacementOfferRepository;
 import com.internlink.core.infrastructure.persistence.jpa.JpaStudentProfileRepository;
 import com.internlink.core.infrastructure.persistence.jpa.JpaStudentRosterRepository;
 import com.internlink.core.infrastructure.persistence.jpa.JpaUserRepository;
@@ -23,6 +24,8 @@ import com.internlink.core.shared.enums.TermStatus;
 import com.internlink.core.shared.enums.UserRole;
 import com.internlink.core.shared.exception.BadRequestException;
 import com.internlink.core.shared.exception.ResourceNotFoundException;
+import com.internlink.core.shared.security.ResourceAuthorization;
+import com.internlink.core.shared.security.SecurityGuard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,6 +44,8 @@ public class JobApplicationServiceImpl implements JobApplicationService {
     private final JpaDocumentRepository documentRepository;
     private final JpaStudentProfileRepository studentProfileRepository;
     private final JpaStudentRosterRepository studentRosterRepository;
+    private final JpaPlacementOfferRepository offerRepository;
+    private final SecurityGuard securityGuard;
 
     /** Giới hạn số đơn ứng tuyển đang hoạt động trong một kỳ. */
     private static final int MAX_ACTIVE_APPLICATIONS_PER_TERM = 5;
@@ -48,6 +53,8 @@ public class JobApplicationServiceImpl implements JobApplicationService {
     @Override
     @Transactional(readOnly = true)
     public List<JobApplicationResponse> getApplicationsByStudent(UUID studentId) {
+        User actor = currentActor();
+        ResourceAuthorization.require(ResourceAuthorization.isAdmin(actor) || actor.getId().equals(studentId));
         return applicationRepository.findByStudentId(studentId).stream()
             .map(this::mapToResponse)
             .toList();
@@ -56,6 +63,11 @@ public class JobApplicationServiceImpl implements JobApplicationService {
     @Override
     @Transactional(readOnly = true)
     public List<JobApplicationResponse> getApplicationsByJob(UUID jobId) {
+        JobPosition job = jobPositionRepository.findById(jobId)
+            .orElseThrow(() -> new ResourceNotFoundException("JobPosition", "id", jobId));
+        User actor = currentActor();
+        ResourceAuthorization.require(ResourceAuthorization.representsCompany(actor, job.getCompany().getId())
+            || ResourceAuthorization.managesDepartment(actor, job.getDepartment().getId()));
         return applicationRepository.findByJobId(jobId).stream()
             .map(this::mapToResponse)
             .toList();
@@ -66,6 +78,7 @@ public class JobApplicationServiceImpl implements JobApplicationService {
     public JobApplicationResponse getApplicationById(UUID id) {
         JobApplication app = applicationRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("JobApplication", "id", id));
+        ResourceAuthorization.require(ResourceAuthorization.canReadApplication(currentActor(), app));
         return mapToResponse(app);
     }
 
@@ -93,6 +106,7 @@ public class JobApplicationServiceImpl implements JobApplicationService {
         // ── Guard 1: Xác minh người dùng là STUDENT ─────────────────────────
         User student = userRepository.findById(studentId)
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", studentId));
+        ResourceAuthorization.require(studentId.equals(securityGuard.currentUser().getId()));
 
         if (student.getRole() != UserRole.STUDENT) {
             throw new BadRequestException("Chỉ sinh viên mới có thể nộp hồ sơ ứng tuyển");
@@ -157,7 +171,7 @@ public class JobApplicationServiceImpl implements JobApplicationService {
         }
 
         // ── Guard 7: Chỉ tiêu còn chỗ ────────────────────────────────────────
-        long activeCount = applicationRepository.countActiveApplicationsByJob(job.getId());
+        long activeCount = offerRepository.countReservedPlaces(job.getId(), now);
         if (activeCount >= job.getVacancies()) {
             throw new BadRequestException(String.format(
                 "Vị trí '%s' đã đủ chỉ tiêu tuyển dụng (%d/%d)",
@@ -205,6 +219,9 @@ public class JobApplicationServiceImpl implements JobApplicationService {
     public JobApplicationResponse updateApplicationStatus(UUID id, ApplicationStatus status) {
         JobApplication app = applicationRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("JobApplication", "id", id));
+        User actor = currentActor();
+        ResourceAuthorization.require(ResourceAuthorization.isAdmin(actor)
+            || ResourceAuthorization.representsCompany(actor, app.getJob().getCompany().getId()));
 
         if (!isValidTransition(app.getStatus(), status)) {
             throw new BadRequestException("Chuyển trạng thái hồ sơ không hợp lệ: " + app.getStatus() + " -> " + status);
@@ -214,15 +231,35 @@ public class JobApplicationServiceImpl implements JobApplicationService {
         return mapToResponse(applicationRepository.save(app));
     }
 
+    @Override
+    @Transactional
+    public JobApplicationResponse withdrawApplication(UUID id) {
+        JobApplication app = applicationRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("JobApplication", "id", id));
+        User actor = currentActor();
+        ResourceAuthorization.require(actor.getRole() == UserRole.STUDENT
+            && actor.getId().equals(app.getStudent().getId()));
+        if (app.getStatus() != ApplicationStatus.SUBMITTED
+            && app.getStatus() != ApplicationStatus.REVIEWING
+            && app.getStatus() != ApplicationStatus.INTERVIEWING) {
+            throw new BadRequestException("Chỉ có thể rút hồ sơ trước khi nhận offer");
+        }
+        app.setStatus(ApplicationStatus.WITHDRAWN);
+        return mapToResponse(applicationRepository.save(app));
+    }
+
+    private User currentActor() {
+        UUID actorId = securityGuard.currentUser().getId();
+        return userRepository.findById(actorId)
+            .orElseThrow(() -> new ResourceNotFoundException("User", "id", actorId));
+    }
+
     private boolean isValidTransition(ApplicationStatus current, ApplicationStatus next) {
         return switch (current) {
-            case SUBMITTED -> next == ApplicationStatus.REVIEWING || next == ApplicationStatus.REJECTED
-                || next == ApplicationStatus.WITHDRAWN;
-            case REVIEWING -> next == ApplicationStatus.INTERVIEWING || next == ApplicationStatus.OFFERED
-                || next == ApplicationStatus.REJECTED || next == ApplicationStatus.WITHDRAWN;
-            case INTERVIEWING -> next == ApplicationStatus.OFFERED || next == ApplicationStatus.REJECTED
-                || next == ApplicationStatus.WITHDRAWN;
-            case OFFERED -> next == ApplicationStatus.REJECTED || next == ApplicationStatus.WITHDRAWN;
+            case SUBMITTED -> next == ApplicationStatus.REVIEWING || next == ApplicationStatus.REJECTED;
+            case REVIEWING -> next == ApplicationStatus.INTERVIEWING || next == ApplicationStatus.REJECTED;
+            case INTERVIEWING -> next == ApplicationStatus.REJECTED;
+            case OFFERED -> false;
             case REJECTED, WITHDRAWN -> false;
         };
     }

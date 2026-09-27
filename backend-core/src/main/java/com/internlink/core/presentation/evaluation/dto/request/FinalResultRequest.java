@@ -22,11 +22,11 @@ public class FinalResultRequest {
     @NotNull(message = "Lần thực tập không được để trống")
     private UUID placementId;
 
-    /** Tự động tổng hợp điểm từ các phiếu Rubric đã nộp của Mentor và Giảng viên */
+    /** Trường tương thích API cũ; chỉ chấp nhận true. */
     @Builder.Default
     private Boolean autoAggregateFromRubrics = true;
 
-    /** Điểm của Mentor doanh nghiệp (nếu ghi đè thủ công, thang 10) */
+    /** Trường API cũ; backend từ chối điểm nhập thủ công. */
     @DecimalMin(value = "0.0")
     @DecimalMax(value = "10.0")
     private BigDecimal mentorScore;
@@ -41,17 +41,17 @@ public class FinalResultRequest {
     @DecimalMax(value = "10.0")
     private BigDecimal complianceScore;
 
-    /** Trọng số điểm Mentor (mặc định 40% = 0.40) */
-    @Builder.Default
-    private BigDecimal mentorWeight = BigDecimal.valueOf(0.40);
+    /** Bắt buộc khi nhập điểm thành phần thủ công thay vì lấy từ rubric. */
+    private String overrideReason;
 
-    /** Trọng số điểm Giảng viên (mặc định 40% = 0.40) */
-    @Builder.Default
-    private BigDecimal lecturerWeight = BigDecimal.valueOf(0.40);
+    /** Trường API cũ; trọng số chỉ lấy từ đề cương đã duyệt. */
+    private BigDecimal mentorWeight;
 
-    /** Trọng số điểm Tuân thủ (mặc định 20% = 0.20) */
-    @Builder.Default
-    private BigDecimal complianceWeight = BigDecimal.valueOf(0.20);
+    /** Trường API cũ; trọng số chỉ lấy từ đề cương đã duyệt. */
+    private BigDecimal lecturerWeight;
+
+    /** Trường API cũ; trọng số chỉ lấy từ đề cương đã duyệt. */
+    private BigDecimal complianceWeight;
 
     @Builder.Default
     private Map<String, Object> componentBreakdown = Map.of();

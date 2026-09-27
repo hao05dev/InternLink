@@ -12,6 +12,8 @@ import com.internlink.core.presentation.evaluation.dto.response.RubricEvaluation
 import com.internlink.core.shared.enums.UserRole;
 import com.internlink.core.shared.exception.BadRequestException;
 import com.internlink.core.shared.exception.ResourceNotFoundException;
+import com.internlink.core.shared.security.ResourceAuthorization;
+import com.internlink.core.shared.security.SecurityGuard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,10 +29,14 @@ public class RubricEvaluationServiceImpl implements RubricEvaluationService {
     private final JpaRubricEvaluationRepository rubricRepository;
     private final JpaInternshipPlacementRepository placementRepository;
     private final JpaUserRepository userRepository;
+    private final SecurityGuard securityGuard;
 
     @Override
     @Transactional(readOnly = true)
     public List<RubricEvaluationResponse> getEvaluationsByPlacement(UUID placementId) {
+        InternshipPlacement placement = placementRepository.findById(placementId)
+            .orElseThrow(() -> new ResourceNotFoundException("InternshipPlacement", "id", placementId));
+        ResourceAuthorization.require(ResourceAuthorization.canReadPlacement(currentActor(), placement));
         return rubricRepository.findByPlacementId(placementId).stream()
             .map(this::mapToResponse)
             .toList();
@@ -41,6 +47,7 @@ public class RubricEvaluationServiceImpl implements RubricEvaluationService {
     public RubricEvaluationResponse getEvaluationById(UUID id) {
         RubricEvaluation evaluation = rubricRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("RubricEvaluation", "id", id));
+        ResourceAuthorization.require(ResourceAuthorization.canReadPlacement(currentActor(), evaluation.getPlacement()));
         return mapToResponse(evaluation);
     }
 
@@ -52,12 +59,13 @@ public class RubricEvaluationServiceImpl implements RubricEvaluationService {
 
         User evaluator = userRepository.findById(evaluatorId)
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", evaluatorId));
+        ResourceAuthorization.require(evaluatorId.equals(securityGuard.currentUser().getId()));
 
         if (evaluator.getRole() != UserRole.COMPANY_MENTOR && evaluator.getRole() != UserRole.LECTURER) {
             throw new BadRequestException("Chỉ Mentor doanh nghiệp hoặc Giảng viên được gửi đánh giá Rubric");
         }
         if (evaluator.getRole() == UserRole.COMPANY_MENTOR
-            && !placement.getMentor().getId().equals(evaluatorId)) {
+            && (placement.getMentor() == null || !placement.getMentor().getId().equals(evaluatorId))) {
             throw new BadRequestException("Mentor không phụ trách lần thực tập này");
         }
         if (evaluator.getRole() == UserRole.LECTURER
@@ -78,6 +86,9 @@ public class RubricEvaluationServiceImpl implements RubricEvaluationService {
                 .evaluatorRole(evaluator.getRole())
                 .evaluationStage(request.getEvaluationStage())
                 .build());
+        if ("SUBMITTED".equals(evaluation.getStatus())) {
+            throw new BadRequestException("Phiếu đánh giá đã nộp, không thể sửa trực tiếp");
+        }
 
         evaluation.setRubricVersion(request.getRubricVersion().trim());
         evaluation.setCriteriaScores(request.getCriteriaScores());
@@ -87,6 +98,12 @@ public class RubricEvaluationServiceImpl implements RubricEvaluationService {
         evaluation.setSubmittedAt(evaluationStatus.equals("SUBMITTED") ? OffsetDateTime.now() : null);
 
         return mapToResponse(rubricRepository.save(evaluation));
+    }
+
+    private User currentActor() {
+        UUID actorId = securityGuard.currentUser().getId();
+        return userRepository.findById(actorId)
+            .orElseThrow(() -> new ResourceNotFoundException("User", "id", actorId));
     }
 
     private RubricEvaluationResponse mapToResponse(RubricEvaluation entity) {

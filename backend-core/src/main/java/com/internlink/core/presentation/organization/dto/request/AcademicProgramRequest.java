@@ -32,5 +32,8 @@ public class AcademicProgramRequest {
     private String degreeLevel = "UNDERGRADUATE";
 
     @Builder.Default
+    private String track = "REGULAR";
+
+    @Builder.Default
     private Boolean isActive = true;
 }

@@ -25,6 +25,7 @@ public class StudentRosterResponse {
     private String officialEmail;
     private String fullName;
     private String academicYear;
+    private String internshipCourseCode;
     private EligibilityStatus eligibilityStatus;
     private String eligibilityNote;
     private UUID claimedUserId;

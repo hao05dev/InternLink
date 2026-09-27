@@ -34,12 +34,11 @@ public class AiServiceClient {
     public Map<String, Object> extractSkills(String cvRawText) {
         try {
             Map<String, Object> requestBody = Map.of(
-                "raw_text", cvRawText != null ? cvRawText : "",
-                "options", Map.of("include_confidence", true)
+                "text", cvRawText != null ? cvRawText : ""
             );
 
             return webClient.post()
-                .uri("/api/v1/cv/extract-skills")
+                .uri("/api/v1/skills/extract")
                 .bodyValue(requestBody)
                 .retrieve()
                 .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
@@ -63,6 +62,7 @@ public class AiServiceClient {
         UUID jobId,
         String jobTitle,
         String jobDescription,
+        String studentBio,
         List<String> studentSkills,
         List<String> mandatorySkillIds,
         List<String> optionalSkillIds
@@ -75,13 +75,11 @@ public class AiServiceClient {
             jobPayload.put("mandatory_skill_ids", mandatorySkillIds != null ? mandatorySkillIds : List.of());
             jobPayload.put("optional_skill_ids", optionalSkillIds != null ? optionalSkillIds : List.of());
 
-            Map<String, Object> requestBody = Map.of(
-                "student", Map.of(
-                    "id", studentId.toString(),
-                    "skill_ids", studentSkills != null ? studentSkills : List.of()
-                ),
-                "jobs", List.of(jobPayload)
-            );
+            Map<String, Object> studentPayload = new HashMap<>();
+            studentPayload.put("id", studentId.toString());
+            studentPayload.put("skill_ids", studentSkills != null ? studentSkills : List.of());
+            studentPayload.put("bio_summary", studentBio != null ? studentBio : "");
+            Map<String, Object> requestBody = Map.of("student", studentPayload, "jobs", List.of(jobPayload));
 
             Map<String, Object> response = webClient.post()
                 .uri("/api/v1/matching/rank-jobs")
@@ -112,7 +110,7 @@ public class AiServiceClient {
         List<String> studentSkills,
         List<String> jobSkills
     ) {
-        return calculateMatchScore(studentId, jobId, "", "", studentSkills, jobSkills, List.of());
+        return calculateMatchScore(studentId, jobId, "", "", "", studentSkills, jobSkills, List.of());
     }
 
     private Map<String, Object> normalizeRankingResponse(Map<?, ?> ranking) {
@@ -152,10 +150,12 @@ public class AiServiceClient {
         long mandatoryMatches = safeStudent.stream().filter(safeMandatory::contains).count();
         long optionalMatches = safeStudent.stream().filter(safeOptional::contains).count();
 
-        double mandatoryRatio = safeMandatory.isEmpty() ? 1.0 : (double) mandatoryMatches / safeMandatory.size();
-        double optionalRatio = safeOptional.isEmpty() ? 1.0 : (double) optionalMatches / safeOptional.size();
-
-        double finalScore = (mandatoryRatio * 0.7 + optionalRatio * 0.3) * 100.0;
+        double mandatoryRatio = safeMandatory.isEmpty() ? 0.0 : (double) mandatoryMatches / safeMandatory.size();
+        double optionalRatio = safeOptional.isEmpty() ? 0.0 : (double) optionalMatches / safeOptional.size();
+        double finalScore = safeMandatory.isEmpty()
+            ? optionalRatio * 100.0
+            : safeOptional.isEmpty() ? mandatoryRatio * 100.0
+            : (mandatoryRatio * 0.7 + optionalRatio * 0.3) * 100.0;
 
         List<String> matched = new ArrayList<>();
         safeStudent.stream().filter(s -> safeMandatory.contains(s) || safeOptional.contains(s)).forEach(matched::add);

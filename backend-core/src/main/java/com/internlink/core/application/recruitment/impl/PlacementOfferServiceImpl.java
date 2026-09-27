@@ -13,8 +13,10 @@ import com.internlink.core.presentation.recruitment.dto.request.PlacementOfferRe
 import com.internlink.core.presentation.recruitment.dto.response.PlacementOfferResponse;
 import com.internlink.core.shared.enums.ApplicationStatus;
 import com.internlink.core.shared.enums.OfferStatus;
+import com.internlink.core.shared.enums.JobStatus;
 import com.internlink.core.shared.exception.BadRequestException;
 import com.internlink.core.shared.exception.ResourceNotFoundException;
+import com.internlink.core.shared.security.ResourceAuthorization;
 import com.internlink.core.shared.security.SecurityGuard;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -42,6 +44,7 @@ public class PlacementOfferServiceImpl implements PlacementOfferService {
     public PlacementOfferResponse getOfferByApplicationId(UUID applicationId) {
         PlacementOffer offer = offerRepository.findByApplicationId(applicationId)
             .orElseThrow(() -> new ResourceNotFoundException("PlacementOffer", "applicationId", applicationId));
+        ResourceAuthorization.require(ResourceAuthorization.canReadApplication(currentActor(), offer.getApplication()));
         return mapToResponse(offer);
     }
 
@@ -50,6 +53,7 @@ public class PlacementOfferServiceImpl implements PlacementOfferService {
     public PlacementOfferResponse getOfferById(UUID id) {
         PlacementOffer offer = offerRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("PlacementOffer", "id", id));
+        ResourceAuthorization.require(ResourceAuthorization.canReadApplication(currentActor(), offer.getApplication()));
         return mapToResponse(offer);
     }
 
@@ -58,6 +62,9 @@ public class PlacementOfferServiceImpl implements PlacementOfferService {
     public PlacementOfferResponse createOffer(PlacementOfferRequest request) {
         JobApplication application = applicationRepository.findById(request.getApplicationId())
             .orElseThrow(() -> new ResourceNotFoundException("JobApplication", "id", request.getApplicationId()));
+        User actor = currentActor();
+        ResourceAuthorization.require(ResourceAuthorization.isAdmin(actor)
+            || ResourceAuthorization.representsCompany(actor, application.getJob().getCompany().getId()));
 
         if (offerRepository.findByApplicationId(request.getApplicationId()).isPresent()) {
             throw new BadRequestException("Đã phát hành Offer cho đơn ứng tuyển này rồi");
@@ -67,11 +74,24 @@ public class PlacementOfferServiceImpl implements PlacementOfferService {
             && application.getStatus() != ApplicationStatus.INTERVIEWING) {
             throw new BadRequestException("Chỉ có thể phát hành Offer khi hồ sơ ở trạng thái REVIEWING hoặc INTERVIEWING");
         }
+        if (application.getJob().getStatus() != JobStatus.APPROVED) {
+            throw new BadRequestException("Vị trí thực tập không còn được duyệt để phát hành offer");
+        }
+        if (request.getProposedMentorId() == null) {
+            throw new BadRequestException("Cần chỉ định Mentor doanh nghiệp trước khi phát hành offer");
+        }
+        if (offerRepository.countReservedPlaces(application.getJob().getId(), OffsetDateTime.now())
+            >= application.getJob().getVacancies()) {
+            throw new BadRequestException("Vị trí đã đủ số chỗ được giữ bởi các offer còn hiệu lực");
+        }
 
         User mentor = null;
         if (request.getProposedMentorId() != null) {
             mentor = userRepository.findById(request.getProposedMentorId())
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", request.getProposedMentorId()));
+            ResourceAuthorization.require(mentor.getRole() == com.internlink.core.shared.enums.UserRole.COMPANY_MENTOR
+                && mentor.getCompany() != null
+                && mentor.getCompany().getId().equals(application.getJob().getCompany().getId()));
         }
 
         if (request.getStartDate().isAfter(request.getEndDate())) {
@@ -84,7 +104,6 @@ public class PlacementOfferServiceImpl implements PlacementOfferService {
 
         PlacementOffer offer = PlacementOffer.builder()
             .application(application)
-            .student(application.getStudent())
             .proposedMentor(mentor)
             .startDate(request.getStartDate())
             .endDate(request.getEndDate())
@@ -106,7 +125,7 @@ public class PlacementOfferServiceImpl implements PlacementOfferService {
         String companyName = application.getJob().getCompany().getCompanyName();
 
         auditLogService.logAction(
-            mentor != null ? mentor.getId() : null,
+            actor.getId(),
             "CREATE_OFFER",
             "PlacementOffer",
             saved.getId(),
@@ -211,5 +230,11 @@ public class PlacementOfferServiceImpl implements PlacementOfferService {
             .respondedAt(entity.getRespondedAt())
             .createdAt(entity.getCreatedAt())
             .build();
+    }
+
+    private User currentActor() {
+        UUID actorId = securityGuard.currentUser().getId();
+        return userRepository.findById(actorId)
+            .orElseThrow(() -> new ResourceNotFoundException("User", "id", actorId));
     }
 }

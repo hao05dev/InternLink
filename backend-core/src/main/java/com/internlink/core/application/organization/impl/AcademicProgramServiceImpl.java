@@ -48,12 +48,15 @@ public class AcademicProgramServiceImpl implements AcademicProgramService {
         if (programRepository.existsByCode(request.getCode().trim().toUpperCase())) {
             throw new BadRequestException("Mã ngành '" + request.getCode() + "' đã tồn tại trong hệ thống");
         }
+        if (!List.of("REGULAR", "CTCLC").contains(request.getTrack()))
+            throw new BadRequestException("Loại chương trình chỉ có thể là REGULAR hoặc CTCLC");
 
         AcademicProgram program = AcademicProgram.builder()
             .department(department)
             .code(request.getCode().trim().toUpperCase())
             .name(request.getName().trim())
             .degreeLevel(request.getDegreeLevel())
+            .track(request.getTrack())
             .isActive(request.getIsActive())
             .build();
 
@@ -68,6 +71,7 @@ public class AcademicProgramServiceImpl implements AcademicProgramService {
             .code(entity.getCode())
             .name(entity.getName())
             .degreeLevel(entity.getDegreeLevel())
+            .track(entity.getTrack())
             .isActive(entity.getIsActive())
             .createdAt(entity.getCreatedAt())
             .build();

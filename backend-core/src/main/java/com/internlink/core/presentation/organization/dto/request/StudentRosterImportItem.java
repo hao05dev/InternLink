@@ -34,6 +34,9 @@ public class StudentRosterImportItem {
     @NotBlank(message = "Khóa học không được để trống")
     private String academicYear;
 
+    @NotBlank(message = "Mã học phần thực tập không được để trống")
+    private String internshipCourseCode;
+
     @Builder.Default
     private EligibilityStatus eligibilityStatus = EligibilityStatus.ELIGIBLE;
 

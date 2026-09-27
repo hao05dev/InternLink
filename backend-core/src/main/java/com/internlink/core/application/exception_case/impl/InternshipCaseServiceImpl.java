@@ -99,7 +99,9 @@ public class InternshipCaseServiceImpl implements InternshipCaseService {
             .id(entity.getId())
             .placementId(entity.getPlacement().getId())
             .studentName(entity.getPlacement().getStudent().getFullName())
-            .companyName(entity.getPlacement().getCompany().getCompanyName())
+            .companyName(entity.getPlacement().getCompany() != null
+                ? entity.getPlacement().getCompany().getCompanyName()
+                : entity.getPlacement().getStudentFoundApplication().getHostName())
             .caseType(entity.getCaseType())
             .reportedByUserId(entity.getReportedByUser().getId())
             .reportedByName(entity.getReportedByUser().getFullName())

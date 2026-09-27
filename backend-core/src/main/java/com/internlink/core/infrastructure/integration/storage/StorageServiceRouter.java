@@ -34,6 +34,9 @@ public class StorageServiceRouter {
         } catch (Exception e) {
             resolved = StorageProvider.LOCAL;
         }
+        if (resolved == StorageProvider.GOOGLE_DRIVE) {
+            throw new IllegalStateException("STORAGE_PROVIDER=GOOGLE_DRIVE chưa được hỗ trợ; dùng LOCAL để lưu tệp thật");
+        }
         this.defaultProvider = resolved;
     }
 

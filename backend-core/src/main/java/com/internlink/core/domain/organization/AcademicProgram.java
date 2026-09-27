@@ -29,6 +29,10 @@ public class AcademicProgram extends BaseEntity {
     private String degreeLevel = "UNDERGRADUATE";
 
     @Builder.Default
+    @Column(name = "track", nullable = false, length = 20)
+    private String track = "REGULAR";
+
+    @Builder.Default
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 }

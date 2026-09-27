@@ -14,6 +14,8 @@ import com.internlink.core.shared.enums.PlacementStatus;
 import com.internlink.core.shared.enums.UserRole;
 import com.internlink.core.shared.exception.BadRequestException;
 import com.internlink.core.shared.exception.ResourceNotFoundException;
+import com.internlink.core.shared.security.ResourceAuthorization;
+import com.internlink.core.shared.security.SecurityGuard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,10 +31,14 @@ public class WeeklyLogbookServiceImpl implements WeeklyLogbookService {
     private final JpaWeeklyLogbookRepository logbookRepository;
     private final JpaInternshipPlacementRepository placementRepository;
     private final JpaUserRepository userRepository;
+    private final SecurityGuard securityGuard;
 
     @Override
     @Transactional(readOnly = true)
     public List<WeeklyLogbookResponse> getLogbooksByPlacement(UUID placementId) {
+        InternshipPlacement placement = placementRepository.findById(placementId)
+            .orElseThrow(() -> new ResourceNotFoundException("InternshipPlacement", "id", placementId));
+        ResourceAuthorization.require(ResourceAuthorization.canReadPlacement(currentActor(), placement));
         return logbookRepository.findByPlacementIdOrderByWeekNumberAsc(placementId).stream()
             .map(this::mapToResponse)
             .toList();
@@ -43,6 +49,7 @@ public class WeeklyLogbookServiceImpl implements WeeklyLogbookService {
     public WeeklyLogbookResponse getLogbookById(UUID id) {
         WeeklyLogbook logbook = logbookRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("WeeklyLogbook", "id", id));
+        ResourceAuthorization.require(ResourceAuthorization.canReadPlacement(currentActor(), logbook.getPlacement()));
         return mapToResponse(logbook);
     }
 
@@ -65,21 +72,29 @@ public class WeeklyLogbookServiceImpl implements WeeklyLogbookService {
             throw new BadRequestException("Tổng số giờ không thể âm");
         }
 
-        if (logbookRepository.existsByPlacementIdAndWeekNumber(request.getPlacementId(), request.getWeekNumber())) {
-            throw new BadRequestException("Nhật ký cho tuần " + request.getWeekNumber() + " đã tồn tại trong đợt thực tập này");
-        }
-
-        WeeklyLogbook logbook = WeeklyLogbook.builder()
-            .placement(placement)
-            .weekNumber(request.getWeekNumber())
-            .periodStart(request.getPeriodStart())
-            .periodEnd(request.getPeriodEnd())
-            .tasksCompleted(request.getTasksCompleted().trim())
-            .learningReflection(request.getLearningReflection().trim())
-            .totalHours(request.getTotalHours())
-            .status(LogbookStatus.SUBMITTED)
-            .submittedAt(OffsetDateTime.now())
-            .build();
+        if (request.getPeriodStart().isBefore(placement.getStartDate())
+            || request.getPeriodEnd().isAfter(placement.getEndDate()))
+            throw new BadRequestException("Nhật ký phải nằm trong thời gian thực tập");
+        var expectedStart = placement.getStartDate().plusWeeks(request.getWeekNumber() - 1L);
+        var expectedEnd = expectedStart.plusDays(6).isAfter(placement.getEndDate())
+            ? placement.getEndDate() : expectedStart.plusDays(6);
+        if (expectedStart.isAfter(placement.getEndDate())
+            || !request.getPeriodStart().equals(expectedStart) || !request.getPeriodEnd().equals(expectedEnd))
+            throw new BadRequestException("Khoảng ngày không khớp tuần thực tập số " + request.getWeekNumber());
+        WeeklyLogbook logbook = logbookRepository.findByPlacementIdAndWeekNumber(request.getPlacementId(), request.getWeekNumber())
+            .orElse(WeeklyLogbook.builder().placement(placement).weekNumber(request.getWeekNumber()).build());
+        if (logbook.getId() != null && logbook.getStatus() != LogbookStatus.REVISION_REQUESTED)
+            throw new BadRequestException("Tuần này đã nộp; chỉ được nộp lại khi có yêu cầu sửa");
+        logbook.setPeriodStart(request.getPeriodStart());
+        logbook.setPeriodEnd(request.getPeriodEnd());
+        logbook.setTasksCompleted(request.getTasksCompleted().trim());
+        logbook.setLearningReflection(request.getLearningReflection().trim());
+        logbook.setTotalHours(request.getTotalHours());
+        logbook.setStatus(LogbookStatus.SUBMITTED);
+        logbook.setSubmittedAt(OffsetDateTime.now());
+        int graceDays = placement.getAssessmentScheme() != null
+            ? placement.getAssessmentScheme().getWeeklyGraceDays() : 0;
+        logbook.setWasLate(logbook.getSubmittedAt().toLocalDate().isAfter(request.getPeriodEnd().plusDays(graceDays)));
 
         return mapToResponse(logbookRepository.save(logbook));
     }
@@ -93,7 +108,8 @@ public class WeeklyLogbookServiceImpl implements WeeklyLogbookService {
         User mentor = userRepository.findById(mentorUserId)
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", mentorUserId));
 
-        if (mentor.getRole() != UserRole.ADMIN && !logbook.getPlacement().getMentor().getId().equals(mentorUserId)) {
+        if (logbook.getPlacement().getMentor() == null
+            || (mentor.getRole() != UserRole.ADMIN && !logbook.getPlacement().getMentor().getId().equals(mentorUserId))) {
             throw new BadRequestException("Người dùng không phải Mentor của lần thực tập này");
         }
         if (logbook.getStatus() != LogbookStatus.SUBMITTED) {
@@ -132,6 +148,33 @@ public class WeeklyLogbookServiceImpl implements WeeklyLogbookService {
         return mapToResponse(logbookRepository.save(logbook));
     }
 
+    @Override
+    @Transactional
+    public WeeklyLogbookResponse reviewByLecturer(UUID id, UUID lecturerUserId, LogbookStatus status, String feedback) {
+        WeeklyLogbook logbook = logbookRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("WeeklyLogbook", "id", id));
+        var lecturer = userRepository.findById(lecturerUserId)
+            .orElseThrow(() -> new ResourceNotFoundException("User", "id", lecturerUserId));
+        ResourceAuthorization.require(lecturer.getRole() == UserRole.LECTURER
+            && lecturer.getId().equals(logbook.getPlacement().getLecturer().getId())
+            && "STUDENT_FOUND".equals(logbook.getPlacement().getSource()));
+        if (logbook.getStatus() != LogbookStatus.SUBMITTED
+            || (status != LogbookStatus.APPROVED_BY_LECTURER && status != LogbookStatus.REVISION_REQUESTED))
+            throw new BadRequestException("Trạng thái xét nhật ký không hợp lệ");
+        if (status == LogbookStatus.REVISION_REQUESTED && (feedback == null || feedback.isBlank()))
+            throw new BadRequestException("Cần nêu nội dung cần sửa");
+        logbook.setStatus(status);
+        logbook.setLecturerComment(feedback != null ? feedback.trim() : null);
+        logbook.setLecturerCommentedBy(lecturer);
+        logbook.setLecturerCommentedAt(OffsetDateTime.now());
+        return mapToResponse(logbookRepository.save(logbook));
+    }
+
+    private User currentActor() {
+        UUID id = securityGuard.currentUser().getId();
+        return userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
+    }
+
     private WeeklyLogbookResponse mapToResponse(WeeklyLogbook entity) {
         return WeeklyLogbookResponse.builder()
             .id(entity.getId())
@@ -142,6 +185,7 @@ public class WeeklyLogbookServiceImpl implements WeeklyLogbookService {
             .tasksCompleted(entity.getTasksCompleted())
             .learningReflection(entity.getLearningReflection())
             .totalHours(entity.getTotalHours())
+            .wasLate(entity.getWasLate())
             .status(entity.getStatus())
             .mentorFeedback(entity.getMentorFeedback())
             .mentorReviewedBy(entity.getMentorReviewedBy() != null ? entity.getMentorReviewedBy().getId() : null)

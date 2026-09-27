@@ -1,11 +1,17 @@
 import type { Metadata } from "next";
 import "./globals.css";
-
+import { Be_Vietnam_Pro } from "next/font/google";
+import { AuthProvider } from "@/context/auth-context";
+import { cn } from "@/lib/utils";
 export const metadata: Metadata = {
   title: "InternLink - Nền tảng Quản lý Toàn trình Thực tập & Đối sánh Năng lực Tích hợp AI",
   description: "Hệ sinh thái kết nối Sinh viên - Doanh nghiệp - Nhà trường với AI Explainable Matching",
 };
-
+const beVietnamPro = Be_Vietnam_Pro({
+  weight: ["400", "500", "600", "700"],
+  subsets: ["latin", "vietnamese"],
+  variable: "--font-sans",
+});
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -13,8 +19,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="vi">
-      <body>
-        <header className="border-b bg-white/80 backdrop-blur sticky top-0 z-50">
+      <body className={cn(beVietnamPro.className, "min-h-screen bg-slate-50 antialiased")}>
+        <AuthProvider><header className="border-b bg-white/80 backdrop-blur sticky top-0 z-50">
           <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <span className="text-2xl font-black text-blue-600">InternLink</span>
@@ -27,11 +33,11 @@ export default function RootLayout({
             </nav>
           </div>
         </header>
-        <main>{children}</main>
-        <footer className="border-t py-8 text-center text-sm text-slate-500 bg-white">
-          <p>InternLink - Luận văn tốt nghiệp: Nền tảng quản lý toàn trình thực tập tích hợp AI</p>
-          <p className="mt-1">Spring Boot 3 • Python FastAPI (Gemini API) • Next.js • PostgreSQL & pgvector</p>
-        </footer>
+          <main>{children}</main>
+          <footer className="border-t py-8 text-center text-sm text-slate-500 bg-white">
+            <p>InternLink - Luận văn tốt nghiệp: Nền tảng quản lý toàn trình thực tập tích hợp AI</p>
+            <p className="mt-1">Spring Boot 3 • Python FastAPI (Gemini API) • Next.js • PostgreSQL & pgvector</p>
+          </footer></AuthProvider>
       </body>
     </html>
   );

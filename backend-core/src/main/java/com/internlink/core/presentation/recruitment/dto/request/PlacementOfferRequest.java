@@ -21,6 +21,7 @@ public class PlacementOfferRequest {
     @NotNull(message = "Hồ sơ ứng tuyển không được để trống")
     private UUID applicationId;
 
+    @NotNull(message = "Cần chỉ định người hướng dẫn doanh nghiệp trước khi phát hành offer")
     private UUID proposedMentorId;
 
     @NotNull(message = "Ngày bắt đầu thực tập không được để trống")
