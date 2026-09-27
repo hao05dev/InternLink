@@ -47,8 +47,14 @@ public class JobPositionServiceImpl implements JobPositionService {
     @Override
     @Transactional(readOnly = true)
     public List<JobPositionResponse> getAllJobs() {
+        return getAllJobs(null, null, null);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<JobPositionResponse> getAllJobs(String keyword, UUID termId, UUID companyId) {
         User actor = currentActor();
-        return jobPositionRepository.findAll().stream()
+        return jobPositionRepository.searchJobs(keyword, termId, companyId, null).stream()
             .filter(job -> canReadJob(actor, job))
             .map(this::mapToResponse)
             .toList();
@@ -58,7 +64,7 @@ public class JobPositionServiceImpl implements JobPositionService {
     @Transactional(readOnly = true)
     public List<JobPositionResponse> getJobsByCompany(UUID companyId) {
         User actor = currentActor();
-        return jobPositionRepository.findByCompanyId(companyId).stream()
+        return jobPositionRepository.searchJobs(null, null, companyId, null).stream()
             .filter(job -> canReadJob(actor, job))
             .map(this::mapToResponse)
             .toList();
@@ -68,7 +74,7 @@ public class JobPositionServiceImpl implements JobPositionService {
     @Transactional(readOnly = true)
     public List<JobPositionResponse> getJobsByTerm(UUID termId) {
         User actor = currentActor();
-        return jobPositionRepository.findByTermId(termId).stream()
+        return jobPositionRepository.searchJobs(null, termId, null, null).stream()
             .filter(job -> canReadJob(actor, job))
             .map(this::mapToResponse)
             .toList();
@@ -77,7 +83,13 @@ public class JobPositionServiceImpl implements JobPositionService {
     @Override
     @Transactional(readOnly = true)
     public List<JobPositionResponse> getApprovedJobs(UUID termId) {
-        return jobPositionRepository.findByTermIdAndStatus(termId, JobStatus.APPROVED).stream()
+        return getApprovedJobs(termId, null);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<JobPositionResponse> getApprovedJobs(UUID termId, String keyword) {
+        return jobPositionRepository.searchJobs(keyword, termId, null, JobStatus.APPROVED).stream()
             .map(this::mapToResponse)
             .toList();
     }

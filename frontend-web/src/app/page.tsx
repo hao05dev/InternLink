@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { CheckCircle, AlertCircle, ArrowRight, Sparkles, BookOpen, Building2, GraduationCap, ShieldCheck } from "lucide-react";
+import { SmartJobSearch } from "@/components/modules/smart-job-search";
 
 export default function Home() {
   const [analyzing, setAnalyzing] = useState(false);
@@ -46,6 +47,11 @@ export default function Home() {
             <a href="#portals" className="px-6 py-3 bg-white border hover:bg-slate-50 text-slate-700 rounded-lg font-medium transition">
               Khám phá các Cổng Truy Cập
             </a>
+          </div>
+
+          {/* Thanh Tìm Kiếm Việc Làm Thông Minh (Server-Side Live Search) */}
+          <div className="pt-4 max-w-2xl mx-auto text-left">
+            <SmartJobSearch />
           </div>
         </div>
       </section>

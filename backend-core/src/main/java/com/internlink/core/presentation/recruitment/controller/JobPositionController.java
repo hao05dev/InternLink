@@ -27,25 +27,20 @@ public class JobPositionController {
     @GetMapping
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<List<JobPositionResponse>>> getAllJobs(
+        @RequestParam(required = false) String keyword,
         @RequestParam(required = false) UUID termId,
         @RequestParam(required = false) UUID companyId
     ) {
-        List<JobPositionResponse> jobs;
-        if (companyId != null) {
-            jobs = jobPositionService.getJobsByCompany(companyId);
-        } else if (termId != null) {
-            jobs = jobPositionService.getJobsByTerm(termId);
-        } else {
-            jobs = jobPositionService.getAllJobs();
-        }
+        List<JobPositionResponse> jobs = jobPositionService.getAllJobs(keyword, termId, companyId);
         return ResponseEntity.ok(ApiResponse.success(jobs));
     }
 
     @GetMapping("/public/term/{termId}")
     public ResponseEntity<ApiResponse<List<JobPositionResponse>>> getApprovedJobsByTerm(
-        @PathVariable UUID termId
+        @PathVariable UUID termId,
+        @RequestParam(required = false) String keyword
     ) {
-        List<JobPositionResponse> jobs = jobPositionService.getApprovedJobs(termId);
+        List<JobPositionResponse> jobs = jobPositionService.getApprovedJobs(termId, keyword);
         return ResponseEntity.ok(ApiResponse.success(jobs));
     }
 
