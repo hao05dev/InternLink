@@ -61,7 +61,7 @@ class PlacementWorkflowServiceTest {
     void setUp() {
         attendanceService = new AttendanceLogServiceImpl(attendanceRepository, placementRepository, userRepository);
         taskService = new PlacementTaskServiceImpl(taskRepository, placementRepository, userRepository);
-        logbookService = new WeeklyLogbookServiceImpl(logbookRepository, placementRepository, userRepository, securityGuard);
+        logbookService = new WeeklyLogbookServiceImpl(logbookRepository, placementRepository, userRepository, securityGuard, notificationService);
         agreementService = new LearningAgreementServiceImpl(agreementRepository, offerRepository,
             departmentRepository, userRepository, securityGuard, auditLogService, notificationService);
         lenient().when(attendanceRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));

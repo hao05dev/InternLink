@@ -42,6 +42,12 @@ public class JobApplicationController {
         return ResponseEntity.ok(ApiResponse.success(applications));
     }
 
+    @GetMapping("/company/mine")
+    @PreAuthorize("hasRole('COMPANY_REP')")
+    public ResponseEntity<ApiResponse<List<JobApplicationResponse>>> getMyCompanyApplications() {
+        return ResponseEntity.ok(ApiResponse.success(applicationService.getApplicationsForMyCompany()));
+    }
+
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('STUDENT', 'COMPANY_REP', 'ADMIN', 'FACULTY_ADMIN')")
     public ResponseEntity<ApiResponse<JobApplicationResponse>> getApplicationById(

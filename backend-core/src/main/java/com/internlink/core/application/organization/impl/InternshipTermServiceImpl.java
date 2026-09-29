@@ -1,6 +1,7 @@
 package com.internlink.core.application.organization.impl;
 
 import com.internlink.core.application.organization.InternshipTermService;
+import com.internlink.core.application.system.AuditLogService;
 import com.internlink.core.shared.enums.TermStatus;
 import com.internlink.core.domain.organization.Department;
 import com.internlink.core.domain.organization.InternshipTerm;
@@ -11,6 +12,9 @@ import com.internlink.core.presentation.organization.dto.request.InternshipTermR
 import com.internlink.core.presentation.organization.dto.response.InternshipTermResponse;
 import com.internlink.core.shared.exception.BadRequestException;
 import com.internlink.core.shared.exception.ResourceNotFoundException;
+import com.internlink.core.shared.security.ResourceAuthorization;
+import com.internlink.core.shared.security.SecurityGuard;
+import com.internlink.core.infrastructure.persistence.jpa.JpaUserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +32,9 @@ public class InternshipTermServiceImpl implements InternshipTermService {
     private final JpaInternshipTermRepository termRepository;
     private final JpaDepartmentRepository departmentRepository;
     private final JpaInternshipPlacementRepository placementRepository;
+    private final JpaUserRepository userRepository;
+    private final SecurityGuard securityGuard;
+    private final AuditLogService auditLogService;
 
     // ── State Machine: chuyển trạng thái hợp lệ cho Kỳ thực tập ─────────────
     //
@@ -65,6 +72,8 @@ public class InternshipTermServiceImpl implements InternshipTermService {
     public InternshipTermResponse createTerm(InternshipTermRequest request) {
         Department department = departmentRepository.findById(request.getDepartmentId())
             .orElseThrow(() -> new ResourceNotFoundException("Department", "id", request.getDepartmentId()));
+        ResourceAuthorization.require(ResourceAuthorization.managesDepartment(
+            userRepository.findById(securityGuard.currentUser().getId()).orElseThrow(), department.getId()));
 
         if (termRepository.existsByCode(request.getCode().trim().toUpperCase())) {
             throw new BadRequestException("Mã kỳ thực tập '" + request.getCode() + "' đã tồn tại");
@@ -94,7 +103,10 @@ public class InternshipTermServiceImpl implements InternshipTermService {
             .settings(request.getSettings() != null ? request.getSettings() : Map.of())
             .build();
 
-        return mapToResponse(termRepository.save(term));
+        InternshipTerm saved = termRepository.save(term);
+        auditLogService.logAction(securityGuard.currentUser().getId(), "CREATE_INTERNSHIP_TERM",
+            "InternshipTerm", saved.getId(), "SUCCESS", Map.of("code", saved.getCode()), null);
+        return mapToResponse(saved);
     }
 
     /**
@@ -116,6 +128,8 @@ public class InternshipTermServiceImpl implements InternshipTermService {
     public InternshipTermResponse updateTermStatus(UUID termId, TermStatus newStatus) {
         InternshipTerm term = termRepository.findById(termId)
             .orElseThrow(() -> new ResourceNotFoundException("InternshipTerm", "id", termId));
+        ResourceAuthorization.require(ResourceAuthorization.managesDepartment(
+            userRepository.findById(securityGuard.currentUser().getId()).orElseThrow(), term.getDepartment().getId()));
 
         TermStatus currentStatus = term.getStatus();
 
@@ -171,7 +185,10 @@ public class InternshipTermServiceImpl implements InternshipTermService {
         }
 
         term.setStatus(newStatus);
-        return mapToResponse(termRepository.save(term));
+        InternshipTerm saved = termRepository.save(term);
+        auditLogService.logAction(securityGuard.currentUser().getId(), "UPDATE_INTERNSHIP_TERM_STATUS",
+            "InternshipTerm", saved.getId(), "SUCCESS", Map.of("from", currentStatus.name(), "to", newStatus.name()), null);
+        return mapToResponse(saved);
     }
 
     private InternshipTermResponse mapToResponse(InternshipTerm entity) {

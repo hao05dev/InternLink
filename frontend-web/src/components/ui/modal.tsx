@@ -23,6 +23,8 @@ export function Modal({
     maxWidth = "lg",
     className,
 }: ModalProps) {
+    const titleId = React.useId();
+    const descriptionId = React.useId();
     React.useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === "Escape") onClose();
@@ -53,6 +55,9 @@ export function Modal({
             className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200"
             role="dialog"
             aria-modal="true"
+            aria-labelledby={title ? titleId : undefined}
+            aria-label={title ? undefined : 'Hộp thoại'}
+            aria-describedby={description ? descriptionId : undefined}
         >
             <div 
                 className="fixed inset-0" 
@@ -70,8 +75,8 @@ export function Modal({
                 {(title || description) && (
                     <div className="flex items-start justify-between pb-4 border-b border-slate-100 mb-4 shrink-0">
                         <div>
-                            {title && <h3 className="text-base font-bold text-slate-900 leading-snug">{title}</h3>}
-                            {description && <p className="text-xs text-slate-500 mt-0.5">{description}</p>}
+                            {title && <h3 id={titleId} className="text-base font-bold text-slate-900 leading-snug">{title}</h3>}
+                            {description && <p id={descriptionId} className="text-xs text-slate-500 mt-0.5">{description}</p>}
                         </div>
                         <button
                             onClick={onClose}

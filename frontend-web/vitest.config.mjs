@@ -10,8 +10,14 @@ export default defineConfig({
     test: {
         environment: "jsdom",
         globals: true,
-        setupFiles: ["./src/test/setup.ts"],
+        setupFiles: ["./src/tests/setup.ts"],
         fileParallelism: false,
+        pool: "vmThreads",
+        poolOptions: {
+            vmThreads: {
+                useAtomics: true,
+            },
+        },
     },
     resolve: {
         alias: {

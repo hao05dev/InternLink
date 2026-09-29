@@ -1,0 +1,10 @@
+{
+    "recommendations": [
+        "vscjava.vscode-java-pack"
+    ],
+    "unwantedRecommendations": [
+        "Oracle.oracle-java",
+        "georgewfraser.vscode-javac",
+        "vscjava.vscode-lombok"
+    ]
+}

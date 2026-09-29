@@ -93,10 +93,40 @@ public class AiMatchingServiceImpl implements AiMatchingService {
         if (!studentId.equals(securityGuard.currentUser().getId())) {
             throw new ForbiddenException("Chỉ sinh viên sở hữu CV mới được đồng bộ kỹ năng");
         }
+        return processCvSkills(studentId, documentId, cvText, Map.of()).skills();
+    }
+
+    @Override
+    @Transactional
+    public UUID reprocessFailedCvRun(UUID runId, String cvText) {
+        securityGuard.requireRole(UserRole.ADMIN);
+        AiRun original = aiRunRepository.findForRetryById(runId)
+            .orElseThrow(() -> new ResourceNotFoundException("AiRun", "id", runId));
+        if (original.getRunType() != AiRunType.CV_EXTRACTION
+                || original.getStatus() != AiRunStatus.FAILED || original.getStudent() == null) {
+            throw new BadRequestException("Chỉ có thể xử lý lại lượt trích xuất CV bị lỗi có sinh viên nguồn");
+        }
+        Map<String, Object> snapshot = new HashMap<>(original.getInputSnapshot());
+        if (snapshot.containsKey("retry_run_id")) {
+            throw new BadRequestException("Lượt này đã được xử lý lại. Hãy xem lượt xử lý mới nhất");
+        }
+        CvProcessingResult result = processCvSkills(original.getStudent().getId(),
+            original.getSourceDocument() != null ? original.getSourceDocument().getId() : null,
+            cvText, Map.of("retry_of", runId.toString()));
+        snapshot.put("retry_run_id", result.run().getId().toString());
+        original.setInputSnapshot(snapshot);
+        aiRunRepository.save(original);
+        return result.run().getId();
+    }
+
+    private record CvProcessingResult(AiRun run, List<StudentSkillResponse> skills) {}
+
+    private CvProcessingResult processCvSkills(UUID studentId, UUID documentId, String cvText,
+                                               Map<String, Object> context) {
         User student = userRepository.findById(studentId)
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", studentId));
-        if (cvText == null || cvText.isBlank()) {
-            throw new BadRequestException("Nội dung CV không được để trống");
+        if (cvText == null || cvText.isBlank() || cvText.length() > 100000) {
+            throw new BadRequestException("Nội dung CV phải có từ 1 đến 100.000 ký tự");
         }
         Document cvDocument = null;
         if (documentId != null) {
@@ -109,22 +139,28 @@ public class AiMatchingServiceImpl implements AiMatchingService {
         }
 
         // 1. Gọi sang AI Microservice để trích xuất kỹ năng
+        OffsetDateTime startedAt = OffsetDateTime.now();
         Map<String, Object> aiResult = aiServiceClient.extractSkills(cvText);
+        boolean failed = Set.of("FAILED", "EMPTY_RESPONSE").contains(aiResult.getOrDefault("status", ""));
+        Map<String, Object> snapshot = new HashMap<>(context);
+        snapshot.put("text_length", cvText.length());
 
         // 2. Ghi nhật ký chạy AI (ai_runs)
         AiRun run = AiRun.builder()
             .runType(AiRunType.CV_EXTRACTION)
             .student(student)
             .sourceDocument(cvDocument)
-            .status("FAILED".equals(aiResult.get("status")) ? AiRunStatus.FAILED : AiRunStatus.COMPLETED)
-            .modelName("skills-extraction-transformer")
+            .status(failed ? AiRunStatus.FAILED : AiRunStatus.COMPLETED)
+            .modelName(String.valueOf(aiResult.getOrDefault("model", "skills-extraction-transformer")))
             .inputHash(Integer.toHexString(cvText != null ? cvText.hashCode() : 0))
-            .inputSnapshot(Map.of("text_length", cvText != null ? cvText.length() : 0))
+            .inputSnapshot(snapshot)
             .outputResult(aiResult)
-            .startedAt(OffsetDateTime.now())
+            .errorDetail(failed ? Map.of("message", "Dịch vụ AI không trả được kết quả trích xuất. Kiểm tra kết nối và thử lại.") : null)
+            .startedAt(startedAt)
             .completedAt(OffsetDateTime.now())
             .build();
         aiRunRepository.save(run);
+        if (failed) return new CvProcessingResult(run, List.of());
 
         // 3. Phân tích kết quả và lưu vào student_skills
         List<Map<String, Object>> extractedSkills = extractSkillItems(aiResult);
@@ -139,7 +175,8 @@ public class AiMatchingServiceImpl implements AiMatchingService {
 
             StudentSkillId id = new StudentSkillId(studentId, skillId);
             Optional<StudentSkill> existing = studentSkillRepository.findById(id);
-            if (existing.isPresent() && existing.get().getSource() != SkillSource.CV_AI) {
+            if (existing.isPresent() && (existing.get().getSource() != SkillSource.CV_AI
+                    || Boolean.TRUE.equals(existing.get().getIsConfirmed()))) {
                 continue;
             }
             StudentSkill studentSkill = existing.orElse(StudentSkill.builder()
@@ -163,7 +200,7 @@ public class AiMatchingServiceImpl implements AiMatchingService {
         }
 
         List<StudentSkill> saved = studentSkillRepository.saveAll(skillsToSave);
-        return saved.stream().map(this::mapStudentSkillToResponse).toList();
+        return new CvProcessingResult(run, saved.stream().map(this::mapStudentSkillToResponse).toList());
     }
 
     /**

@@ -27,6 +27,12 @@ public class AcademicProgramController {
         return ResponseEntity.ok(ApiResponse.success(programs));
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<AcademicProgramResponse>> getProgramById(@PathVariable UUID id) {
+        AcademicProgramResponse program = programService.getProgramById(id);
+        return ResponseEntity.ok(ApiResponse.success(program));
+    }
+
     @GetMapping("/by-department/{departmentId}")
     public ResponseEntity<ApiResponse<List<AcademicProgramResponse>>> getProgramsByDepartment(
             @PathVariable UUID departmentId
@@ -36,12 +42,29 @@ public class AcademicProgramController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'FACULTY_ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<AcademicProgramResponse>> createProgram(
             @Valid @RequestBody AcademicProgramRequest request
     ) {
         AcademicProgramResponse response = programService.createProgram(request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Tạo ngành đào tạo thành công", response));
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<AcademicProgramResponse>> updateProgram(
+            @PathVariable UUID id,
+            @Valid @RequestBody AcademicProgramRequest request
+    ) {
+        AcademicProgramResponse response = programService.updateProgram(id, request);
+        return ResponseEntity.ok(ApiResponse.success("Cập nhật ngành đào tạo thành công", response));
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> deleteProgram(@PathVariable UUID id) {
+        programService.deleteProgram(id);
+        return ResponseEntity.ok(ApiResponse.success("Xóa ngành đào tạo thành công", null));
     }
 }

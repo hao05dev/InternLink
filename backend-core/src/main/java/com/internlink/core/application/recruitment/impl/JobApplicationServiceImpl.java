@@ -75,6 +75,16 @@ public class JobApplicationServiceImpl implements JobApplicationService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<JobApplicationResponse> getApplicationsForMyCompany() {
+        User actor = currentActor();
+        ResourceAuthorization.require(actor.getRole() == UserRole.COMPANY_REP && actor.getCompany() != null);
+        return applicationRepository.findByJobCompanyId(actor.getCompany().getId()).stream()
+            .map(this::mapToResponse)
+            .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public JobApplicationResponse getApplicationById(UUID id) {
         JobApplication app = applicationRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("JobApplication", "id", id));

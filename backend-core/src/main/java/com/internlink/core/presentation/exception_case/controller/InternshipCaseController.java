@@ -53,7 +53,7 @@ public class InternshipCaseController {
     }
 
     @PatchMapping("/{id}/resolve")
-    @PreAuthorize("hasAnyRole('ADMIN', 'FACULTY_ADMIN')")
+    @PreAuthorize("hasRole('FACULTY_ADMIN')")
     public ResponseEntity<ApiResponse<InternshipCaseResponse>> resolveCase(
         @PathVariable UUID id,
         @RequestParam CaseStatus status,

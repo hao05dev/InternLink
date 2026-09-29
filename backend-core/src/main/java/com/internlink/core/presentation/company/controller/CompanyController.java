@@ -42,7 +42,7 @@ public class CompanyController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('COMPANY_REP', 'ADMIN')")
+    @PreAuthorize("hasRole('COMPANY_REP')")
     public ResponseEntity<ApiResponse<CompanyResponse>> registerCompany(
         @Valid @RequestBody CompanyRequest request
     ) {
@@ -52,7 +52,7 @@ public class CompanyController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('COMPANY_REP', 'ADMIN', 'FACULTY_ADMIN')")
+    @PreAuthorize("hasRole('COMPANY_REP')")
     public ResponseEntity<ApiResponse<CompanyResponse>> updateCompany(
         @PathVariable UUID id,
         @Valid @RequestBody CompanyRequest request
@@ -62,7 +62,7 @@ public class CompanyController {
     }
 
     @PatchMapping("/{id}/verify")
-    @PreAuthorize("hasAnyRole('ADMIN', 'FACULTY_ADMIN')")
+    @PreAuthorize("hasRole('FACULTY_ADMIN')")
     public ResponseEntity<ApiResponse<CompanyResponse>> verifyCompany(
         @PathVariable UUID id,
         @RequestParam VerificationStatus status,

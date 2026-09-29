@@ -55,6 +55,12 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Override
     @Transactional
+    public void markAllAsRead(UUID recipientId) {
+        notificationRepository.markAllAsRead(recipientId);
+    }
+
+    @Override
+    @Transactional
     public void sendNotification(UUID recipientId, String type, String title, String message, String actionUrl) {
         User recipient = userRepository.findById(recipientId)
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", recipientId));

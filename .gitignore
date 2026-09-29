@@ -10,6 +10,7 @@ internlink.sql
 !/docs/
 /docs/**
 !/docs/MARKET_RESEARCH_AND_BUSINESS_PLAN.md
+!/docs/INTERNSHIP_PORTFOLIO.md
 # Operating System Files
 .DS_Store
 Thumbs.db
@@ -18,7 +19,8 @@ $RECYCLE.BIN/
 
 # IDE & Editor Files
 .idea/
-.vscode/
+.vscode/*
+!.vscode/extensions.json
 *.iml
 *.iws
 *.ipr

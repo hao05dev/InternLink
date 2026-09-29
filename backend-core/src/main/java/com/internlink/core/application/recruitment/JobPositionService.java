@@ -14,6 +14,8 @@ public interface JobPositionService {
     List<JobPositionResponse> getJobsByTerm(UUID termId);
     List<JobPositionResponse> getApprovedJobs(UUID termId);
     List<JobPositionResponse> getApprovedJobs(UUID termId, String keyword);
+    List<JobPositionResponse> getPublicJobs(String keyword, UUID termId, UUID companyId);
+    JobPositionResponse getPublicJobById(UUID id);
     JobPositionResponse getJobById(UUID id);
     JobPositionResponse createJob(JobPositionRequest request, UUID createdByUserId);
     JobPositionResponse updateJob(UUID id, JobPositionRequest request);

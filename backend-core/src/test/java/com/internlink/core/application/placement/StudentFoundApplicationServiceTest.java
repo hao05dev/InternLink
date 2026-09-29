@@ -1,5 +1,6 @@
 package com.internlink.core.application.placement;
 
+import com.internlink.core.application.system.NotificationService;
 import com.internlink.core.domain.auth.User;
 import com.internlink.core.domain.organization.*;
 import com.internlink.core.domain.placement.*;
@@ -31,10 +32,11 @@ class StudentFoundApplicationServiceTest {
     @Mock JpaDocumentRepository documents;
     @Mock JpaUserRepository users;
     @Mock SecurityGuard security;
+    @Mock NotificationService notifications;
 
     @Test
     void createsPlacementWithoutOfferCompanyOrMentorAfterVerifiedAcceptance() {
-        var service = new StudentFoundApplicationService(applications, placements, rosters, terms, documents, users, security);
+        var service = new StudentFoundApplicationService(applications, placements, rosters, terms, documents, users, security, notifications);
         Department department = Department.builder().code("CICT").name("CNTT&TT").build();
         department.setId(UUID.randomUUID());
         User student = User.builder().role(UserRole.STUDENT).fullName("Sinh viên").build();

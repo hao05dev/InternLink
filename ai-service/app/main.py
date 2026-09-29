@@ -26,7 +26,9 @@ def health_check():
     return {
         "status": "healthy",
         "service": settings.APP_NAME,
-        "gemini_api_configured": bool(settings.GEMINI_API_KEY)
+        "gemini_api_configured": bool(settings.GEMINI_API_KEY),
+        "extraction_model": settings.LLM_MODEL,
+        "embedding_model": settings.EMBEDDING_MODEL
     }
 
 if __name__ == "__main__":

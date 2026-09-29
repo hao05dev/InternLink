@@ -1,11 +1,14 @@
 package com.internlink.core.application.recruitment.impl;
 
 import com.internlink.core.application.recruitment.JobPositionService;
+import com.internlink.core.application.system.AuditLogService;
+import com.internlink.core.application.system.NotificationService;
 import com.internlink.core.domain.ai_matching.SkillTaxonomy;
 import com.internlink.core.domain.auth.User;
 import com.internlink.core.domain.company.Company;
 import com.internlink.core.domain.organization.Department;
 import com.internlink.core.domain.organization.InternshipTerm;
+import com.internlink.core.domain.organization.StudentRoster;
 import com.internlink.core.domain.recruitment.JobPosition;
 import com.internlink.core.domain.recruitment.JobSkill;
 import com.internlink.core.domain.recruitment.JobSkillId;
@@ -14,7 +17,9 @@ import com.internlink.core.presentation.recruitment.dto.request.JobPositionReque
 import com.internlink.core.presentation.recruitment.dto.request.JobSkillRequest;
 import com.internlink.core.presentation.recruitment.dto.response.JobPositionResponse;
 import com.internlink.core.presentation.recruitment.dto.response.JobSkillResponse;
+import com.internlink.core.shared.enums.EligibilityStatus;
 import com.internlink.core.shared.enums.JobStatus;
+import com.internlink.core.shared.enums.UserRole;
 import com.internlink.core.shared.enums.RequirementType;
 import com.internlink.core.shared.enums.VerificationStatus;
 import com.internlink.core.shared.exception.BadRequestException;
@@ -29,6 +34,7 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -40,9 +46,12 @@ public class JobPositionServiceImpl implements JobPositionService {
     private final JpaInternshipTermRepository termRepository;
     private final JpaDepartmentRepository departmentRepository;
     private final JpaUserRepository userRepository;
+    private final AuditLogService auditLogService;
     private final JpaJobSkillRepository jobSkillRepository;
     private final JpaSkillTaxonomyRepository taxonomyRepository;
     private final SecurityGuard securityGuard;
+    private final NotificationService notificationService;
+    private final JpaStudentRosterRepository studentRosterRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -92,6 +101,23 @@ public class JobPositionServiceImpl implements JobPositionService {
         return jobPositionRepository.searchJobs(keyword, termId, null, JobStatus.APPROVED).stream()
             .map(this::mapToResponse)
             .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<JobPositionResponse> getPublicJobs(String keyword, UUID termId, UUID companyId) {
+        return jobPositionRepository.searchJobs(keyword, termId, companyId, JobStatus.APPROVED).stream()
+            .map(this::mapToResponse)
+            .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public JobPositionResponse getPublicJobById(UUID id) {
+        JobPosition job = jobPositionRepository.findById(id)
+            .filter(position -> position.getStatus() == JobStatus.APPROVED)
+            .orElseThrow(() -> new ResourceNotFoundException("JobPosition", "id", id));
+        return mapToResponse(job);
     }
 
     @Override
@@ -220,6 +246,8 @@ public class JobPositionServiceImpl implements JobPositionService {
         if (status != JobStatus.APPROVED && status != JobStatus.REJECTED) {
             throw new BadRequestException("Kết quả thẩm định chỉ có thể là APPROVED hoặc REJECTED");
         }
+        if (status == JobStatus.REJECTED && (facultyFeedback == null || facultyFeedback.isBlank()))
+            throw new BadRequestException("Cần nêu lý do từ chối tin tuyển dụng");
         if (job.getStatus() != JobStatus.PENDING_APPROVAL) {
             throw new BadRequestException("Chỉ có thể thẩm định vị trí đã gửi duyệt");
         }
@@ -227,6 +255,7 @@ public class JobPositionServiceImpl implements JobPositionService {
         User approver = userRepository.findById(approvedByUserId)
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", approvedByUserId));
         ResourceAuthorization.require(approvedByUserId.equals(securityGuard.currentUser().getId())
+            && approver.getRole() == UserRole.FACULTY_ADMIN
             && ResourceAuthorization.managesDepartment(approver, job.getDepartment().getId()));
 
         job.setStatus(status);
@@ -234,7 +263,50 @@ public class JobPositionServiceImpl implements JobPositionService {
         job.setApprovedBy(approver);
         job.setApprovedAt(OffsetDateTime.now());
 
-        return mapToResponse(jobPositionRepository.save(job));
+        JobPosition saved = jobPositionRepository.save(job);
+        auditLogService.logAction(approvedByUserId, "REVIEW_JOB_POSITION", "JobPosition", saved.getId(),
+            "SUCCESS", Map.of("status", status.name()), null);
+
+        // Gửi thông báo
+        if (status == JobStatus.APPROVED) {
+            // 1. Thông báo cho người đại diện doanh nghiệp
+            var companyReps = userRepository.findByCompanyIdAndRole(job.getCompany().getId(), UserRole.COMPANY_REP);
+            for (var rep : companyReps) {
+                notificationService.sendNotification(
+                    rep.getId(),
+                    "JOB_APPROVED",
+                    "Tin tuyển dụng đã được duyệt",
+                    "Vị trí \"" + job.getTitle() + "\" đã được Ban chủ nhiệm khoa phê duyệt và đăng tuyển.",
+                    "/company/jobs"
+                );
+            }
+            // 2. Thông báo cho sinh viên đủ điều kiện trong kỳ thực tập
+            List<StudentRoster> rosters = studentRosterRepository.findByTermIdAndEligibilityStatus(job.getTerm().getId(), EligibilityStatus.ELIGIBLE);
+            for (var roster : rosters) {
+                if (roster.getClaimedUser() != null) {
+                    notificationService.sendNotification(
+                        roster.getClaimedUser().getId(),
+                        "NEW_JOB_POSTED",
+                        "Tin tuyển dụng mới: " + job.getTitle(),
+                        "Doanh nghiệp " + job.getCompany().getCompanyName() + " vừa đăng tuyển vị trí " + job.getTitle() + ".",
+                        "/jobs/" + job.getId()
+                    );
+                }
+            }
+        } else if (status == JobStatus.REJECTED) {
+            var companyReps = userRepository.findByCompanyIdAndRole(job.getCompany().getId(), UserRole.COMPANY_REP);
+            for (var rep : companyReps) {
+                notificationService.sendNotification(
+                    rep.getId(),
+                    "JOB_REJECTED",
+                    "Tin tuyển dụng không được duyệt",
+                    "Vị trí \"" + job.getTitle() + "\" đã bị từ chối: " + facultyFeedback,
+                    "/company/jobs"
+                );
+            }
+        }
+
+        return mapToResponse(saved);
     }
 
     private User currentActor() {

@@ -10,6 +10,7 @@ import java.util.UUID;
 public interface JobApplicationService {
     List<JobApplicationResponse> getApplicationsByStudent(UUID studentId);
     List<JobApplicationResponse> getApplicationsByJob(UUID jobId);
+    List<JobApplicationResponse> getApplicationsForMyCompany();
     JobApplicationResponse getApplicationById(UUID id);
     JobApplicationResponse applyJob(UUID studentId, JobApplicationRequest request);
     JobApplicationResponse updateApplicationStatus(UUID id, ApplicationStatus status);

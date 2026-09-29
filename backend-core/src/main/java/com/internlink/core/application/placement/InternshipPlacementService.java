@@ -9,9 +9,11 @@ import java.util.UUID;
 public interface InternshipPlacementService {
     List<InternshipPlacementResponse> getPlacementsByTerm(UUID termId);
     List<InternshipPlacementResponse> getPlacementsByStudent(UUID studentId);
+    List<InternshipPlacementResponse> getPlacementsForMyCompany();
     List<InternshipPlacementResponse> getPlacementsByMentor(UUID mentorId);
     List<InternshipPlacementResponse> getPlacementsByLecturer(UUID lecturerId);
     InternshipPlacementResponse getPlacementById(UUID id);
     InternshipPlacementResponse activatePlacementFromAgreement(UUID agreementId, UUID lecturerId);
     InternshipPlacementResponse updatePlacementStatus(UUID id, PlacementStatus status);
+    InternshipPlacementResponse assignLecturer(UUID id, UUID lecturerId);
 }

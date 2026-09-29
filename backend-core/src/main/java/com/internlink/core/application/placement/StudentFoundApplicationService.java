@@ -1,5 +1,7 @@
 package com.internlink.core.application.placement;
 
+import com.internlink.core.application.system.NotificationService;
+import com.internlink.core.domain.organization.StudentRoster;
 import com.internlink.core.domain.placement.*;
 import com.internlink.core.domain.system.Document;
 import com.internlink.core.infrastructure.persistence.jpa.*;
@@ -26,6 +28,7 @@ public class StudentFoundApplicationService {
     private final JpaDocumentRepository documents;
     private final JpaUserRepository users;
     private final SecurityGuard security;
+    private final NotificationService notifications;
 
     @Transactional
     public StudentFoundResponse create(StudentFoundRequest request) {
@@ -92,7 +95,21 @@ public class StudentFoundApplicationService {
         app.setAcceptanceDocument(document);
         app.setStatus("SUBMITTED");
         app.setReviewNote(null);
-        return response(applications.save(app));
+        var saved = applications.save(app);
+
+        // Gửi thông báo cho cán bộ khoa quản lý khoa của kỳ thực tập
+        var facultyAdmins = users.findByDepartmentIdAndRole(app.getTerm().getDepartment().getId(), UserRole.FACULTY_ADMIN);
+        for (var admin : facultyAdmins) {
+            notifications.sendNotification(
+                admin.getId(),
+                "STUDENT_FOUND_SUBMITTED",
+                "Hồ sơ nơi thực tập tự tìm mới",
+                "Sinh viên " + app.getStudent().getFullName() + " đã nộp hồ sơ thực tập tự tìm tại " + app.getHostName() + ".",
+                "/faculty/job-approvals"
+            );
+        }
+
+        return response(saved);
     }
 
     @Transactional
@@ -120,12 +137,72 @@ public class StudentFoundApplicationService {
                 .startDate(app.getStartDate()).endDate(app.getEndDate())
                 .workSchedule(Map.of()).totalHoursWorked(BigDecimal.ZERO).status(PlacementStatus.PREPARING).build();
             placements.save(placement);
+
+            notifications.sendNotification(
+                app.getStudent().getId(),
+                "STUDENT_FOUND_APPROVED",
+                "Hồ sơ thực tập tự tìm đã được duyệt",
+                "Hồ sơ thực tập tại " + app.getHostName() + " của bạn đã được phê duyệt.",
+                "/student/applications"
+            );
+            notifications.sendNotification(
+                lecturer.getId(),
+                "LECTURER_ASSIGNED",
+                "Phân công hướng dẫn thực tập",
+                "Bạn đã được phân công hướng dẫn sinh viên " + app.getStudent().getFullName() + " tại " + app.getHostName() + ".",
+                "/lecturer/supervision"
+            );
+        } else if ("REVISION_REQUIRED".equals(decision)) {
+            notifications.sendNotification(
+                app.getStudent().getId(),
+                "STUDENT_FOUND_REVISION",
+                "Yêu cầu chỉnh sửa hồ sơ thực tập tự tìm",
+                "Hồ sơ tại " + app.getHostName() + " cần chỉnh sửa: " + note,
+                "/student/applications"
+            );
+        } else if ("REJECTED".equals(decision)) {
+            notifications.sendNotification(
+                app.getStudent().getId(),
+                "STUDENT_FOUND_REJECTED",
+                "Hồ sơ thực tập tự tìm không được duyệt",
+                "Hồ sơ tại " + app.getHostName() + " đã bị từ chối: " + note,
+                "/student/applications"
+            );
         }
         app.setStatus(decision);
         app.setReviewNote(note != null ? note.trim() : null);
         app.setReviewedBy(reviewer);
         app.setReviewedAt(OffsetDateTime.now());
         return response(applications.save(app));
+    }
+
+    @Transactional
+    public int remindEligibleStudentsWithoutPlacement(UUID termId) {
+        var term = terms.findById(termId).orElseThrow(() -> new ResourceNotFoundException("InternshipTerm", "id", termId));
+        ResourceAuthorization.require(ResourceAuthorization.managesDepartment(actor(), term.getDepartment().getId()));
+
+        List<StudentRoster> eligibleRosters = rosters.findByTermIdAndEligibilityStatus(termId, EligibilityStatus.ELIGIBLE);
+        int count = 0;
+        for (var roster : eligibleRosters) {
+            if (roster.getClaimedUser() == null) continue;
+            UUID studentId = roster.getClaimedUser().getId();
+            boolean hasPlacement = !placements.findByTermIdAndStudentId(termId, studentId).isEmpty();
+            if (hasPlacement) continue;
+
+            var sfApp = applications.findByTermIdAndStudentId(termId, studentId);
+            boolean alreadySubmittedSf = sfApp.isPresent() && List.of("SUBMITTED", "APPROVED").contains(sfApp.get().getStatus());
+            if (alreadySubmittedSf) continue;
+
+            notifications.sendNotification(
+                studentId,
+                "COMPANY_FORM_REMINDER",
+                "Nhắc nhở: Cập nhật thông tin đơn vị thực tập",
+                "Bạn chưa có vị trí thực tập trong kỳ " + term.getTermName() + ". Vui lòng nộp thông tin đơn vị thực tập tự tìm hoặc ứng tuyển các vị trí của trường.",
+                "/student/applications"
+            );
+            count++;
+        }
+        return count;
     }
 
     @Transactional(readOnly = true)

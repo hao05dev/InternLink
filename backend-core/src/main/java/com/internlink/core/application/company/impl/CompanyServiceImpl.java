@@ -1,6 +1,7 @@
 package com.internlink.core.application.company.impl;
 
 import com.internlink.core.application.company.CompanyService;
+import com.internlink.core.application.system.AuditLogService;
 import com.internlink.core.domain.auth.User;
 import com.internlink.core.domain.company.Company;
 import com.internlink.core.infrastructure.persistence.jpa.JpaCompanyRepository;
@@ -8,8 +9,11 @@ import com.internlink.core.infrastructure.persistence.jpa.JpaUserRepository;
 import com.internlink.core.presentation.company.dto.request.CompanyRequest;
 import com.internlink.core.presentation.company.dto.response.CompanyResponse;
 import com.internlink.core.shared.enums.VerificationStatus;
+import com.internlink.core.shared.enums.UserRole;
 import com.internlink.core.shared.exception.BadRequestException;
 import com.internlink.core.shared.exception.ResourceNotFoundException;
+import com.internlink.core.shared.security.ResourceAuthorization;
+import com.internlink.core.shared.security.SecurityGuard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +29,8 @@ public class CompanyServiceImpl implements CompanyService {
 
     private final JpaCompanyRepository companyRepository;
     private final JpaUserRepository userRepository;
+    private final AuditLogService auditLogService;
+    private final SecurityGuard securityGuard;
 
     @Override
     @Transactional(readOnly = true)
@@ -101,13 +107,25 @@ public class CompanyServiceImpl implements CompanyService {
 
         User verifier = userRepository.findById(verifiedByUserId)
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", verifiedByUserId));
+        ResourceAuthorization.require(verifiedByUserId.equals(securityGuard.currentUser().getId())
+            && verifier.getRole() == UserRole.FACULTY_ADMIN);
+        if (status == VerificationStatus.PENDING) {
+            throw new BadRequestException("Kết quả thẩm định không thể là PENDING");
+        }
+        if ((status == VerificationStatus.REJECTED || status == VerificationStatus.NEEDS_REVISION)
+            && (verificationDetail == null || verificationDetail.get("note") == null
+                || verificationDetail.get("note").toString().isBlank()))
+            throw new BadRequestException("Cần ghi chú lý do khi từ chối hoặc yêu cầu bổ sung hồ sơ");
 
         company.setVerificationStatus(status);
         company.setVerificationDetail(verificationDetail != null ? verificationDetail : Map.of());
         company.setVerifiedBy(verifier);
         company.setVerifiedAt(OffsetDateTime.now());
 
-        return mapToResponse(companyRepository.save(company));
+        Company saved = companyRepository.save(company);
+        auditLogService.logAction(verifiedByUserId, "REVIEW_COMPANY", "Company", saved.getId(),
+            "SUCCESS", Map.of("status", status.name()), null);
+        return mapToResponse(saved);
     }
 
     private CompanyResponse mapToResponse(Company entity) {

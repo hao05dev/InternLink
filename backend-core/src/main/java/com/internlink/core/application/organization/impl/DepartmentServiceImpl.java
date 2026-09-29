@@ -1,17 +1,20 @@
 package com.internlink.core.application.organization.impl;
 
 import com.internlink.core.application.organization.DepartmentService;
+import com.internlink.core.application.system.AuditLogService;
 import com.internlink.core.domain.organization.Department;
 import com.internlink.core.infrastructure.persistence.jpa.JpaDepartmentRepository;
 import com.internlink.core.presentation.organization.dto.request.DepartmentRequest;
 import com.internlink.core.presentation.organization.dto.response.DepartmentResponse;
 import com.internlink.core.shared.exception.BadRequestException;
 import com.internlink.core.shared.exception.ResourceNotFoundException;
+import com.internlink.core.shared.security.SecurityGuard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -19,6 +22,8 @@ import java.util.UUID;
 public class DepartmentServiceImpl implements DepartmentService {
 
     private final JpaDepartmentRepository departmentRepository;
+    private final AuditLogService auditLogService;
+    private final SecurityGuard securityGuard;
 
     @Override
     @Transactional(readOnly = true)
@@ -50,7 +55,10 @@ public class DepartmentServiceImpl implements DepartmentService {
             .isActive(request.getIsActive())
             .build();
 
-        return mapToResponse(departmentRepository.save(department));
+        Department saved = departmentRepository.save(department);
+        auditLogService.logAction(securityGuard.currentUser().getId(), "CREATE_DEPARTMENT",
+            "Department", saved.getId(), "SUCCESS", Map.of("code", saved.getCode()), null);
+        return mapToResponse(saved);
     }
 
     @Override
@@ -71,7 +79,10 @@ public class DepartmentServiceImpl implements DepartmentService {
         department.setContactEmail(request.getContactEmail().trim().toLowerCase());
         department.setIsActive(request.getIsActive());
 
-        return mapToResponse(departmentRepository.save(department));
+        Department saved = departmentRepository.save(department);
+        auditLogService.logAction(securityGuard.currentUser().getId(), "UPDATE_DEPARTMENT",
+            "Department", saved.getId(), "SUCCESS", Map.of("code", saved.getCode(), "isActive", saved.getIsActive()), null);
+        return mapToResponse(saved);
     }
 
     private DepartmentResponse mapToResponse(Department entity) {

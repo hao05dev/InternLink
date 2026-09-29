@@ -58,17 +58,17 @@ export function DataTable<T>({
     }
 
     return (
-        <div className={cn("w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xs", className)}>
+        <div className={cn("w-full min-w-0 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xs", className)}>
             <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
+                <table className="w-full min-w-[680px] text-left border-collapse text-xs">
                     <thead>
-                        <tr className="border-b border-slate-100 bg-slate-50/75">
+                        <tr className="border-b border-slate-200/80 bg-slate-50/80">
                             {columns.map((col, idx) => (
                                 <th
                                     key={idx}
                                     scope="col"
                                     className={cn(
-                                        "px-4 py-3.5 font-bold uppercase tracking-wider text-slate-600 text-[11px]",
+                                        "px-4 py-3.5 font-bold uppercase tracking-wider text-slate-700 text-[11px] whitespace-nowrap",
                                         col.className
                                     )}
                                 >
@@ -81,7 +81,7 @@ export function DataTable<T>({
                         {data.map((item) => (
                             <tr
                                 key={keyExtractor(item)}
-                                className="hover:bg-slate-50/60 transition-colors"
+                                className="hover:bg-sky-50/40 transition-colors group"
                             >
                                 {columns.map((col, colIdx) => (
                                     <td

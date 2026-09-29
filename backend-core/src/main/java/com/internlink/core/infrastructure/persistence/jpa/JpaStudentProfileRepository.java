@@ -13,4 +13,5 @@ public interface JpaStudentProfileRepository extends JpaRepository<StudentProfil
     Optional<StudentProfile> findByStudentCode(String studentCode);
     Optional<StudentProfile> findByUserId(UUID userId);
     boolean existsByStudentCode(String studentCode);
+    boolean existsByProgram_Id(UUID programId);
 }

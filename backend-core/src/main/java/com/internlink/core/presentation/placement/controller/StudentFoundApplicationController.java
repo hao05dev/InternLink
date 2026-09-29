@@ -26,7 +26,7 @@ public class StudentFoundApplicationController {
     public ApiResponse<StudentFoundResponse> submit(@PathVariable UUID id, @RequestParam UUID documentId) {
         return ApiResponse.success(service.submit(id, documentId));
     }
-    @PatchMapping("/{id}/review") @PreAuthorize("hasAnyRole('FACULTY_ADMIN', 'ADMIN')")
+    @PatchMapping("/{id}/review") @PreAuthorize("hasRole('FACULTY_ADMIN')")
     public ApiResponse<StudentFoundResponse> review(@PathVariable UUID id, @RequestParam String decision,
         @RequestParam(required = false) String note, @RequestParam(required = false) UUID lecturerId) {
         return ApiResponse.success(service.review(id, decision, note, lecturerId));
@@ -39,5 +39,10 @@ public class StudentFoundApplicationController {
     @GetMapping("/term/{termId}") @PreAuthorize("hasAnyRole('FACULTY_ADMIN', 'ADMIN')")
     public ApiResponse<List<StudentFoundResponse>> byTerm(@PathVariable UUID termId) {
         return ApiResponse.success(service.byTerm(termId));
+    }
+    @PostMapping("/term/{termId}/remind") @PreAuthorize("hasAnyRole('FACULTY_ADMIN', 'ADMIN')")
+    public ApiResponse<java.util.Map<String, Object>> remindTerm(@PathVariable UUID termId) {
+        int count = service.remindEligibleStudentsWithoutPlacement(termId);
+        return ApiResponse.success(java.util.Map.of("remindedCount", count, "message", "Đã gửi thông báo nhắc nhở cho " + count + " sinh viên"));
     }
 }

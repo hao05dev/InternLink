@@ -68,7 +68,7 @@ class RecruitmentWorkflowServiceTest {
     @BeforeEach
     void setUp() {
         jobService = new JobPositionServiceImpl(jobRepository, companyRepository, termRepository,
-            departmentRepository, userRepository, jobSkillRepository, taxonomyRepository, securityGuard);
+            departmentRepository, userRepository, auditLogService, jobSkillRepository, taxonomyRepository, securityGuard, notificationService, studentRosterRepository);
         applicationService = new JobApplicationServiceImpl(applicationRepository, jobRepository,
             userRepository, documentRepository, studentProfileRepository, studentRosterRepository, offerRepository, securityGuard);
         offerService = new PlacementOfferServiceImpl(offerRepository, applicationRepository, userRepository, securityGuard, auditLogService, notificationService);

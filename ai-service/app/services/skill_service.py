@@ -57,6 +57,7 @@ class SkillService:
         """
         extracted_raw_skills = []
         experience_level = "Intern"
+        extraction_mode = "rule_based"
 
         if self.model and settings.GEMINI_API_KEY:
             prompt = f"""
@@ -87,6 +88,7 @@ Chỉ trả về JSON, không kèm giải thích hoặc markdown ngoài JSON.
                     resp_text = re.sub(r"^```json\s*", "", resp_text)
                     resp_text = re.sub(r"\s*```$", "", resp_text)
                 parsed = json.loads(resp_text)
+                extraction_mode = "gemini"
                 extracted_raw_skills = parsed.get("hard_skills", []) + parsed.get("soft_skills", [])
                 experience_level = parsed.get("experience_level", "Intern")
             except Exception as e:
@@ -115,6 +117,8 @@ Chỉ trả về JSON, không kèm giải thích hoặc markdown ngoài JSON.
                 unmatched_skills.append(raw_s)
 
         return {
+            "model": settings.LLM_MODEL if extraction_mode == "gemini" else "rule-based-extraction",
+            "mode": extraction_mode,
             "total_extracted": len(normalized_skills) + len(unmatched_skills),
             "normalized_skills": normalized_skills,
             "unmatched_skills": unmatched_skills,

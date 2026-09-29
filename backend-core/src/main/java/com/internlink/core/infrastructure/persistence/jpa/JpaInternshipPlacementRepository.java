@@ -12,11 +12,17 @@ import java.util.UUID;
 
 @Repository
 public interface JpaInternshipPlacementRepository extends JpaRepository<InternshipPlacement, UUID> {
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select p from InternshipPlacement p where p.id = :id")
+    Optional<InternshipPlacement> findLockedById(@Param("id") UUID id);
+
     Optional<InternshipPlacement> findByAgreementId(UUID agreementId);
     List<InternshipPlacement> findByStudentId(UUID studentId);
+    List<InternshipPlacement> findByCompanyId(UUID companyId);
     List<InternshipPlacement> findByMentorId(UUID mentorId);
     List<InternshipPlacement> findByLecturerId(UUID lecturerId);
     List<InternshipPlacement> findByTermId(UUID termId);
+    List<InternshipPlacement> findByTermDepartmentId(UUID departmentId);
     List<InternshipPlacement> findByTermIdAndStudentId(UUID termId, UUID studentId);
     Optional<InternshipPlacement> findByStudentFoundApplicationId(UUID studentFoundApplicationId);
     List<InternshipPlacement> findByTermIdAndStatus(UUID termId, PlacementStatus status);

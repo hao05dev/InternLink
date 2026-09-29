@@ -1,11 +1,9 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Be_Vietnam_Pro } from "next/font/google";
-import { AuthProvider } from "@/context/auth-context";
+import { AuthProvider } from "@/providers/auth-provider";
 import { QueryProvider } from "@/providers/query-provider";
-import { Navbar } from "@/components/shared/navbar";
 import { cn } from "@/lib/utils";
-import { MapPin, Phone, Mail, GraduationCap } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "InternLink - Cổng Thông Tin Thực Tập & Tuyển Dụng Doanh Nghiệp | CICT CTU",
@@ -25,7 +23,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="vi">
-      <body className={cn(beVietnamPro.className, "min-h-screen bg-slate-50 antialiased text-slate-900 flex flex-col justify-between")}>
+      <body className={cn(beVietnamPro.className, "min-h-screen bg-slate-50 antialiased text-slate-900")}>
         <QueryProvider>
           <AuthProvider>
             {children}

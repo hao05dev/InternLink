@@ -34,6 +34,8 @@ public class StudentRosterImportItem {
     @NotBlank(message = "Khóa học không được để trống")
     private String academicYear;
 
+    private String classCode;
+
     @NotBlank(message = "Mã học phần thực tập không được để trống")
     private String internshipCourseCode;
 

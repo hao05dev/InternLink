@@ -1,5 +1,7 @@
+"use client";
+
 import React from "react";
-import { Navbar } from "@/components/shared/navbar";
+import { Navbar } from "@/components/layouts/navbar";
 import { GraduationCap, MapPin, Phone, Mail } from "lucide-react";
 import Link from "next/link";
 

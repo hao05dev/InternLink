@@ -1,6 +1,7 @@
 package com.internlink.core.presentation.auth.controller;
 
 import com.internlink.core.application.auth.AuthService;
+import com.internlink.core.infrastructure.security.CustomUserDetail;
 import com.internlink.core.shared.api.ApiResponse;
 import com.internlink.core.presentation.auth.dto.request.LoginRequest;
 import com.internlink.core.presentation.auth.dto.response.AuthResponse;
@@ -9,6 +10,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 
@@ -37,5 +39,14 @@ public class AuthController {
     public ResponseEntity<ApiResponse<UserSummaryDto>> getCurrentUser() {
         UserSummaryDto userSummary = authService.getCurrentUser();
         return ResponseEntity.ok(ApiResponse.success(userSummary));
+    }
+
+    @GetMapping("/session")
+    public ResponseEntity<ApiResponse<UserSummaryDto>> getSession(
+        @AuthenticationPrincipal CustomUserDetail principal
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(
+            principal == null ? null : authService.getCurrentUser()
+        ));
     }
 }
