@@ -99,6 +99,8 @@ public class AuthServiceImpl implements AuthService {
             .fullName(user.getFullName())
             .phoneNumber(user.getPhoneNumber())
             .role(user.getRole())
+            .departmentId(user.getDepartment() != null ? user.getDepartment().getId() : null)
+            .companyId(user.getCompany() != null ? user.getCompany().getId() : null)
             .mustChangePassword(user.getMustChangePassword())
             .lastLoginAt(user.getLastLoginAt())
             .isActive(user.getIsActive())

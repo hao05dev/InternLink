@@ -1,6 +1,7 @@
 package com.internlink.core.presentation.organization.controller;
 
 import com.internlink.core.application.organization.InternshipTermService;
+import com.internlink.core.application.organization.IntroductionLetterNoticeService;
 import com.internlink.core.shared.api.ApiResponse;
 import com.internlink.core.shared.enums.TermStatus;
 import com.internlink.core.presentation.organization.dto.request.InternshipTermRequest;
@@ -13,6 +14,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.time.LocalDate;
 import java.util.UUID;
 
 @RestController
@@ -21,6 +23,18 @@ import java.util.UUID;
 public class InternshipTermController {
 
     private final InternshipTermService termService;
+    private final IntroductionLetterNoticeService introductionLetterNoticeService;
+
+    public record IntroductionLetterNoticeRequest(String pickupLocation, LocalDate pickupDate) {}
+
+    @PostMapping("/{id}/introduction-letter-notice")
+    @PreAuthorize("hasRole('FACULTY_ADMIN')")
+    public ResponseEntity<ApiResponse<IntroductionLetterNoticeService.NoticeResult>> notifyIntroductionLetterPickup(
+        @PathVariable UUID id, @RequestBody IntroductionLetterNoticeRequest request
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(introductionLetterNoticeService.send(
+            id, request.pickupLocation(), request.pickupDate())));
+    }
 
     @GetMapping("/by-department/{departmentId}")
     public ResponseEntity<ApiResponse<List<InternshipTermResponse>>> getTermsByDepartment(
@@ -37,7 +51,7 @@ public class InternshipTermController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'FACULTY_ADMIN')")
+    @PreAuthorize("hasRole('FACULTY_ADMIN')")
     public ResponseEntity<ApiResponse<InternshipTermResponse>> createTerm(
             @Valid @RequestBody InternshipTermRequest request
     ) {
@@ -47,7 +61,7 @@ public class InternshipTermController {
     }
 
     @PatchMapping("/{id}/status")
-    @PreAuthorize("hasAnyRole('ADMIN', 'FACULTY_ADMIN')")
+    @PreAuthorize("hasRole('FACULTY_ADMIN')")
     public ResponseEntity<ApiResponse<InternshipTermResponse>> updateTermStatus(
             @PathVariable UUID id,
             @RequestParam TermStatus status

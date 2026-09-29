@@ -41,7 +41,7 @@ public class FinalResultController {
      * Mặc định lưu DRAFT để Hội đồng rà soát (trừ khi request.publishImmediately = true).
      */
     @PostMapping("/finalize")
-    @PreAuthorize("hasAnyRole('ADMIN', 'FACULTY_ADMIN')")
+    @PreAuthorize("hasRole('FACULTY_ADMIN')")
     public ResponseEntity<ApiResponse<FinalResultResponse>> finalizeResult(
         @AuthenticationPrincipal CustomUserDetail userDetail,
         @Valid @RequestBody FinalResultRequest request
@@ -59,7 +59,7 @@ public class FinalResultController {
      * Chuyển trạng thái lần thực tập sang COMPLETED nếu sinh viên đạt (PASSED).
      */
     @PatchMapping("/placement/{placementId}/publish")
-    @PreAuthorize("hasAnyRole('ADMIN', 'FACULTY_ADMIN')")
+    @PreAuthorize("hasRole('FACULTY_ADMIN')")
     public ResponseEntity<ApiResponse<FinalResultResponse>> publishResult(
         @PathVariable UUID placementId,
         @AuthenticationPrincipal CustomUserDetail userDetail

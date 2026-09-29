@@ -16,6 +16,7 @@ import com.internlink.core.domain.recruitment.JobPosition;
 import com.internlink.core.domain.recruitment.PlacementOffer;
 import com.internlink.core.infrastructure.persistence.jpa.*;
 import com.internlink.core.infrastructure.security.CookieUtils;
+import com.internlink.core.infrastructure.security.CustomUserDetail;
 import com.internlink.core.infrastructure.security.JwtUtil;
 import com.internlink.core.presentation.auth.dto.request.LoginRequest;
 import com.internlink.core.presentation.company.dto.request.CompanyRequest;
@@ -55,6 +56,7 @@ class CoreServicesTest {
 
     @Mock JpaDepartmentRepository departmentRepository;
     @Mock JpaAcademicProgramRepository programRepository;
+    @Mock JpaAssessmentSchemeRepository assessmentSchemeRepository;
     @Mock JpaInternshipTermRepository termRepository;
     @Mock JpaStudentRosterRepository rosterRepository;
     @Mock JpaCompanyRepository companyRepository;
@@ -84,7 +86,8 @@ class CoreServicesTest {
 
     @Test
     void departmentCreationNormalizesCodeAndEmail() {
-        DepartmentServiceImpl service = new DepartmentServiceImpl(departmentRepository);
+        DepartmentServiceImpl service = new DepartmentServiceImpl(departmentRepository, auditLogService, securityGuard);
+        when(securityGuard.currentUser()).thenReturn(CustomUserDetail.create(user(UserRole.ADMIN)));
         DepartmentRequest request = DepartmentRequest.builder().code("  cit ").name("  CNTT ")
             .contactEmail("  IT@EXAMPLE.COM ").build();
 
@@ -96,7 +99,8 @@ class CoreServicesTest {
 
     @Test
     void academicProgramRejectsDuplicateCode() {
-        AcademicProgramServiceImpl service = new AcademicProgramServiceImpl(programRepository, departmentRepository);
+        AcademicProgramServiceImpl service = new AcademicProgramServiceImpl(programRepository, departmentRepository,
+            profileRepository, rosterRepository, assessmentSchemeRepository, auditLogService, securityGuard);
         Department department = department();
         when(departmentRepository.findById(department.getId())).thenReturn(Optional.of(department));
         when(programRepository.existsByCode("SE")).thenReturn(true);
@@ -107,9 +111,40 @@ class CoreServicesTest {
     }
 
     @Test
-    void internshipTermRejectsReversedDates() {
-        InternshipTermServiceImpl service = new InternshipTermServiceImpl(termRepository, departmentRepository, placementRepository);
+    void academicProgramUpdateAndRejectReferencedDelete() {
+        AcademicProgramServiceImpl service = new AcademicProgramServiceImpl(programRepository, departmentRepository,
+            profileRepository, rosterRepository, assessmentSchemeRepository, auditLogService, securityGuard);
         Department department = department();
+        AcademicProgram program = program(department);
+        when(programRepository.findById(program.getId())).thenReturn(Optional.of(program));
+        when(departmentRepository.findById(department.getId())).thenReturn(Optional.of(department));
+        when(securityGuard.currentUser()).thenReturn(CustomUserDetail.create(user(UserRole.ADMIN)));
+
+        AcademicProgramRequest updateRequest = AcademicProgramRequest.builder()
+            .departmentId(department.getId())
+            .code("SE_NEW")
+            .name("Software Engineering Advanced")
+            .track("REGULAR")
+            .isActive(true)
+            .build();
+
+        var updated = service.updateProgram(program.getId(), updateRequest);
+        assertThat(updated.getCode()).isEqualTo("SE_NEW");
+
+        when(profileRepository.existsByProgram_Id(program.getId())).thenReturn(true);
+        assertThatThrownBy(() -> service.deleteProgram(program.getId()))
+            .isInstanceOf(BadRequestException.class);
+    }
+
+    @Test
+    void internshipTermRejectsReversedDates() {
+        InternshipTermServiceImpl service = new InternshipTermServiceImpl(termRepository, departmentRepository, placementRepository,
+            userRepository, securityGuard, auditLogService);
+        Department department = department();
+        User actor = user(UserRole.FACULTY_ADMIN);
+        actor.setDepartment(department);
+        when(securityGuard.currentUser()).thenReturn(CustomUserDetail.create(actor));
+        when(userRepository.findById(actor.getId())).thenReturn(Optional.of(actor));
         when(departmentRepository.findById(department.getId())).thenReturn(Optional.of(department));
         InternshipTermRequest request = InternshipTermRequest.builder().departmentId(department.getId())
             .code("T1").termName("Term").academicYear("2026").semester("1")
@@ -123,8 +158,13 @@ class CoreServicesTest {
 
     @Test
     void rosterRejectsProgramFromAnotherDepartment() {
-        StudentRosterServiceImpl service = new StudentRosterServiceImpl(rosterRepository, termRepository, programRepository);
+        StudentRosterServiceImpl service = new StudentRosterServiceImpl(rosterRepository, termRepository, programRepository,
+            userRepository, securityGuard, auditLogService, mock(org.springframework.security.crypto.password.PasswordEncoder.class));
         Department termDepartment = department();
+        User actor = user(UserRole.FACULTY_ADMIN);
+        actor.setDepartment(termDepartment);
+        when(securityGuard.currentUser()).thenReturn(CustomUserDetail.create(actor));
+        when(userRepository.findById(actor.getId())).thenReturn(Optional.of(actor));
         Department otherDepartment = department();
         InternshipTerm term = term(termDepartment);
         AcademicProgram program = program(otherDepartment);
@@ -140,7 +180,7 @@ class CoreServicesTest {
 
     @Test
     void companyRegistrationRejectsExistingTaxCode() {
-        CompanyServiceImpl service = new CompanyServiceImpl(companyRepository, userRepository);
+        CompanyServiceImpl service = new CompanyServiceImpl(companyRepository, userRepository, auditLogService, securityGuard);
         when(companyRepository.existsByTaxCode("123")).thenReturn(true);
         CompanyRequest request = CompanyRequest.builder().companyName("Acme").taxCode("123")
             .address(Map.of("city", "Can Tho")).build();

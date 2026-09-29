@@ -14,4 +14,5 @@ public interface JpaAssessmentSchemeRepository extends JpaRepository<AssessmentS
         UUID termId, UUID programId, String cohortCode, String courseCode, Integer revision);
     boolean existsByTermIdAndProgramIdAndCohortCodeAndCourseCodeAndStatus(
         UUID termId, UUID programId, String cohortCode, String courseCode, String status);
+    boolean existsByProgram_Id(UUID programId);
 }

@@ -9,5 +9,6 @@ public interface NotificationService {
     List<NotificationResponse> getMyNotifications(UUID recipientId);
     long countUnreadNotifications(UUID recipientId);
     NotificationResponse markAsRead(UUID id, UUID recipientId);
+    void markAllAsRead(UUID recipientId);
     void sendNotification(UUID recipientId, String type, String title, String message, String actionUrl);
 }

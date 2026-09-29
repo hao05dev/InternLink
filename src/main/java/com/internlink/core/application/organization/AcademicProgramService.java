@@ -8,6 +8,9 @@ import java.util.UUID;
 
 public interface AcademicProgramService {
     List<AcademicProgramResponse> getAllPrograms();
+    AcademicProgramResponse getProgramById(UUID id);
     List<AcademicProgramResponse> getProgramsByDepartment(UUID departmentId);
     AcademicProgramResponse createProgram(AcademicProgramRequest request);
+    AcademicProgramResponse updateProgram(UUID id, AcademicProgramRequest request);
+    void deleteProgram(UUID id);
 }

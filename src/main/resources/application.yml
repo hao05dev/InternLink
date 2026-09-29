@@ -4,6 +4,9 @@ server:
 spring:
   application:
     name: internlink-backend-core
+  threads:
+    virtual:
+      enabled: true
   servlet:
     multipart:
       max-file-size: 20MB
@@ -28,6 +31,9 @@ spring:
     locations: classpath:db/migration
 
 internlink:
+  google:
+    service-account-key-path: ${GOOGLE_SERVICE_ACCOUNT_KEY_PATH:}
+    gmail-sender: ${GOOGLE_GMAIL_SENDER:}
   jwt:
     secret: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
     expiration-ms: 86400000 # 24 hours

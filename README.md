@@ -13,12 +13,22 @@ Tất cả tài khoản kiểm thử đã được nạp sẵn vào cơ sở d�
 
 | STT | Vai trò (Role) | Email đăng nhập | Mật khẩu | Họ và tên / Đơn vị | Ghi chú & Đường dẫn truy cập |
 | :---: | :--- | :--- | :---: | :--- | :--- |
-| **1** | **ADMIN** | `admin.cict@ctu.edu.vn` | `Password@123` | Quản trị viên Hệ thống CICT - CTU | Quản trị người dùng, doanh nghiệp MOU, khoa ngành, nhật ký kiểm toán<br>👉 `/admin/dashboard` |
-| **2** | **FACULTY_ADMIN** | `qltt.cict@ctu.edu.vn` | `Password@123` | Ban Quản lý Thực tập CICT | Quản lý kỳ thực tập (Terms), Roster sinh viên, duyệt tin tuyển dụng, phân công GVHD<br>👉 `/faculty/dashboard` |
+| **1** | **ADMIN** | `admin.cict@ctu.edu.vn` | `Password@123` | Quản trị viên Hệ thống CICT - CTU | Quản trị người dùng, cơ cấu khoa/ngành và nhật ký kiểm toán; xem danh bạ doanh nghiệp<br>👉 `/admin/dashboard` |
+| **2** | **FACULTY_ADMIN** | `qltt.cict@ctu.edu.vn` | `Password@123` | Ban Quản lý Thực tập CICT | Thẩm định doanh nghiệp/tin tuyển dụng, kỳ thực tập, import roster Google Sheets, thông báo nhận giấy giới thiệu, phân công GVHD<br>👉 `/faculty/dashboard` |
 | **3** | **LECTURER** | `gvhd.son@ctu.edu.vn` | `Password@123` | ThS. Nguyễn Thái Sơn (GVHD CICT) | Theo dõi thực tập sinh, nhận xét nhật ký tuần, chấm điểm Rubric & báo cáo CLO<br>👉 `/lecturer/dashboard` |
 | **4** | **STUDENT** | `b2110940@student.ctu.edu.vn` | `Password@123` | Lê Hoàng Nam (MSSV: B2110940) | Hồ sơ kỹ năng, CV, đơn ứng tuyển, thỏa thuận 3 bên, nhật ký tuần, báo cáo & tra cứu điểm<br>👉 `/student/dashboard` |
 | **5** | **COMPANY_REP** | `tuyendung.fptct@fpt.com` | `Password@123` | Lê Nguyễn Kim Ngân (HR FPT Software Cần Thơ) | Đăng tin tuyển dụng, sàng lọc ứng viên, lên lịch phỏng vấn, phát hành Offer, phân công Mentor<br>👉 `/company/dashboard` |
 | **6** | **COMPANY_MENTOR** | `mentor.nam@fpt.com` | `Password@123` | Phạm Nhật Nam (Tech Lead & Mentor FPT) | Duyệt & phản hồi nhật ký tuần của thực tập sinh, đánh giá Rubric kết thúc kỳ thực tập<br>👉 `/mentor/dashboard` |
+
+### ADMIN, quản lý khoa và Google Workspace
+
+- **ADMIN:** tạo/xem/cập nhật khoa, ngành và tài khoản; xem nhật ký kiểm toán. Admin có thể xem danh bạ doanh nghiệp nhưng không thực hiện phê duyệt nghiệp vụ.
+- **FACULTY_ADMIN:** thẩm định doanh nghiệp và tin tuyển dụng; tạo/chuyển trạng thái kỳ thực tập; import roster; thông báo sinh viên đến nhận **giấy giới thiệu bản cứng**; phân công GVHD khi kích hoạt thực tập và đổi GVHD cho placement đang hoạt động. Các thao tác kỳ, roster và GVHD được giới hạn theo khoa của tài khoản.
+- **Google Sheets:** tại `/faculty/roster`, nhập link hoặc ID bảng và vùng dữ liệu. Dòng tiêu đề cần `studentCode`, `fullName`, `officialEmail`, `programCode`, `academicYear`, `internshipCourseCode`; có thể thêm `eligibilityStatus` (`ELIGIBLE`, `NEEDS_REVIEW`, `INELIGIBLE`) và `eligibilityNote`. Chia sẻ bảng cho email của service account.
+- **Google Drive:** dùng `STORAGE_PROVIDER=GOOGLE_DRIVE` để lưu tài liệu qua Document API. Thư mục `GOOGLE_DRIVE_FOLDER_ID` cần nằm trong Shared Drive và cho service account quyền ghi. Mặc định vẫn dùng `LOCAL` khi chưa cấp quyền Google.
+- **Gmail:** gửi thông báo nhận giấy giới thiệu từ hộp thư `GOOGLE_GMAIL_SENDER` qua Gmail API. Quản trị Google Workspace phải cấp domain-wide delegation cho service account với scope `https://www.googleapis.com/auth/gmail.send`.
+
+Các biến môi trường BE: `GOOGLE_SERVICE_ACCOUNT_KEY_PATH` (đường dẫn file JSON ngoài Git), `GOOGLE_GMAIL_SENDER`, `GOOGLE_DRIVE_FOLDER_ID`, `STORAGE_PROVIDER`. Bật Sheets/Drive/Gmail API tương ứng. Scope Sheets là `https://www.googleapis.com/auth/spreadsheets.readonly`; scope Drive là `https://www.googleapis.com/auth/drive.file`. Khi thiếu cấu hình, API Google trả lỗi rõ ràng; không báo import hoặc gửi mail thành công giả. Xem thêm [Google service accounts](https://developers.google.com/identity/protocols/oauth2/service-account), [Sheets values](https://developers.google.com/workspace/sheets/api/guides/values), [Gmail sending](https://developers.google.com/workspace/gmail/api/guides/sending), [Shared Drives](https://developers.google.com/workspace/drive/api/guides/about-shareddrives).
 
 ---
 
@@ -78,10 +88,22 @@ Tất cả tài khoản kiểm thử đã được nạp sẵn vào cơ sở d�
 
 ```bash
 cd backend-core
-./mvnw clean spring-boot:run
+mvn clean spring-boot:run
 ```
 * Backend API hoạt động tại: `http://localhost:8080`
 * Tài liệu Swagger UI: `http://localhost:8080/swagger-ui.html`
+
+#### Java trong VS Code
+
+Dự án dùng Lombok để sinh constructor, getter, setter và builder. Nếu `mvn clean test` thành công nhưng Problems báo hàng loạt lỗi như `variable ... not initialized in the default constructor`, hãy dùng Java Extension Pack (Red Hat Java Language Server) cho workspace này. Tại Extensions, chọn **Disable (Workspace)** cho `Oracle.oracle-java`, `georgewfraser.vscode-javac` và `vscjava.vscode-lombok` nếu đã cài; Red Hat Java đã hỗ trợ Lombok sẵn. Sau đó chạy **Developer: Reload Window** và **Java: Clean Java Language Server Workspace** từ Command Palette. File `.vscode/extensions.json` ghi lại lựa chọn extension cho dự án.
+
+#### Quản lý migration database
+
+Flyway kiểm tra checksum trước khi chạy migration mới. Không sửa, xóa hoặc đổi tên migration đã áp dụng, kể cả comment; thay đổi schema phải được viết trong migration có version mới. Kiểm thử `MigrationIntegrityTest` khóa checksum của V1–V12 để phát hiện thay đổi ngoài ý muốn.
+
+Lỗi V11 với checksum database `-339308798` và local `976488499` do một dòng comment được thêm vào cuối file đã áp dụng. V11 đã được khôi phục đúng checksum gốc; thay đổi minh chứng điểm nằm riêng trong V12. Chạy lại lệnh backend ở trên để làm mới tài nguyên build và để Flyway áp dụng V12. Không cần `repair`, chỉnh `flyway_schema_history`, tắt validation hay xóa database.
+
+Nếu gặp checksum khác, đối chiếu file với phiên bản đã áp dụng và kiểm tra schema trước khi xử lý; không đổi checksum mong đợi trong test chỉ để bỏ qua lỗi. Quy tắc migration: [Flyway versioned migrations](https://documentation.red-gate.com/fd/versioned-migrations-273973333.html).
 
 ### 2. Khởi chạy Frontend (Next.js 14)
 

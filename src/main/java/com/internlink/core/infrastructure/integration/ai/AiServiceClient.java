@@ -31,6 +31,17 @@ public class AiServiceClient {
     /**
      * Gọi sang Python AI Service để trích xuất và chuẩn hóa kỹ năng từ văn bản CV
      */
+    public Map<String, Object> health() {
+        try {
+            return webClient.get().uri("/").retrieve()
+                .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
+                .timeout(Duration.ofSeconds(3)).blockOptional()
+                .orElse(Map.of("status", "unavailable"));
+        } catch (Exception ex) {
+            return Map.of("status", "unavailable");
+        }
+    }
+
     public Map<String, Object> extractSkills(String cvRawText) {
         try {
             Map<String, Object> requestBody = Map.of(

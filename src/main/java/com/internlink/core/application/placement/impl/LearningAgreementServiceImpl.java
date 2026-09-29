@@ -283,6 +283,7 @@ public class LearningAgreementServiceImpl implements LearningAgreementService {
         return LearningAgreementResponse.builder()
             .id(entity.getId())
             .offerId(entity.getOffer().getId())
+            .termId(entity.getOffer().getApplication().getJob().getTerm().getId())
             .studentId(entity.getStudent().getId())
             .studentName(entity.getStudent().getFullName())
             .companyId(entity.getCompany().getId())

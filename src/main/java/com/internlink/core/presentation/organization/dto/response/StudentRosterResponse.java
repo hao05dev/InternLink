@@ -25,10 +25,12 @@ public class StudentRosterResponse {
     private String officialEmail;
     private String fullName;
     private String academicYear;
+    private String classCode;
     private String internshipCourseCode;
     private EligibilityStatus eligibilityStatus;
     private String eligibilityNote;
     private UUID claimedUserId;
     private OffsetDateTime claimedAt;
     private OffsetDateTime createdAt;
+    private String defaultPassword; // Only returned when newly provisioned
 }

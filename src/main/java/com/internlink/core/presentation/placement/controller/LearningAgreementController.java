@@ -70,7 +70,7 @@ public class LearningAgreementController {
     }
 
     @PatchMapping("/{id}/sign")
-    @PreAuthorize("hasAnyRole('STUDENT', 'COMPANY_REP', 'FACULTY_ADMIN', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('STUDENT', 'COMPANY_REP', 'FACULTY_ADMIN')")
     public ResponseEntity<ApiResponse<LearningAgreementResponse>> signAgreement(
         @PathVariable UUID id,
         @AuthenticationPrincipal CustomUserDetail userDetail,
@@ -81,7 +81,7 @@ public class LearningAgreementController {
     }
 
     @PatchMapping("/{id}/review")
-    @PreAuthorize("hasAnyRole('ADMIN', 'FACULTY_ADMIN')")
+    @PreAuthorize("hasRole('FACULTY_ADMIN')")
     public ResponseEntity<ApiResponse<LearningAgreementResponse>> reviewAgreement(
         @PathVariable UUID id,
         @RequestParam AgreementStatus status

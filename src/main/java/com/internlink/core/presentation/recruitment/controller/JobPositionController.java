@@ -44,6 +44,20 @@ public class JobPositionController {
         return ResponseEntity.ok(ApiResponse.success(jobs));
     }
 
+    @GetMapping("/public/all")
+    public ResponseEntity<ApiResponse<List<JobPositionResponse>>> getPublicJobs(
+        @RequestParam(required = false) String keyword,
+        @RequestParam(required = false) UUID termId,
+        @RequestParam(required = false) UUID companyId
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(jobPositionService.getPublicJobs(keyword, termId, companyId)));
+    }
+
+    @GetMapping("/public/{id}")
+    public ResponseEntity<ApiResponse<JobPositionResponse>> getPublicJobById(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.success(jobPositionService.getPublicJobById(id)));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<JobPositionResponse>> getJobById(@PathVariable UUID id) {
         JobPositionResponse job = jobPositionService.getJobById(id);
@@ -51,7 +65,7 @@ public class JobPositionController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('COMPANY_REP', 'ADMIN')")
+    @PreAuthorize("hasRole('COMPANY_REP')")
     public ResponseEntity<ApiResponse<JobPositionResponse>> createJob(
         @AuthenticationPrincipal CustomUserDetail userDetail,
         @Valid @RequestBody JobPositionRequest request
@@ -62,7 +76,7 @@ public class JobPositionController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('COMPANY_REP', 'ADMIN')")
+    @PreAuthorize("hasRole('COMPANY_REP')")
     public ResponseEntity<ApiResponse<JobPositionResponse>> updateJob(
         @PathVariable UUID id,
         @Valid @RequestBody JobPositionRequest request
@@ -72,13 +86,13 @@ public class JobPositionController {
     }
 
     @PatchMapping("/{id}/submit")
-    @PreAuthorize("hasAnyRole('COMPANY_REP', 'ADMIN')")
+    @PreAuthorize("hasRole('COMPANY_REP')")
     public ResponseEntity<ApiResponse<JobPositionResponse>> submitJob(@PathVariable UUID id) {
         return ResponseEntity.ok(ApiResponse.success(jobPositionService.submitJob(id)));
     }
 
     @PatchMapping("/{id}/review")
-    @PreAuthorize("hasAnyRole('ADMIN', 'FACULTY_ADMIN')")
+    @PreAuthorize("hasRole('FACULTY_ADMIN')")
     public ResponseEntity<ApiResponse<JobPositionResponse>> reviewJob(
         @PathVariable UUID id,
         @RequestParam JobStatus status,

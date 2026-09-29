@@ -1,6 +1,7 @@
 package com.internlink.core.application.placement.impl;
 
 import com.internlink.core.application.placement.WeeklyLogbookService;
+import com.internlink.core.application.system.NotificationService;
 import com.internlink.core.domain.auth.User;
 import com.internlink.core.domain.placement.InternshipPlacement;
 import com.internlink.core.domain.placement.WeeklyLogbook;
@@ -32,6 +33,7 @@ public class WeeklyLogbookServiceImpl implements WeeklyLogbookService {
     private final JpaInternshipPlacementRepository placementRepository;
     private final JpaUserRepository userRepository;
     private final SecurityGuard securityGuard;
+    private final NotificationService notificationService;
 
     @Override
     @Transactional(readOnly = true)
@@ -96,7 +98,31 @@ public class WeeklyLogbookServiceImpl implements WeeklyLogbookService {
             ? placement.getAssessmentScheme().getWeeklyGraceDays() : 0;
         logbook.setWasLate(logbook.getSubmittedAt().toLocalDate().isAfter(request.getPeriodEnd().plusDays(graceDays)));
 
-        return mapToResponse(logbookRepository.save(logbook));
+        WeeklyLogbook saved = logbookRepository.save(logbook);
+
+        // Thông báo cho Mentor (nếu có)
+        if (placement.getMentor() != null) {
+            notificationService.sendNotification(
+                placement.getMentor().getId(),
+                "LOGBOOK_SUBMITTED",
+                "Sinh viên nộp nhật ký tuần " + request.getWeekNumber(),
+                "Sinh viên " + placement.getStudent().getFullName() + " đã nộp nhật ký thực tập tuần " + request.getWeekNumber() + ".",
+                "/mentor/weekly-evaluations"
+            );
+        }
+
+        // Thông báo cho Giảng viên hướng dẫn
+        if (placement.getLecturer() != null) {
+            notificationService.sendNotification(
+                placement.getLecturer().getId(),
+                "LOGBOOK_SUBMITTED",
+                "Sinh viên nộp nhật ký tuần " + request.getWeekNumber(),
+                "Sinh viên " + placement.getStudent().getFullName() + " đã nộp nhật ký thực tập tuần " + request.getWeekNumber() + ".",
+                "/lecturer/supervision"
+            );
+        }
+
+        return mapToResponse(saved);
     }
 
     @Override
@@ -124,7 +150,30 @@ public class WeeklyLogbookServiceImpl implements WeeklyLogbookService {
         logbook.setMentorReviewedBy(mentor);
         logbook.setMentorReviewedAt(OffsetDateTime.now());
 
-        return mapToResponse(logbookRepository.save(logbook));
+        WeeklyLogbook saved = logbookRepository.save(logbook);
+
+        // Gửi thông báo cho sinh viên
+        UUID studentId = logbook.getPlacement().getStudent().getId();
+        if (status == LogbookStatus.REVISION_REQUESTED) {
+            notificationService.sendNotification(
+                studentId,
+                "LOGBOOK_REVISION_REQUESTED",
+                "Yêu cầu chỉnh sửa nhật ký tuần " + logbook.getWeekNumber(),
+                "Mentor yêu cầu bạn chỉnh sửa lại nhật ký tuần " + logbook.getWeekNumber()
+                    + (mentorFeedback != null && !mentorFeedback.isBlank() ? ": " + mentorFeedback.trim() : ""),
+                "/student/weekly-logs"
+            );
+        } else if (status == LogbookStatus.APPROVED_BY_MENTOR) {
+            notificationService.sendNotification(
+                studentId,
+                "LOGBOOK_APPROVED",
+                "Nhật ký tuần " + logbook.getWeekNumber() + " đã được duyệt",
+                "Mentor đã phê duyệt nhật ký thực tập tuần " + logbook.getWeekNumber() + " của bạn.",
+                "/student/weekly-logs"
+            );
+        }
+
+        return mapToResponse(saved);
     }
 
     @Override
@@ -145,7 +194,19 @@ public class WeeklyLogbookServiceImpl implements WeeklyLogbookService {
         logbook.setLecturerCommentedBy(lecturer);
         logbook.setLecturerCommentedAt(OffsetDateTime.now());
 
-        return mapToResponse(logbookRepository.save(logbook));
+        WeeklyLogbook saved = logbookRepository.save(logbook);
+
+        // Thông báo cho sinh viên khi giảng viên nhận xét
+        notificationService.sendNotification(
+            logbook.getPlacement().getStudent().getId(),
+            "LOGBOOK_COMMENTED",
+            "Nhận xét mới cho nhật ký tuần " + logbook.getWeekNumber(),
+            "Giảng viên hướng dẫn đã thêm nhận xét cho nhật ký tuần " + logbook.getWeekNumber()
+                + (lecturerComment != null && !lecturerComment.isBlank() ? ": " + lecturerComment.trim() : ""),
+            "/student/weekly-logs"
+        );
+
+        return mapToResponse(saved);
     }
 
     @Override
@@ -167,7 +228,30 @@ public class WeeklyLogbookServiceImpl implements WeeklyLogbookService {
         logbook.setLecturerComment(feedback != null ? feedback.trim() : null);
         logbook.setLecturerCommentedBy(lecturer);
         logbook.setLecturerCommentedAt(OffsetDateTime.now());
-        return mapToResponse(logbookRepository.save(logbook));
+
+        WeeklyLogbook saved = logbookRepository.save(logbook);
+
+        UUID studentId = logbook.getPlacement().getStudent().getId();
+        if (status == LogbookStatus.REVISION_REQUESTED) {
+            notificationService.sendNotification(
+                studentId,
+                "LOGBOOK_REVISION_REQUESTED",
+                "Yêu cầu chỉnh sửa nhật ký tuần " + logbook.getWeekNumber(),
+                "Giảng viên yêu cầu bạn chỉnh sửa lại nhật ký tuần " + logbook.getWeekNumber()
+                    + (feedback != null && !feedback.isBlank() ? ": " + feedback.trim() : ""),
+                "/student/weekly-logs"
+            );
+        } else if (status == LogbookStatus.APPROVED_BY_LECTURER) {
+            notificationService.sendNotification(
+                studentId,
+                "LOGBOOK_APPROVED",
+                "Nhật ký tuần " + logbook.getWeekNumber() + " đã được duyệt",
+                "Giảng viên hướng dẫn đã duyệt nhật ký thực tập tuần " + logbook.getWeekNumber() + " của bạn.",
+                "/student/weekly-logs"
+            );
+        }
+
+        return mapToResponse(saved);
     }
 
     private User currentActor() {

@@ -28,6 +28,8 @@ public class AssessmentComponentScore extends BaseEntity {
     private String source;
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "evidence_document_id")
     private Document evidenceDocument;
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "portfolio_revision_id")
+    private com.internlink.core.domain.placement.PortfolioRevision portfolioRevision;
     @Column(name = "status", nullable = false, length = 20)
     private String status;
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "submitted_by_user_id", nullable = false)

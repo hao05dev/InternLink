@@ -82,6 +82,16 @@ public class InternshipPlacementServiceImpl implements InternshipPlacementServic
 
     @Override
     @Transactional(readOnly = true)
+    public List<InternshipPlacementResponse> getPlacementsForMyCompany() {
+        User actor = currentActor();
+        ResourceAuthorization.require(actor.getRole() == UserRole.COMPANY_REP && actor.getCompany() != null);
+        return placementRepository.findByCompanyId(actor.getCompany().getId()).stream()
+            .map(this::mapToResponse)
+            .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<InternshipPlacementResponse> getPlacementsByMentor(UUID mentorId) {
         User actor = currentActor();
         ResourceAuthorization.require(ResourceAuthorization.isAdmin(actor)
@@ -156,7 +166,7 @@ public class InternshipPlacementServiceImpl implements InternshipPlacementServic
 
         // ── Hooks: AuditLog & Notification ────────────────────────────────
         auditLogService.logAction(
-            lecturerId,
+            currentActor().getId(),
             "ACTIVATE_PLACEMENT",
             "InternshipPlacement",
             saved.getId(),
@@ -182,6 +192,35 @@ public class InternshipPlacementServiceImpl implements InternshipPlacementServic
             "/placements/" + saved.getId()
         );
 
+        return mapToResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public InternshipPlacementResponse assignLecturer(UUID id, UUID lecturerId) {
+        InternshipPlacement placement = placementRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("InternshipPlacement", "id", id));
+        User actor = currentActor();
+        ResourceAuthorization.require(actor.getRole() == UserRole.FACULTY_ADMIN
+            && ResourceAuthorization.managesDepartment(actor, placement.getTerm().getDepartment().getId()));
+        if (Set.of(PlacementStatus.COMPLETED, PlacementStatus.TERMINATED, PlacementStatus.TRANSFERRED)
+            .contains(placement.getStatus())) throw new BadRequestException("Không thể đổi GVHD cho lần thực tập đã kết thúc");
+        User lecturer = userRepository.findById(lecturerId)
+            .orElseThrow(() -> new ResourceNotFoundException("User", "id", lecturerId));
+        ResourceAuthorization.require(lecturer.getRole() == UserRole.LECTURER
+            && Boolean.TRUE.equals(lecturer.getIsActive())
+            && lecturer.getDepartment() != null
+            && lecturer.getDepartment().getId().equals(placement.getTerm().getDepartment().getId()));
+        UUID previousId = placement.getLecturer().getId();
+        placement.setLecturer(lecturer);
+        InternshipPlacement saved = placementRepository.save(placement);
+        auditLogService.logAction(actor.getId(), "ASSIGN_LECTURER", "InternshipPlacement", id,
+            "SUCCESS", Map.of("previousLecturerId", previousId, "lecturerId", lecturerId), null);
+        notificationService.sendNotification(lecturerId, "LECTURER_ASSIGNED", "Phân công hướng dẫn thực tập",
+            "Bạn được phân công hướng dẫn sinh viên " + placement.getStudent().getFullName(),
+            "/lecturer/supervision");
+        notificationService.sendNotification(placement.getStudent().getId(), "LECTURER_ASSIGNED", "Giảng viên hướng dẫn",
+            "Giảng viên hướng dẫn của bạn là " + lecturer.getFullName(), "/student/dashboard");
         return mapToResponse(saved);
     }
 

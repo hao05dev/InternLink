@@ -24,7 +24,7 @@ public class AuditLogServiceImpl implements AuditLogService {
     @Override
     @Transactional(readOnly = true)
     public List<AuditLogResponse> getAllLogs() {
-        return auditLogRepository.findAll().stream()
+        return auditLogRepository.findAllByOrderByCreatedAtDesc().stream()
             .map(this::mapToResponse)
             .toList();
     }

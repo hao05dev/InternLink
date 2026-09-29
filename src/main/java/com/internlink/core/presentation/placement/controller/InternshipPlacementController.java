@@ -47,6 +47,12 @@ public class InternshipPlacementController {
         return ResponseEntity.ok(ApiResponse.success(list));
     }
 
+    @GetMapping("/company/my-interns")
+    @PreAuthorize("hasRole('COMPANY_REP')")
+    public ResponseEntity<ApiResponse<List<InternshipPlacementResponse>>> getMyCompanyInterns() {
+        return ResponseEntity.ok(ApiResponse.success(placementService.getPlacementsForMyCompany()));
+    }
+
     @GetMapping("/lecturer/my-students")
     @PreAuthorize("hasRole('LECTURER')")
     public ResponseEntity<ApiResponse<List<InternshipPlacementResponse>>> getLecturerPlacements(
@@ -66,7 +72,7 @@ public class InternshipPlacementController {
     }
 
     @PostMapping("/activate")
-    @PreAuthorize("hasAnyRole('ADMIN', 'FACULTY_ADMIN')")
+    @PreAuthorize("hasRole('FACULTY_ADMIN')")
     public ResponseEntity<ApiResponse<InternshipPlacementResponse>> activatePlacement(
         @RequestParam UUID agreementId,
         @RequestParam UUID lecturerId
@@ -76,8 +82,17 @@ public class InternshipPlacementController {
             .body(ApiResponse.success("Kích hoạt lần thực tập thành công", response));
     }
 
+    @PatchMapping("/{id}/lecturer")
+    @PreAuthorize("hasRole('FACULTY_ADMIN')")
+    public ResponseEntity<ApiResponse<InternshipPlacementResponse>> assignLecturer(
+        @PathVariable UUID id, @RequestParam UUID lecturerId
+    ) {
+        return ResponseEntity.ok(ApiResponse.success("Đã phân công giảng viên hướng dẫn",
+            placementService.assignLecturer(id, lecturerId)));
+    }
+
     @PatchMapping("/{id}/status")
-    @PreAuthorize("hasAnyRole('ADMIN', 'FACULTY_ADMIN')")
+    @PreAuthorize("hasRole('FACULTY_ADMIN')")
     public ResponseEntity<ApiResponse<InternshipPlacementResponse>> updateStatus(
         @PathVariable UUID id,
         @RequestParam PlacementStatus status

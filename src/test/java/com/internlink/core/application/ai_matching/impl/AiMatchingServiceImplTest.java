@@ -16,6 +16,9 @@ import com.internlink.core.infrastructure.security.CustomUserDetail;
 import com.internlink.core.presentation.ai_matching.dto.response.AiMatchScoreResponse;
 import com.internlink.core.presentation.ai_matching.dto.response.StudentSkillResponse;
 import com.internlink.core.shared.enums.JobStatus;
+import com.internlink.core.shared.enums.AiRunType;
+import com.internlink.core.shared.enums.AiRunStatus;
+import com.internlink.core.shared.exception.BadRequestException;
 import com.internlink.core.shared.enums.RequirementType;
 import com.internlink.core.shared.enums.SkillCategory;
 import com.internlink.core.shared.enums.SkillSource;
@@ -84,6 +87,65 @@ class AiMatchingServiceImplTest {
 
     @InjectMocks
     private AiMatchingServiceImpl service;
+
+    @Test
+    void adminRetryKeepsOriginalHistoryAndDoesNotOverwriteConfirmedSkill() {
+        UUID originalId = UUID.randomUUID(), studentId = UUID.randomUUID(), newId = UUID.randomUUID();
+        User student = student(studentId);
+        AiRun original = AiRun.builder().id(originalId).student(student).runType(AiRunType.CV_EXTRACTION)
+            .status(AiRunStatus.FAILED).inputSnapshot(Map.of("text_length", 4)).build();
+        SkillTaxonomy java = taxonomy("skill-java", "Java");
+        StudentSkill confirmed = studentSkill(studentId, java);
+        when(aiRunRepository.findForRetryById(originalId)).thenReturn(Optional.of(original));
+        when(userRepository.findById(studentId)).thenReturn(Optional.of(student));
+        when(aiServiceClient.extractSkills("Java")).thenReturn(Map.of("normalized_skills", List.of(Map.of("id", "skill-java"))));
+        when(taxonomyRepository.findById("skill-java")).thenReturn(Optional.of(java));
+        when(studentSkillRepository.findById(new StudentSkillId(studentId, "skill-java"))).thenReturn(Optional.of(confirmed));
+        when(studentSkillRepository.saveAll(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(aiRunRepository.save(any())).thenAnswer(invocation -> {
+            AiRun run = invocation.getArgument(0);
+            if (run.getId() == null) run.setId(newId);
+            return run;
+        });
+        assertThat(service.reprocessFailedCvRun(originalId, "Java")).isEqualTo(newId);
+        verify(securityGuard).requireRole(UserRole.ADMIN);
+        assertThat(original.getStatus()).isEqualTo(AiRunStatus.FAILED);
+        assertThat(original.getInputSnapshot()).containsEntry("retry_run_id", newId.toString());
+        assertThat(confirmed.getIsConfirmed()).isTrue();
+        assertThatThrownBy(() -> service.reprocessFailedCvRun(originalId, "Java")).isInstanceOf(BadRequestException.class);
+        verify(aiServiceClient, times(1)).extractSkills("Java");
+    }
+
+    @Test
+    void retryFailureCreatesFailedRunWithoutChangingSkills() {
+        UUID originalId = UUID.randomUUID(), studentId = UUID.randomUUID(), newId = UUID.randomUUID();
+        User student = student(studentId);
+        AiRun original = AiRun.builder().id(originalId).student(student).runType(AiRunType.CV_EXTRACTION)
+            .status(AiRunStatus.FAILED).inputSnapshot(Map.of()).build();
+        when(aiRunRepository.findForRetryById(originalId)).thenReturn(Optional.of(original));
+        when(userRepository.findById(studentId)).thenReturn(Optional.of(student));
+        when(aiServiceClient.extractSkills("Java")).thenReturn(Map.of("status", "FAILED"));
+        when(aiRunRepository.save(any())).thenAnswer(invocation -> {
+            AiRun run = invocation.getArgument(0);
+            if (run.getId() == null) run.setId(newId);
+            return run;
+        });
+        service.reprocessFailedCvRun(originalId, "Java");
+        ArgumentCaptor<AiRun> captor = ArgumentCaptor.forClass(AiRun.class);
+        verify(aiRunRepository, times(2)).save(captor.capture());
+        assertThat(captor.getAllValues().getFirst().getStatus()).isEqualTo(AiRunStatus.FAILED);
+        assertThat(captor.getAllValues().getFirst().getErrorDetail()).containsKey("message");
+        verifyNoInteractions(studentSkillRepository);
+    }
+
+    @Test
+    void completedRunsCannotBeRetried() {
+        UUID id = UUID.randomUUID();
+        when(aiRunRepository.findForRetryById(id)).thenReturn(Optional.of(AiRun.builder().id(id)
+            .student(student(UUID.randomUUID())).runType(AiRunType.CV_EXTRACTION).status(AiRunStatus.COMPLETED).build()));
+        assertThatThrownBy(() -> service.reprocessFailedCvRun(id, "Java")).isInstanceOf(BadRequestException.class);
+        verifyNoInteractions(aiServiceClient);
+    }
 
     @Test
     void syncCvSkillsStoresNormalizedAiSkillsAndSkipsUnknownTaxonomy() {

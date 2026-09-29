@@ -21,6 +21,8 @@ public class UserSummaryDto {
     private String fullName;
     private String phoneNumber;
     private UserRole role;
+    private UUID departmentId;
+    private UUID companyId;
     private Boolean mustChangePassword;
     private OffsetDateTime lastLoginAt;
     private Boolean isActive;

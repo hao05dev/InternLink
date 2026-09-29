@@ -9,4 +9,5 @@ import java.util.UUID;
 public interface StudentRosterService {
     List<StudentRosterResponse> getRostersByTerm(UUID termId);
     List<StudentRosterResponse> importRosterList(UUID termId, List<StudentRosterImportItem> items);
+    StudentRosterResponse provisionAccount(UUID rosterId);
 }
