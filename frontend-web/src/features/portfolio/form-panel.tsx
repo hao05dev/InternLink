@@ -42,7 +42,7 @@ export default function FormPanel({ form, overview, userId, onRefresh }: { form:
       else {
         setPreview(true);
         const response = await fetch(url, { credentials: 'include', cache: 'no-store' });
-        if (!response.ok) { const body = await response.json(); throw new Error(body.message || 'Không tạo được bản xem trước.'); }
+        if (!response.ok) { const body = await response.json().catch(() => ({})); throw new Error(body.message || 'Không tạo được bản xem trước.'); }
         const data = await response.blob(); const { renderAsync } = await import('docx-preview');
         if (previewNode.current) await renderAsync(data, previewNode.current, undefined, { inWrapper: true, ignoreLastRenderedPageBreak: false, renderHeaders: true, renderFooters: true });
       }

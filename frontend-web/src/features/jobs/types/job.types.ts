@@ -40,5 +40,13 @@ export interface JobPosition {
     deadline?: string;
     applicantCount?: number;
     experienceLevel?: string;
+    bannerUrl?: string;
+    attachmentUrls?: Array<{
+        id: string;
+        fileName: string;
+        fileUrl: string;
+        fileSize?: string;
+        fileType?: string;
+    }>;
     createdAt?: string;
 }

@@ -80,6 +80,8 @@ CREATE TABLE companies (
     tax_code VARCHAR(50) NOT NULL UNIQUE,
     industry VARCHAR(100),
     website VARCHAR(255),
+    logo_url VARCHAR(500),
+    cover_image_url VARCHAR(500),
     address JSONB NOT NULL,
     verification_status VARCHAR(30) NOT NULL DEFAULT 'PENDING' CHECK (verification_status IN ('PENDING', 'NEEDS_REVISION', 'VERIFIED', 'REJECTED')),
     verification_detail JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -102,6 +104,7 @@ CREATE TABLE users (
     password_hash VARCHAR(255) NOT NULL,
     full_name VARCHAR(150) NOT NULL,
     phone_number VARCHAR(20),
+    avatar_url VARCHAR(500),
     role VARCHAR(30) NOT NULL CHECK (role IN ('STUDENT', 'COMPANY_REP', 'COMPANY_MENTOR', 'LECTURER', 'FACULTY_ADMIN', 'ADMIN')),
     must_change_password BOOLEAN NOT NULL DEFAULT TRUE,
     password_changed_at TIMESTAMPTZ,
@@ -239,6 +242,9 @@ CREATE TABLE job_positions (
     location VARCHAR(255) NOT NULL,
     vacancies INT NOT NULL DEFAULT 1 CHECK (vacancies > 0),
     description TEXT NOT NULL,
+    banner_url VARCHAR(500),
+    media_urls JSONB NOT NULL DEFAULT '[]'::jsonb,
+    attachment_urls JSONB NOT NULL DEFAULT '[]'::jsonb,
     target_program_codes JSONB NOT NULL DEFAULT '[]'::jsonb,
     target_learning_outcomes JSONB NOT NULL DEFAULT '[]'::jsonb,
     benefits JSONB NOT NULL DEFAULT '[]'::jsonb,
@@ -250,6 +256,30 @@ CREATE TABLE job_positions (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     version INT NOT NULL DEFAULT 0
+);
+
+-- 11b. posts (Cẩm nang, Ngày hội việc làm, Thực tập quốc tế, Quy chế & Sự kiện Khoa)
+CREATE TABLE posts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    author_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    department_id UUID REFERENCES departments(id) ON DELETE SET NULL,
+    slug VARCHAR(255) NOT NULL UNIQUE,
+    title VARCHAR(255) NOT NULL,
+    category VARCHAR(50) NOT NULL CHECK (category IN (
+        'JOB_FAIR', 'INTERNATIONAL_INTERNSHIP', 'GUIDE_REGULATION', 'CAREER_TIPS', 'COMPANY_SPOTLIGHT', 'ANNOUNCEMENT'
+    )),
+    summary TEXT NOT NULL,
+    content TEXT NOT NULL,
+    cover_image_url VARCHAR(500),
+    attachment_urls JSONB NOT NULL DEFAULT '[]'::jsonb,
+    tags JSONB NOT NULL DEFAULT '[]'::jsonb,
+    is_pinned BOOLEAN NOT NULL DEFAULT FALSE,
+    visibility VARCHAR(30) NOT NULL DEFAULT 'PUBLIC' CHECK (visibility IN ('PUBLIC', 'STUDENTS_ONLY', 'FACULTY_ONLY')),
+    status VARCHAR(30) NOT NULL DEFAULT 'DRAFT' CHECK (status IN ('DRAFT', 'PUBLISHED', 'ARCHIVED')),
+    view_count INT NOT NULL DEFAULT 0,
+    published_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- 12. job_skills (Yêu cầu kỹ năng của vị trí)

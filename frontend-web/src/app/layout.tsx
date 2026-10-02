@@ -22,7 +22,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="vi">
+    <html lang="vi" suppressHydrationWarning>
       <body className={cn(beVietnamPro.className, "min-h-screen bg-slate-50 antialiased text-slate-900")}>
         <QueryProvider>
           <AuthProvider>

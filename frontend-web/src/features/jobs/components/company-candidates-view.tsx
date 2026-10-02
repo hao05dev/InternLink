@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,8 @@ import { StatusBadge } from '@/features/workflow/components/status-badge';
 import { Modal } from '@/components/ui/modal';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Badge } from '@/components/ui/badge';
+import { Pagination } from '@/components/ui/pagination';
+import { KanbanBoard, KanbanStage, KanbanItem } from '@/components/shared/kanban-board';
 import {
     Users,
     Eye,
@@ -22,15 +24,35 @@ import {
     Clock,
     Award,
     Send,
-    AlertCircle
+    AlertCircle,
+    Layers,
+    List,
+    Search,
+    GraduationCap,
+    GripVertical,
 } from 'lucide-react';
 import type { CandidateApplication, ApplicationStatus } from '@/features/jobs/types/application.types';
+
+const KANBAN_STAGES: KanbanStage[] = [
+    { id: 'PENDING', label: 'Hồ sơ mới (Chờ duyệt)', color: 'blue' },
+    { id: 'SHORTLISTED', label: 'Đang xem xét', color: 'amber' },
+    { id: 'INTERVIEW_SCHEDULED', label: 'Phỏng vấn', color: 'purple' },
+    { id: 'OFFERED', label: 'Đã gửi Offer', color: 'emerald' },
+    { id: 'REJECTED', label: 'Không phù hợp', color: 'rose' },
+];
 
 export default function CompanyCandidatesView() {
     const [candidates, setCandidates] = useState<CandidateApplication[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedCand, setSelectedCand] = useState<CandidateApplication | null>(null);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+    const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban');
+
+    // Filter & Pagination for table view
+    const [searchTerm, setSearchTerm] = useState('');
+    const [statusFilter, setStatusFilter] = useState<string>('ALL');
+    const [tablePage, setTablePage] = useState(1);
+    const [tablePageSize, setTablePageSize] = useState(10);
 
     // Interview Modal state
     const [interviewModalCand, setInterviewModalCand] = useState<CandidateApplication | null>(null);
@@ -76,6 +98,38 @@ export default function CompanyCandidatesView() {
 
         fetchCandidates();
     }, []);
+
+    // Drag-and-drop status update
+    const handleKanbanMove = async (itemId: string, targetStageId: string) => {
+        const cand = candidates.find(c => c.id === itemId);
+        if (!cand) return;
+
+        // Map frontend stage back to backend status
+        let backendStatus: 'SUBMITTED' | 'REVIEWING' | 'INTERVIEWING' | 'OFFERED' | 'REJECTED' = 'REVIEWING';
+        if (targetStageId === 'PENDING') backendStatus = 'SUBMITTED';
+        else if (targetStageId === 'SHORTLISTED') backendStatus = 'REVIEWING';
+        else if (targetStageId === 'INTERVIEW_SCHEDULED') backendStatus = 'INTERVIEWING';
+        else if (targetStageId === 'OFFERED') backendStatus = 'OFFERED';
+        else if (targetStageId === 'REJECTED') backendStatus = 'REJECTED';
+
+        try {
+            await apiClient.patch(`/api/v1/applications/${cand.id}/status?status=${backendStatus}`);
+            setCandidates(prev =>
+                prev.map(c => c.id === cand.id ? { ...c, status: targetStageId as ApplicationStatus } : c)
+            );
+            setMessage({
+                type: 'success',
+                text: `Đã chuyển ứng viên ${cand.studentName} sang trạng thái: ${
+                    KANBAN_STAGES.find(s => s.id === targetStageId)?.label || targetStageId
+                }.`,
+            });
+        } catch (error) {
+            setMessage({
+                type: 'error',
+                text: error instanceof Error ? error.message : 'Không cập nhật được trạng thái ứng viên.',
+            });
+        }
+    };
 
     const handleScheduleInterview = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -146,6 +200,47 @@ export default function CompanyCandidatesView() {
         }
     };
 
+    // Filter candidates for table view
+    const filteredCandidates = useMemo(() => {
+        let list = candidates;
+        if (statusFilter !== 'ALL') {
+            list = list.filter(c => c.status === statusFilter);
+        }
+        if (searchTerm.trim()) {
+            const q = searchTerm.toLowerCase().trim();
+            list = list.filter(
+                c =>
+                    (c.studentName || '').toLowerCase().includes(q) ||
+                    (c.jobTitle || '').toLowerCase().includes(q) ||
+                    c.studentCode?.toLowerCase().includes(q) ||
+                    c.programName?.toLowerCase().includes(q)
+            );
+        }
+        return list;
+    }, [candidates, statusFilter, searchTerm]);
+
+    const totalTablePages = Math.ceil(filteredCandidates.length / tablePageSize) || 1;
+    const paginatedCandidates = useMemo(() => {
+        const start = (tablePage - 1) * tablePageSize;
+        return filteredCandidates.slice(start, start + tablePageSize);
+    }, [filteredCandidates, tablePage, tablePageSize]);
+
+    // Format candidates for Kanban Board
+    const kanbanItems: KanbanItem[] = useMemo(() => {
+        return candidates.map(c => ({
+            id: c.id,
+            stageId: c.status,
+            title: c.studentName || 'Sinh viên',
+            subtitle: `${c.jobTitle || ''} • MSSV: ${c.studentCode || ''}`,
+            tags: c.skills || [],
+            metadata: [
+                { label: 'Ngành', value: c.programName || '—' },
+                { label: 'GPA', value: c.gpa ? c.gpa.toFixed(2) : '—' },
+            ],
+            raw: c,
+        }));
+    }, [candidates]);
+
     if (isLoading) {
         return (
             <div className="space-y-6">
@@ -156,15 +251,45 @@ export default function CompanyCandidatesView() {
     }
 
     return (
-        <div className="space-y-8 max-w-6xl">
+        <div className="space-y-6 max-w-7xl">
             {/* Header */}
-            <div>
-                <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-                    Hồ Sơ Ứng Viên Thực Tập
-                </h1>
-                <p className="text-sm text-slate-500 mt-1">
-                    Xem hồ sơ, thẩm định kỹ năng, sắp xếp lịch phỏng vấn và phát hành Offer tiếp nhận thực tập sinh.
-                </p>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                    <h1 className="text-xl font-bold tracking-tight text-slate-900">
+                        Quản Lý Ứng Viên & Tuyển Dụng
+                    </h1>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                        Theo dõi phễu tuyển dụng, sàng lọc hồ sơ trực quan bằng kéo thả và lên lịch phỏng vấn
+                    </p>
+                </div>
+
+                {/* View Mode Toggle */}
+                <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl border border-slate-200 shrink-0">
+                    <button
+                        type="button"
+                        onClick={() => setViewMode('kanban')}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                            viewMode === 'kanban'
+                                ? 'bg-white text-blue-700 shadow-2xs'
+                                : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                    >
+                        <Layers className="w-3.5 h-3.5" />
+                        <span>Kanban Pipeline</span>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setViewMode('table')}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                            viewMode === 'table'
+                                ? 'bg-white text-blue-700 shadow-2xs'
+                                : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                    >
+                        <List className="w-3.5 h-3.5" />
+                        <span>Danh sách ({candidates.length})</span>
+                    </button>
+                </div>
             </div>
 
             {/* Notification alert */}
@@ -172,323 +297,347 @@ export default function CompanyCandidatesView() {
                 <div
                     role="alert"
                     aria-live="polite"
-                    className={`p-4 rounded-xl flex items-center justify-between text-sm font-medium ${
+                    className={`p-3.5 rounded-xl flex items-center justify-between text-xs font-medium animate-in fade-in duration-150 ${
                         message.type === 'success'
                             ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
                             : 'bg-rose-50 text-rose-800 border border-rose-200'
                     }`}
                 >
-                    <div className="flex items-center gap-3">
-                        <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+                    <div className="flex items-center gap-2.5">
+                        {message.type === 'success' ? (
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                        ) : (
+                            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                        )}
                         <span>{message.text}</span>
                     </div>
                     <button
+                        type="button"
                         onClick={() => setMessage(null)}
-                        className="text-slate-400 hover:text-slate-600"
-                        aria-label="Đóng thông báo"
+                        className="text-slate-400 hover:text-slate-600 text-base leading-none"
                     >
                         &times;
                     </button>
                 </div>
             )}
 
-            {/* Candidates Table */}
+            {/* Main Area */}
             {candidates.length === 0 ? (
                 <EmptyState
                     title="Chưa có hồ sơ ứng tuyển"
                     description="Hiện tại chưa có sinh viên nào nộp hồ sơ vào các vị trí thực tập của doanh nghiệp."
                 />
-            ) : (
-                <div className="space-y-4">
-                    {candidates.map((cand) => (
-                        <Card key={cand.id} className="hover:border-slate-300 transition-colors">
-                            <CardContent className="p-6">
-                                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                                    {/* Candidate info */}
-                                    <div className="space-y-2 flex-1">
-                                        <div className="flex flex-wrap items-center gap-3">
-                                            <span className="font-bold text-base text-slate-900">
+            ) : viewMode === 'kanban' ? (
+                /* KANBAN PIPELINE VIEW */
+                <div className="space-y-3">
+                    <p className="text-xs text-slate-500">
+                        💡 <strong>Mẹo:</strong> Kéo thẻ ứng viên giữa các cột để thay đổi trạng thái tuyển dụng tức thì. Click vào thẻ để xem chi tiết hồ sơ.
+                    </p>
+                    <KanbanBoard
+                        stages={KANBAN_STAGES}
+                        items={kanbanItems}
+                        onItemMove={handleKanbanMove}
+                        renderCustomCard={(item, isDragging) => {
+                            const cand = item.raw as CandidateApplication;
+                            return (
+                                <div
+                                    className={`group rounded-xl border border-slate-200/90 bg-white p-3.5 shadow-2xs hover:shadow-sm hover:border-blue-300 transition-all ${
+                                        isDragging ? 'opacity-40 scale-95 border-blue-400 rotate-1 shadow-lg' : ''
+                                    }`}
+                                >
+                                    <div className="flex items-start justify-between gap-2">
+                                        <div className="flex-1 min-w-0">
+                                            <h4 className="text-xs font-bold text-slate-900 group-hover:text-blue-600 transition-colors truncate">
                                                 {cand.studentName}
-                                            </span>
-                                            <span className="text-xs font-semibold px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
-                                                MSSV: {cand.studentCode}
-                                            </span>
-                                            <span className="text-xs text-slate-500">
-                                                {cand.programName}
-                                            </span>
-                                            {cand.gpa && (
-                                                <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                                                    GPA: {cand.gpa.toFixed(2)}
-                                                </span>
-                                            )}
-                                            <StatusBadge status={cand.status} type="application" />
-                                        </div>
-
-                                        <p className="text-xs font-medium text-slate-700">
-                                            Vị trí ứng tuyển: <span className="font-semibold text-blue-700">{cand.jobTitle}</span>
-                                        </p>
-
-                                        {/* Skills tags */}
-                                        {cand.skills && cand.skills.length > 0 && (
-                                            <div className="flex flex-wrap gap-1.5 pt-1">
-                                                {cand.skills.map((s, idx) => (
-                                                    <Badge key={idx} variant="outline" className="text-[11px] py-0.5">
-                                                        {s}
-                                                    </Badge>
-                                                ))}
-                                            </div>
-                                        )}
-
-                                        {cand.status === 'INTERVIEW_SCHEDULED' && cand.interviewScheduledAt && (
-                                            <p className="text-xs text-indigo-700 bg-indigo-50 p-2 rounded-lg border border-indigo-200 inline-block">
-                                                📅 Phỏng vấn: {new Date(cand.interviewScheduledAt).toLocaleString('vi-VN')} ({cand.interviewLocation})
+                                            </h4>
+                                            <p className="text-[11px] font-medium text-blue-700 truncate mt-0.5">
+                                                {cand.jobTitle}
                                             </p>
+                                        </div>
+                                        <GripVertical className="h-4 w-4 text-slate-300 group-hover:text-slate-500 shrink-0 mt-0.5" />
+                                    </div>
+
+                                    <div className="flex items-center gap-2 mt-2 text-[11px] text-slate-500">
+                                        <span className="font-mono font-semibold bg-slate-100 px-1.5 py-0.2 rounded">
+                                            {cand.studentCode}
+                                        </span>
+                                        {cand.gpa && (
+                                            <span className="font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded">
+                                                GPA {cand.gpa.toFixed(2)}
+                                            </span>
                                         )}
                                     </div>
 
-                                    {/* Action Buttons */}
-                                    <div className="flex flex-wrap items-center gap-2 self-start lg:self-center">
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => {
+                                    {cand.skills && cand.skills.length > 0 && (
+                                        <div className="flex flex-wrap gap-1 mt-2">
+                                            {cand.skills.slice(0, 3).map((s, idx) => (
+                                                <span key={idx} className="px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[10px] font-medium">
+                                                    {s}
+                                                </span>
+                                            ))}
+                                            {cand.skills.length > 3 && (
+                                                <span className="text-[10px] text-slate-400">+{cand.skills.length - 3}</span>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* Action Buttons on Card */}
+                                    <div className="flex items-center justify-end gap-1.5 mt-3 pt-2 border-t border-slate-100">
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
                                                 setSelectedCand(cand);
                                                 setIsDetailModalOpen(true);
                                             }}
-                                            className="gap-1.5 text-xs"
+                                            className="px-2 py-1 rounded text-[10px] font-bold text-blue-600 hover:bg-blue-50 transition-colors"
                                         >
-                                            <Eye className="w-3.5 h-3.5" />
-                                            <span>Xem CV & Hồ sơ</span>
-                                        </Button>
-
-                                        {(cand.status === 'PENDING' || cand.status === 'SHORTLISTED') && (
-                                            <Button
-                                                variant="secondary"
-                                                size="sm"
-                                                onClick={() => setInterviewModalCand(cand)}
-                                                className="gap-1.5 text-xs text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border-indigo-200"
-                                            >
-                                                <Clock className="w-3.5 h-3.5" />
-                                                <span>Lên lịch phỏng vấn</span>
-                                            </Button>
-                                        )}
-
-                                        {(cand.status === 'PENDING' || cand.status === 'SHORTLISTED' || cand.status === 'INTERVIEW_SCHEDULED') && (
-                                            <Button
-                                                variant="primary"
-                                                size="sm"
-                                                disabled
-                                                title="API yêu cầu chọn Mentor và thời hạn phản hồi trước khi gửi Offer."
-                                                onClick={() => setOfferModalCand(cand)}
-                                                className="gap-1.5 text-xs"
-                                            >
-                                                <Award className="w-3.5 h-3.5" />
-                                                <span>Gửi Offer</span>
-                                            </Button>
-                                        )}
-
+                                            Xem CV
+                                        </button>
                                         {cand.status !== 'REJECTED' && cand.status !== 'OFFERED' && (
-                                            <Button
-                                                variant="danger"
-                                                size="sm"
-                                                onClick={() => handleRejectCandidate(cand)}
-                                                className="text-xs"
+                                            <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleRejectCandidate(cand);
+                                                }}
+                                                className="px-2 py-1 rounded text-[10px] font-bold text-rose-600 hover:bg-rose-50 transition-colors"
                                             >
                                                 Từ chối
-                                            </Button>
+                                            </button>
                                         )}
                                     </div>
                                 </div>
-                            </CardContent>
-                        </Card>
-                    ))}
+                            );
+                        }}
+                    />
+                </div>
+            ) : (
+                /* TABLE / LIST VIEW */
+                <div className="space-y-4">
+                    {/* Toolbar */}
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200/80 shadow-2xs">
+                        <div className="relative flex-1 max-w-sm">
+                            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <input
+                                type="text"
+                                value={searchTerm}
+                                onChange={(e) => {
+                                    setSearchTerm(e.target.value);
+                                    setTablePage(1);
+                                }}
+                                placeholder="Tìm theo tên, MSSV, vị trí..."
+                                className="w-full h-8 pl-8 pr-3 rounded-lg border border-slate-200 bg-slate-50 text-xs text-slate-800 placeholder:text-slate-400 focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-blue-500"
+                            />
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs text-slate-500">Trạng thái:</span>
+                            <select
+                                value={statusFilter}
+                                onChange={(e) => {
+                                    setStatusFilter(e.target.value);
+                                    setTablePage(1);
+                                }}
+                                className="h-8 px-2 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-700"
+                            >
+                                <option value="ALL">Tất cả ({candidates.length})</option>
+                                {KANBAN_STAGES.map((st) => (
+                                    <option key={st.id} value={st.id}>
+                                        {st.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Candidate Cards in Table View */}
+                    <div className="space-y-3">
+                        {paginatedCandidates.map((cand) => (
+                            <Card key={cand.id} className="hover:border-slate-300 transition-colors shadow-2xs">
+                                <CardContent className="p-4 sm:p-5">
+                                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                                        <div className="space-y-1.5 flex-1">
+                                            <div className="flex flex-wrap items-center gap-2.5">
+                                                <span className="font-bold text-sm text-slate-900">{cand.studentName}</span>
+                                                <span className="text-xs font-semibold px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
+                                                    MSSV: {cand.studentCode}
+                                                </span>
+                                                <span className="text-xs text-slate-500">{cand.programName}</span>
+                                                {cand.gpa && (
+                                                    <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                                                        GPA: {cand.gpa.toFixed(2)}
+                                                    </span>
+                                                )}
+                                                <StatusBadge status={cand.status} type="application" />
+                                            </div>
+
+                                            <p className="text-xs font-medium text-slate-700">
+                                                Vị trí: <span className="font-semibold text-blue-700">{cand.jobTitle}</span>
+                                            </p>
+
+                                            {cand.skills && cand.skills.length > 0 && (
+                                                <div className="flex flex-wrap gap-1 pt-0.5">
+                                                    {cand.skills.map((s, idx) => (
+                                                        <Badge key={idx} variant="outline" className="text-[10px] py-0.2">
+                                                            {s}
+                                                        </Badge>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="flex flex-wrap items-center gap-2 self-start lg:self-center">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => {
+                                                    setSelectedCand(cand);
+                                                    setIsDetailModalOpen(true);
+                                                }}
+                                                className="gap-1.5 text-xs"
+                                            >
+                                                <Eye className="w-3.5 h-3.5" />
+                                                <span>Xem CV</span>
+                                            </Button>
+
+                                            {(cand.status === 'PENDING' || cand.status === 'SHORTLISTED') && (
+                                                <Button
+                                                    variant="secondary"
+                                                    size="sm"
+                                                    onClick={() => setInterviewModalCand(cand)}
+                                                    className="gap-1.5 text-xs text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border-indigo-200"
+                                                >
+                                                    <Clock className="w-3.5 h-3.5" />
+                                                    <span>Lịch phỏng vấn</span>
+                                                </Button>
+                                            )}
+
+                                            {cand.status !== 'REJECTED' && cand.status !== 'OFFERED' && (
+                                                <Button
+                                                    variant="danger"
+                                                    size="sm"
+                                                    onClick={() => handleRejectCandidate(cand)}
+                                                    className="text-xs"
+                                                >
+                                                    Từ chối
+                                                </Button>
+                                            )}
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
+
+                    {/* Pagination */}
+                    {filteredCandidates.length > 0 && (
+                        <div className="bg-white p-3 rounded-2xl border border-slate-200/80 shadow-2xs">
+                            <Pagination
+                                currentPage={tablePage}
+                                totalPages={totalTablePages}
+                                totalItems={filteredCandidates.length}
+                                pageSize={tablePageSize}
+                                pageSizeOptions={[5, 10, 20]}
+                                onPageChange={setTablePage}
+                                onPageSizeChange={(sz) => {
+                                    setTablePageSize(sz);
+                                    setTablePage(1);
+                                }}
+                                itemLabel="hồ sơ"
+                            />
+                        </div>
+                    )}
                 </div>
             )}
 
             {/* Candidate Detail Modal */}
-            <Modal
-                isOpen={isDetailModalOpen}
-                onClose={() => setIsDetailModalOpen(false)}
-                title="Hồ sơ chi tiết ứng viên"
-                maxWidth="2xl"
-            >
-                {selectedCand && (
-                    <div className="space-y-6">
-                        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            {selectedCand && (
+                <Modal
+                    isOpen={isDetailModalOpen}
+                    onClose={() => setIsDetailModalOpen(false)}
+                    title={`Hồ sơ ứng viên: ${selectedCand.studentName}`}
+                    description={`Vị trí: ${selectedCand.jobTitle} • Nộp ngày: ${new Date(selectedCand.appliedAt).toLocaleDateString('vi-VN')}`}
+                    maxWidth="2xl"
+                >
+                    <div className="space-y-4 text-xs">
+                        <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
                             <div>
-                                <h3 className="text-lg font-bold text-slate-900">{selectedCand.studentName}</h3>
-                                <p className="text-xs text-slate-500">
-                                    MSSV: {selectedCand.studentCode} • Ngành: {selectedCand.programName}
-                                </p>
+                                <span className="text-slate-400">MSSV:</span>{' '}
+                                <strong className="text-slate-800">{selectedCand.studentCode}</strong>
                             </div>
-                            <StatusBadge status={selectedCand.status} type="application" />
+                            <div>
+                                <span className="text-slate-400">Ngành học:</span>{' '}
+                                <strong className="text-slate-800">{selectedCand.programName}</strong>
+                            </div>
+                            <div>
+                                <span className="text-slate-400">GPA tích lũy:</span>{' '}
+                                <strong className="text-emerald-700">{selectedCand.gpa ? selectedCand.gpa.toFixed(2) : '—'}</strong>
+                            </div>
+                            <div>
+                                <span className="text-slate-400">Trạng thái:</span>{' '}
+                                <StatusBadge status={selectedCand.status} type="application" />
+                            </div>
                         </div>
 
-                        {/* Cover Letter */}
-                        <div className="space-y-2">
-                            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                                <FileText className="w-4 h-4 text-blue-600" />
-                                Thư tự giới thiệu (Cover Letter)
-                            </h4>
-                            <p className="text-xs text-slate-700 bg-slate-50 p-4 rounded-xl border border-slate-200 leading-relaxed whitespace-pre-wrap">
-                                {selectedCand.coverLetter || 'Không có thư tự giới thiệu.'}
-                            </p>
-                        </div>
-
-                        {/* CV Preview & Actions */}
-                        <div className="p-4 bg-blue-50/60 border border-blue-200 rounded-xl flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <FileText className="w-6 h-6 text-blue-600" />
-                                <div>
-                                    <p className="text-xs font-bold text-slate-900">Bản CV đính kèm của ứng viên</p>
-                                    <p className="text-[11px] text-slate-500">Định dạng PDF tiêu chuẩn</p>
+                        {selectedCand.coverLetter && (
+                            <div className="space-y-1">
+                                <h4 className="font-bold text-slate-800">Thư giới thiệu (Cover Letter)</h4>
+                                <div className="p-3 bg-slate-50 rounded-xl text-slate-700 whitespace-pre-line border border-slate-100">
+                                    {selectedCand.coverLetter}
                                 </div>
                             </div>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => alert('Mở xem bản PDF của ứng viên')}
-                                className="text-xs gap-1.5 bg-white"
-                            >
-                                <Eye className="w-3.5 h-3.5" />
-                                <span>Xem tệp CV</span>
-                            </Button>
-                        </div>
+                        )}
 
-                        <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                            <Button variant="secondary" onClick={() => setIsDetailModalOpen(false)}>
+                        <div className="flex justify-end gap-2 pt-2">
+                            <Button variant="outline" onClick={() => setIsDetailModalOpen(false)}>
                                 Đóng
                             </Button>
                         </div>
                     </div>
-                )}
-            </Modal>
+                </Modal>
+            )}
 
-            {/* Schedule Interview Modal */}
-            <Modal
-                isOpen={!!interviewModalCand}
-                onClose={() => setInterviewModalCand(null)}
-                title={`Lên lịch phỏng vấn: ${interviewModalCand?.studentName}`}
-                maxWidth="lg"
-            >
-                <form onSubmit={handleScheduleInterview} className="space-y-4">
-                    <Input
-                        label="Thời gian phỏng vấn"
-                        id="interviewTime"
-                        type="datetime-local"
-                        value={interviewDate}
-                        onChange={(e) => setInterviewDate(e.target.value)}
-                        required
-                    />
-
-                    <Input
-                        label="Địa điểm hoặc Đường dẫn cuộc họp online"
-                        id="interviewLoc"
-                        value={interviewLocation}
-                        onChange={(e) => setInterviewLocation(e.target.value)}
-                        placeholder="VD: Phòng họp A, Tòa nhà FPT hoặc Link Microsoft Teams"
-                        required
-                    />
-
-                    <Textarea
-                        label="Ghi chú & Dặn dò ứng viên"
-                        id="interviewNotes"
-                        rows={3}
-                        value={interviewNote}
-                        onChange={(e) => setInterviewNote(e.target.value)}
-                        placeholder="Chuẩn bị CV in sẵn, slide báo cáo đồ án hoặc laptop cá nhân..."
-                    />
-
-                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                        <Button
-                            type="button"
-                            variant="secondary"
-                            onClick={() => setInterviewModalCand(null)}
-                            disabled={isScheduling}
-                        >
-                            Hủy bỏ
-                        </Button>
-                        <Button
-                            type="submit"
-                            variant="primary"
-                            isLoading={isScheduling}
-                            className="gap-2"
-                        >
-                            <Calendar className="w-4 h-4" />
-                            <span>Xác nhận gửi lịch</span>
-                        </Button>
-                    </div>
-                </form>
-            </Modal>
-
-            {/* Send Offer Modal */}
-            <Modal
-                isOpen={!!offerModalCand}
-                onClose={() => setOfferModalCand(null)}
-                title={`Phát hành Thư mời tiếp nhận (Offer): ${offerModalCand?.studentName}`}
-                maxWidth="lg"
-            >
-                <form onSubmit={handleSendOffer} className="space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Interview Modal */}
+            {interviewModalCand && (
+                <Modal
+                    isOpen={Boolean(interviewModalCand)}
+                    onClose={() => setInterviewModalCand(null)}
+                    title={`Lên lịch phỏng vấn: ${interviewModalCand.studentName}`}
+                    description={`Vị trí: ${interviewModalCand.jobTitle}`}
+                    maxWidth="md"
+                >
+                    <form onSubmit={handleScheduleInterview} className="space-y-3.5 text-xs">
                         <Input
-                            label="Mức phụ cấp thực tập (VNĐ/tháng)"
-                            id="offerStipend"
-                            type="number"
-                            step="500000"
-                            min="0"
-                            value={offerStipend}
-                            onChange={(e) => setOfferStipend(e.target.value)}
+                            label="Thời gian phỏng vấn"
+                            type="datetime-local"
+                            value={interviewDate}
+                            onChange={(e) => setInterviewDate(e.target.value)}
                             required
                         />
                         <Input
-                            label="Ngày bắt đầu thực tập"
-                            id="offerStart"
-                            type="date"
-                            value={offerStartDate}
-                            onChange={(e) => setOfferStartDate(e.target.value)}
+                            label="Địa điểm / Link phòng họp"
+                            value={interviewLocation}
+                            onChange={(e) => setInterviewLocation(e.target.value)}
                             required
                         />
-                    </div>
-
-                    <Input
-                        label="Ngày kết thúc thực tập"
-                        id="offerEnd"
-                        type="date"
-                        value={offerEndDate}
-                        onChange={(e) => setOfferEndDate(e.target.value)}
-                        required
-                    />
-
-                    <Textarea
-                        label="Nội dung thư mời & Chế độ đãi ngộ"
-                        id="offerDetails"
-                        rows={3}
-                        value={offerNote}
-                        onChange={(e) => setOfferNote(e.target.value)}
-                        required
-                    />
-
-                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                        <Button
-                            type="button"
-                            variant="secondary"
-                            onClick={() => setOfferModalCand(null)}
-                            disabled={isSendingOffer}
-                        >
-                            Hủy bỏ
-                        </Button>
-                        <Button
-                            type="submit"
-                            variant="primary"
-                            isLoading={isSendingOffer}
-                            className="gap-2"
-                        >
-                            <Send className="w-4 h-4" />
-                            <span>Phát hành Offer</span>
-                        </Button>
-                    </div>
-                </form>
-            </Modal>
+                        <Textarea
+                            label="Ghi chú cho ứng viên"
+                            value={interviewNote}
+                            onChange={(e) => setInterviewNote(e.target.value)}
+                            rows={3}
+                        />
+                        <div className="flex justify-end gap-2 pt-2">
+                            <Button type="button" variant="outline" onClick={() => setInterviewModalCand(null)}>
+                                Hủy
+                            </Button>
+                            <Button type="submit" isLoading={isScheduling}>
+                                Xác nhận phỏng vấn
+                            </Button>
+                        </div>
+                    </form>
+                </Modal>
+            )}
         </div>
     );
 }

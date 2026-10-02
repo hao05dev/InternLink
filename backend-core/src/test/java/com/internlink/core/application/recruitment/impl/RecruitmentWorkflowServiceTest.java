@@ -67,8 +67,12 @@ class RecruitmentWorkflowServiceTest {
 
     @BeforeEach
     void setUp() {
+        JobPositionMapper mapper = new JobPositionMapper(jobSkillRepository);
+        JobSkillAssignmentHandler skillHandler = new JobSkillAssignmentHandler(jobSkillRepository, taxonomyRepository);
+        JobPositionNotificationHelper notifHelper = new JobPositionNotificationHelper(notificationService, userRepository, studentRosterRepository);
         jobService = new JobPositionServiceImpl(jobRepository, companyRepository, termRepository,
-            departmentRepository, userRepository, auditLogService, jobSkillRepository, taxonomyRepository, securityGuard, notificationService, studentRosterRepository);
+            departmentRepository, userRepository, jobSkillRepository, auditLogService, securityGuard,
+            mapper, skillHandler, notifHelper);
         applicationService = new JobApplicationServiceImpl(applicationRepository, jobRepository,
             userRepository, documentRepository, studentProfileRepository, studentRosterRepository, offerRepository, securityGuard);
         offerService = new PlacementOfferServiceImpl(offerRepository, applicationRepository, userRepository, securityGuard, auditLogService, notificationService);

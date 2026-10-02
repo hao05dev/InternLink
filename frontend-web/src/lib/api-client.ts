@@ -29,9 +29,18 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
         credentials: "include",
     };
     const response = await fetch(endpoint, config);
-    const data: ApiResponse<T> = await response.json();
+
+    if (response.status === 204) {
+        return { success: true, data: undefined as unknown as T };
+    }
+
+    const data: ApiResponse<T> = (typeof response.json === "function"
+        ? await response.json().catch(() => null)
+        : null) ?? ({} as ApiResponse<T>);
+
     if (!response.ok) {
-        throw new ApiError(data.message || "An error occurred", response.status, data.errors);
+        const message = data.message || response.statusText || `Request failed with status ${response.status}`;
+        throw new ApiError(message, response.status, data.errors);
     }
     return data;
 }

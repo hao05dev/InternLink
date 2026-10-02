@@ -26,6 +26,7 @@ import com.internlink.core.shared.exception.BadRequestException;
 import com.internlink.core.shared.exception.ResourceNotFoundException;
 import com.internlink.core.shared.security.ResourceAuthorization;
 import com.internlink.core.shared.security.SecurityGuard;
+import com.internlink.core.shared.security.TermGuard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -229,6 +230,7 @@ public class JobApplicationServiceImpl implements JobApplicationService {
     public JobApplicationResponse updateApplicationStatus(UUID id, ApplicationStatus status) {
         JobApplication app = applicationRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("JobApplication", "id", id));
+        TermGuard.requireNotClosed(app.getJob().getTerm());
         User actor = currentActor();
         ResourceAuthorization.require(ResourceAuthorization.isAdmin(actor)
             || ResourceAuthorization.representsCompany(actor, app.getJob().getCompany().getId()));
@@ -246,6 +248,7 @@ public class JobApplicationServiceImpl implements JobApplicationService {
     public JobApplicationResponse withdrawApplication(UUID id) {
         JobApplication app = applicationRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("JobApplication", "id", id));
+        TermGuard.requireNotClosed(app.getJob().getTerm());
         User actor = currentActor();
         ResourceAuthorization.require(actor.getRole() == UserRole.STUDENT
             && actor.getId().equals(app.getStudent().getId()));

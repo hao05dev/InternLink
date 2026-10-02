@@ -8,7 +8,8 @@ import { UserRole } from "@/features/auth/types/auth.types";
 import { 
     GraduationCap, LogOut, Bell, Menu, X, ChevronRight, User, 
     LayoutDashboard, Briefcase, FileText, CheckSquare, Award, 
-    Users, Settings, ShieldCheck, Building2, Calendar, BookOpen, Layers, ClipboardCheck, BrainCircuit
+    Users, Settings, ShieldCheck, Building2, Calendar, BookOpen, Layers, ClipboardCheck, BrainCircuit,
+    Newspaper
 } from "lucide-react";
 import { RoleGuard } from "@/features/auth/components/role-guard";
 import { cn } from "@/lib/utils";
@@ -61,11 +62,13 @@ const PORTAL_NAV_MAP: Record<UserRole, { title: string; subtitle: string; items:
             { label: "Tổng quan học kỳ", href: "/faculty/dashboard", icon: LayoutDashboard },
             { label: "Kỳ thực tập (Terms)", href: "/faculty/terms", icon: Calendar },
             { label: "Danh sách sinh viên", href: "/faculty/roster", icon: Users },
+            { label: "Bảng điểm & Đánh giá", href: "/faculty/evaluations", icon: Award },
             { label: "Quản lý tiến trình TT", href: "/faculty/internship-management", icon: ClipboardCheck },
             { label: "Hồ sơ & Công bố phiếu", href: "/faculty/internship-record", icon: FileText },
             { label: "Duyệt doanh nghiệp", href: "/faculty/companies", icon: Building2 },
             { label: "Duyệt tin tuyển dụng", href: "/faculty/job-approvals", icon: CheckSquare },
             { label: "Phân công GVHD", href: "/faculty/assignments", icon: Layers },
+            { label: "Tin tức & Cẩm nang TT", href: "/faculty/posts", icon: Newspaper },
         ],
     },
     LECTURER: {

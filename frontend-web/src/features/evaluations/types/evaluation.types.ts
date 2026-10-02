@@ -47,3 +47,56 @@ export interface RubricEvaluation {
     status: string;
     submittedAt?: string;
 }
+
+export interface FacultyEvaluationSummary {
+    placementId: string;
+    studentId: string;
+    studentCode?: string;
+    studentName: string;
+    studentEmail?: string;
+    classCode?: string;
+    programId?: string;
+    programName?: string;
+    academicYear?: string;
+
+    companyId?: string;
+    companyName?: string;
+    mentorId?: string;
+    mentorName?: string;
+    mentorEmail?: string;
+    mentorScore?: number;
+    mentorFeedback?: string;
+
+    lecturerId?: string;
+    lecturerName?: string;
+    lecturerEmail?: string;
+    lecturerScore?: number;
+    lecturerFeedback?: string;
+
+    complianceScore?: number;
+    finalScore?: number;
+    scoreScale4?: number;
+    letterGrade?: string;
+    classification?: string;
+    resultStatus?: 'PASSED' | 'FAILED' | 'PENDING_REVIEW' | 'IN_PROGRESS';
+    placementStatus?: string;
+
+    isFinalized: boolean;
+    isPublished: boolean;
+    publishedAt?: string;
+    finalizedAt?: string;
+
+    formM04Status?: string;
+    formM05Status?: string;
+}
+
+export interface BatchPublishResultRequest {
+    placementIds?: string[];
+}
+
+export interface BatchPublishResultResponse {
+    publishedCount: number;
+    skippedCount: number;
+    messages: string[];
+}
+

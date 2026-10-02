@@ -37,10 +37,10 @@ describe("Button UI Component", () => {
 
     it("applies correct variant styles", () => {
         const { rerender } = render(<Button variant="primary">Primary</Button>);
-        expect(screen.getByRole("button")).toHaveClass("bg-blue-600");
+        expect(screen.getByRole("button")).toHaveClass("bg-sky-700");
 
         rerender(<Button variant="danger">Danger</Button>);
-        expect(screen.getByRole("button")).toHaveClass("bg-red-600");
+        expect(screen.getByRole("button")).toHaveClass("bg-rose-600");
 
         rerender(<Button variant="outline">Outline</Button>);
         expect(screen.getByRole("button")).toHaveClass("border-slate-300");

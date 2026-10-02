@@ -123,9 +123,17 @@ export default function MentorFinalAssessmentView() {
         }
     };
 
+    const selectedIntern = interns.find(i => i.id === selectedPlacementId);
+    const isTermClosed = selectedIntern?.termStatus === 'CLOSED';
+
     const handleSubmitAssessment = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedPlacementId) return;
+
+        if (isTermClosed) {
+            setMessage({ type: 'error', text: 'Học kỳ của sinh viên này đã kết thúc (CLOSED). Không thể nộp đánh giá.' });
+            return;
+        }
 
         setIsSubmitting(true);
         setMessage(null);
@@ -163,8 +171,6 @@ export default function MentorFinalAssessmentView() {
             setIsSubmitting(false);
         }
     };
-
-    const selectedIntern = interns.find(i => i.id === selectedPlacementId);
 
     if (isLoading) {
         return (
@@ -219,6 +225,14 @@ export default function MentorFinalAssessmentView() {
                 >
                     <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
                     <span>{message.text}</span>
+                </div>
+            )}
+
+            {/* Term Closed Alert */}
+            {isTermClosed && (
+                <div className="p-4 rounded-xl flex items-center gap-3 text-xs font-medium bg-amber-50 text-amber-900 border border-amber-200 shadow-2xs">
+                    <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
+                    <span>Học kỳ của sinh viên này đã kết thúc (CLOSED). Đánh giá đã được chốt và chuyển sang chế độ chỉ xem. Không thể chỉnh sửa hoặc nộp lại.</span>
                 </div>
             )}
 
@@ -315,6 +329,7 @@ export default function MentorFinalAssessmentView() {
                                             max="10"
                                             value={scores[crit.id] ?? crit.defaultScore}
                                             onChange={(e) => handleScoreChange(crit.id, e.target.value)}
+                                            disabled={isTermClosed}
                                             className="text-center font-bold text-slate-900"
                                             required
                                         />
@@ -342,6 +357,7 @@ export default function MentorFinalAssessmentView() {
                             rows={4}
                             value={feedback}
                             onChange={(e) => setFeedback(e.target.value)}
+                            disabled={isTermClosed}
                             placeholder="Ghi nhận xét cụ thể về sinh viên..."
                             required
                         />
@@ -362,6 +378,8 @@ export default function MentorFinalAssessmentView() {
                             type="submit"
                             variant="primary"
                             isLoading={isSubmitting}
+                            disabled={isTermClosed}
+                            title={isTermClosed ? 'Học kỳ đã kết thúc (CLOSED)' : undefined}
                             className="gap-2 px-6"
                         >
                             <Send className="w-4 h-4" />

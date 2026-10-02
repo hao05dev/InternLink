@@ -61,8 +61,10 @@ export default function LecturerDashboardView() {
                             <CheckSquare className="w-5 h-5" />
                         </div>
                         <div>
-                            <div className="text-xl font-bold text-slate-900">4</div>
-                            <div className="text-xs text-slate-500">Nhật ký tuần cần xem xét</div>
+                            <div className="text-xl font-bold text-slate-900">
+                                {students.filter(s => s.status === 'ACTIVE' || !s.status).length}
+                            </div>
+                            <div className="text-xs text-slate-500">Đang trong tiến trình thực tập</div>
                         </div>
                     </CardContent>
                 </Card>
@@ -73,8 +75,10 @@ export default function LecturerDashboardView() {
                             <Award className="w-5 h-5" />
                         </div>
                         <div>
-                            <div className="text-xl font-bold text-slate-900">0</div>
-                            <div className="text-xs text-slate-500">Báo cáo đã chấm điểm</div>
+                            <div className="text-xl font-bold text-slate-900">
+                                {students.filter(s => s.status === 'COMPLETED').length}
+                            </div>
+                            <div className="text-xs text-slate-500">Đã hoàn tất đánh giá</div>
                         </div>
                     </CardContent>
                 </Card>

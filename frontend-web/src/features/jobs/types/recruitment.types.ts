@@ -8,6 +8,7 @@ export interface JobPosition {
     companyName?: string;
     termId: string;
     termName?: string;
+    termStatus?: string;
     departmentId?: string;
     title: string;
     workFormat: WorkFormat;
@@ -18,5 +19,13 @@ export interface JobPosition {
     status: JobStatus;
     skills?: Array<{ skillId?: string; skillName: string; isRequired?: boolean }>;
     targetProgramCodes?: string[];
+    bannerUrl?: string;
+    attachmentUrls?: Array<{
+        id: string;
+        fileName: string;
+        fileUrl: string;
+        fileSize?: string;
+        fileType?: string;
+    }>;
     createdAt?: string;
 }

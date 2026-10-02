@@ -181,24 +181,32 @@ export default function FacultyJobApprovalsView() {
 
                                     {/* Action buttons */}
                                     <div className="flex items-center gap-2 self-end md:self-start">
-                                        <Button
-                                            variant="primary"
-                                            size="sm"
-                                            onClick={() => handleOpenReview(job, 'APPROVED')}
-                                            className="gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700"
-                                        >
-                                            <CheckCircle2 className="w-3.5 h-3.5" />
-                                            <span>Phê duyệt</span>
-                                        </Button>
-                                        <Button
-                                            variant="danger"
-                                            size="sm"
-                                            onClick={() => handleOpenReview(job, 'REJECTED')}
-                                            className="gap-1.5 text-xs"
-                                        >
-                                            <XCircle className="w-3.5 h-3.5" />
-                                            <span>Từ chối</span>
-                                        </Button>
+                                        {job.termStatus === 'CLOSED' ? (
+                                            <span className="text-xs text-slate-500 bg-slate-100 px-2.5 py-1.5 rounded-lg border border-slate-200 font-medium">
+                                                Kỳ đã kết thúc (CLOSED)
+                                            </span>
+                                        ) : (
+                                            <>
+                                                <Button
+                                                    variant="primary"
+                                                    size="sm"
+                                                    onClick={() => handleOpenReview(job, 'APPROVED')}
+                                                    className="gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700"
+                                                >
+                                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                                    <span>Phê duyệt</span>
+                                                </Button>
+                                                <Button
+                                                    variant="danger"
+                                                    size="sm"
+                                                    onClick={() => handleOpenReview(job, 'REJECTED')}
+                                                    className="gap-1.5 text-xs"
+                                                >
+                                                    <XCircle className="w-3.5 h-3.5" />
+                                                    <span>Từ chối</span>
+                                                </Button>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                             </CardContent>

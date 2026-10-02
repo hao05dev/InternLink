@@ -60,19 +60,7 @@ export default function CompanyDashboardView() {
                         </div>
                         <div>
                             <div className="text-xl font-bold text-slate-900">{jobs.length}</div>
-                            <div className="text-xs text-slate-500">Vị trí đang tuyển</div>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardContent className="p-5 flex items-center gap-3.5">
-                        <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center shrink-0">
-                            <Users className="w-5 h-5" />
-                        </div>
-                        <div>
-                            <div className="text-xl font-bold text-slate-900">5</div>
-                            <div className="text-xs text-slate-500">Hồ sơ ứng tuyển</div>
+                            <div className="text-xs text-slate-500">Tổng tin tuyển dụng</div>
                         </div>
                     </CardContent>
                 </Card>
@@ -80,11 +68,13 @@ export default function CompanyDashboardView() {
                 <Card>
                     <CardContent className="p-5 flex items-center gap-3.5">
                         <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
-                            <UserCheck className="w-5 h-5" />
+                            <CheckCircle2 className="w-5 h-5" />
                         </div>
                         <div>
-                            <div className="text-xl font-bold text-slate-900">2</div>
-                            <div className="text-xs text-slate-500">Đã tiếp nhận thực tập</div>
+                            <div className="text-xl font-bold text-slate-900">
+                                {jobs.filter(j => j.status === 'APPROVED' || j.status === 'ACTIVE' || j.status === 'PUBLISHED').length}
+                            </div>
+                            <div className="text-xs text-slate-500">Vị trí đang mở nhận hồ sơ</div>
                         </div>
                     </CardContent>
                 </Card>
@@ -95,8 +85,24 @@ export default function CompanyDashboardView() {
                             <Clock className="w-5 h-5" />
                         </div>
                         <div>
-                            <div className="text-xl font-bold text-slate-900">1</div>
-                            <div className="text-xs text-slate-500">Vị trí chờ duyệt</div>
+                            <div className="text-xl font-bold text-slate-900">
+                                {jobs.filter(j => j.status === 'PENDING').length}
+                            </div>
+                            <div className="text-xs text-slate-500">Vị trí chờ Khoa duyệt</div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardContent className="p-5 flex items-center gap-3.5">
+                        <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center shrink-0">
+                            <Users className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <div className="text-xl font-bold text-slate-900">
+                                {jobs.reduce((sum, j) => sum + (j.vacancies || 0), 0)}
+                            </div>
+                            <div className="text-xs text-slate-500">Tổng chỉ tiêu tiếp nhận (SV)</div>
                         </div>
                     </CardContent>
                 </Card>

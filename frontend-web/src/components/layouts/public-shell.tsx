@@ -5,10 +5,15 @@ import { Navbar } from "@/components/layouts/navbar";
 import { GraduationCap, MapPin, Phone, Mail } from "lucide-react";
 import Link from "next/link";
 
-export function PublicShell({ children }: { children: React.ReactNode }) {
+interface PublicShellProps {
+    children: React.ReactNode;
+    hideNavbar?: boolean;
+}
+
+export function PublicShell({ children, hideNavbar = false }: PublicShellProps) {
     return (
         <div className="min-h-screen flex flex-col justify-between bg-slate-50">
-            <Navbar />
+            {!hideNavbar && <Navbar />}
             <main className="flex-1">{children}</main>
             <footer className="border-t bg-white pt-12 pb-8 text-slate-600 text-sm">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -19,10 +24,10 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
                                 <div className="w-8 h-8 rounded-lg bg-sky-700 flex items-center justify-center text-white">
                                     <GraduationCap className="w-5 h-5" />
                                 </div>
-                                <span className="text-lg font-bold text-slate-900">InternLink CICT • CTU</span>
+                                <span className="text-lg font-bold text-slate-900">InternLink</span>
                             </div>
                             <p className="text-xs text-slate-500 max-w-md leading-relaxed">
-                                Cổng thông tin quản lý toàn trình thực tập và tuyển dụng doanh nghiệp trực thuộc Trường Công nghệ Thông tin & Truyền thông – Trường Đại học Cần Thơ. Chuẩn hóa quy trình tiếp nhận, theo dõi nhật ký thực tập và đối chiếu kết quả đào tạo thực tế.
+                                Cổng thông tin quản lý thực tập và tuyển dụng doanh nghiệp trực thuộc Trường Công nghệ Thông tin & Truyền thông – Trường Đại học Cần Thơ. Chuẩn hóa quy trình tiếp nhận, theo dõi nhật ký thực tập và hoàn tất đánh giá học phần.
                             </p>
                         </div>
 

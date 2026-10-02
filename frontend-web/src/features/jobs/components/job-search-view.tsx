@@ -94,18 +94,18 @@ export default function JobSearchView() {
                         {/* Search Bar */}
                         <div className="flex flex-col sm:flex-row gap-3">
                             <div className="relative flex-1">
-                                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                                 <input
                                     type="text"
                                     value={keyword}
                                     onChange={(e) => setKeyword(e.target.value)}
                                     placeholder="Tìm theo vị trí, kỹ năng (Java, React, Tester...), hoặc tên công ty..."
-                                    className="w-full pl-10 pr-12 py-3 bg-white text-slate-900 rounded-xl text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-sky-400 shadow-sm"
+                                    className="w-full pl-11 pr-14 py-3.5 bg-white text-slate-900 rounded-full text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-sky-400 shadow-md"
                                 />
                                 {keyword && (
                                     <button 
                                         onClick={() => setKeyword("")}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600 font-semibold"
+                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600 font-semibold"
                                     >
                                         Xóa
                                     </button>
@@ -113,9 +113,12 @@ export default function JobSearchView() {
                             </div>
                             <Button 
                                 variant="default" 
-                                className="bg-sky-600 hover:bg-sky-500 text-white font-bold px-6 py-3 rounded-xl shadow-xs cursor-pointer text-xs sm:text-sm"
+                                className="bg-slate-950 hover:bg-slate-900 text-white font-bold px-7 py-3.5 rounded-full shadow-md cursor-pointer text-xs sm:text-sm gap-2"
                             >
-                                Tìm kiếm
+                                <span>Tìm kiếm</span>
+                                <div className="w-5 h-5 rounded-full bg-white text-slate-950 flex items-center justify-center -mr-1">
+                                    <Search className="w-3 h-3" />
+                                </div>
                             </Button>
                         </div>
                     </div>
@@ -125,7 +128,7 @@ export default function JobSearchView() {
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 lg:gap-8 items-start">
                     {/* Left Sidebar Filter (Sticky on Desktop) */}
                     <div className="lg:col-span-1 lg:sticky lg:top-24 space-y-5">
-                        <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs">
+                        <div className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-xs">
                             <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 mb-4">
                                 <div className="flex items-center gap-2 font-bold text-slate-900 text-xs sm:text-sm">
                                     <Filter className="w-4 h-4 text-sky-700" />
@@ -161,7 +164,7 @@ export default function JobSearchView() {
                                         <button
                                             key={item.value}
                                             onClick={() => setSelectedFormat(item.value)}
-                                            className={`w-full text-left px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+                                            className={`w-full text-left px-3.5 py-2 rounded-full text-xs font-medium transition-colors cursor-pointer ${
                                                 selectedFormat === item.value 
                                                     ? "bg-sky-50 text-sky-800 font-bold border border-sky-200/80 shadow-2xs" 
                                                     : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
@@ -188,7 +191,7 @@ export default function JobSearchView() {
                                         <button
                                             key={item.value}
                                             onClick={() => setSelectedMajor(item.value)}
-                                            className={`w-full text-left px-3 py-2 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+                                            className={`w-full text-left px-3.5 py-2 rounded-full text-xs font-medium transition-colors cursor-pointer ${
                                                 selectedMajor === item.value 
                                                     ? "bg-sky-50 text-sky-800 font-bold border border-sky-200/80 shadow-2xs" 
                                                     : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
@@ -215,7 +218,7 @@ export default function JobSearchView() {
                         </div>
 
                         {/* Educational Note Box */}
-                        <div className="bg-sky-50/80 rounded-2xl border border-sky-200/70 p-4 text-xs text-sky-900 shadow-2xs">
+                        <div className="bg-sky-50/80 rounded-3xl border border-sky-200/70 p-5 text-xs text-sky-900 shadow-2xs">
                             <div className="flex items-center gap-2 font-bold mb-1.5 text-sky-950">
                                 <CheckCircle2 className="w-4 h-4 text-sky-700 shrink-0" />
                                 Bảo trợ học phần chính thức
@@ -229,7 +232,7 @@ export default function JobSearchView() {
                     {/* Right Listing Column */}
                     <div className="lg:col-span-3 space-y-4 min-w-0">
                         {/* Result Counter & Quick Filter Chips */}
-                        <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
+                        <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/80 shadow-xs space-y-3">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
                                 <span className="text-slate-600 font-medium">
                                     Tìm thấy <strong className="text-slate-900 font-bold text-sm">{filteredJobs.length}</strong> vị trí thực tập phù hợp
@@ -244,7 +247,7 @@ export default function JobSearchView() {
                                 <span className="text-[11px] font-semibold text-slate-400 mr-1">Lọc nhanh:</span>
                                 <button
                                     onClick={() => setOnlyWithStipend(prev => !prev)}
-                                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition cursor-pointer border ${
+                                    className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors cursor-pointer border ${
                                         onlyWithStipend
                                             ? "bg-emerald-50 text-emerald-800 border-emerald-300 shadow-2xs"
                                             : "bg-slate-50 text-slate-600 border-slate-200/80 hover:bg-slate-100"
@@ -256,7 +259,7 @@ export default function JobSearchView() {
                                     <button
                                         key={fmt}
                                         onClick={() => setSelectedFormat(selectedFormat === fmt ? "ALL" : fmt)}
-                                        className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition cursor-pointer border ${
+                                        className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors cursor-pointer border ${
                                             selectedFormat === fmt
                                                 ? "bg-sky-50 text-sky-800 border-sky-300 shadow-2xs"
                                                 : "bg-slate-50 text-slate-600 border-slate-200/80 hover:bg-slate-100"
@@ -272,7 +275,7 @@ export default function JobSearchView() {
                         {loading ? (
                             <div className="space-y-4">
                                 {[1, 2, 3].map(n => (
-                                    <div key={n} className="bg-white rounded-xl border border-slate-200 p-6 animate-pulse space-y-4">
+                                    <div key={n} className="bg-white rounded-3xl border border-slate-200 p-6 animate-pulse space-y-4">
                                         <div className="h-6 bg-slate-200 rounded w-1/3"></div>
                                         <div className="h-4 bg-slate-100 rounded w-2/3"></div>
                                         <div className="h-10 bg-slate-50 rounded"></div>
@@ -280,7 +283,7 @@ export default function JobSearchView() {
                                 ))}
                             </div>
                         ) : filteredJobs.length === 0 ? (
-                            <div className="bg-white rounded-xl border border-slate-200 p-12 text-center shadow-sm">
+                            <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center shadow-sm">
                                 <Briefcase className="w-12 h-12 text-slate-300 mx-auto mb-3" />
                                 <h3 className="text-base font-bold text-slate-800 mb-1">Không tìm thấy vị trí phù hợp</h3>
                                 <p className="text-xs text-slate-500 max-w-sm mx-auto mb-4">
@@ -294,7 +297,7 @@ export default function JobSearchView() {
                                         setSelectedMajor("ALL");
                                         setOnlyWithStipend(false);
                                     }}
-                                    className="cursor-pointer text-xs"
+                                    className="cursor-pointer text-xs rounded-full"
                                 >
                                     Đặt lại bộ lọc
                                 </Button>
@@ -304,16 +307,16 @@ export default function JobSearchView() {
                                 {filteredJobs.map(job => (
                                     <div 
                                         key={job.id}
-                                        className="bg-white rounded-xl border border-slate-200 p-5 sm:p-6 shadow-sm hover:border-sky-300 hover:shadow-md transition-all duration-200 group"
+                                        className="bg-white rounded-3xl border border-slate-200/80 p-5 sm:p-6 shadow-2xs hover:border-sky-300 hover:shadow-card-hover transition-colors duration-200 group"
                                     >
                                         <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
-                                            <div className="flex items-start gap-4">
+                                            <div className="flex items-start gap-3.5 sm:gap-4 min-w-0 flex-1">
                                                 {/* Company Logo */}
-                                                <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center p-2 shrink-0">
+                                                <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center p-2 shrink-0">
                                                     <Building2 className="w-6 h-6 text-sky-700" />
                                                 </div>
 
-                                                <div className="space-y-1.5">
+                                                <div className="space-y-1.5 min-w-0 flex-1">
                                                     <Link 
                                                         href={`/jobs/${job.id}`}
                                                         className="text-base font-bold text-slate-900 group-hover:text-sky-700 transition-colors block line-clamp-1"
@@ -325,11 +328,11 @@ export default function JobSearchView() {
                                                         <span className="font-semibold text-slate-800">{job.companyName}</span>
                                                         <span className="text-slate-300">•</span>
                                                         <span className="flex items-center gap-1 text-slate-500">
-                                                            <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                                                            {job.location}
+                                                            <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                                            <span className="truncate max-w-[200px]">{job.location}</span>
                                                         </span>
                                                         <span className="text-slate-300">•</span>
-                                                        <span className="flex items-center gap-1 text-slate-500">
+                                                        <span className="flex items-center gap-1 text-slate-500 shrink-0">
                                                             <Users className="w-3.5 h-3.5 text-slate-400" />
                                                             {job.vacancies} chỉ tiêu
                                                         </span>
@@ -338,11 +341,11 @@ export default function JobSearchView() {
                                                     {/* Badges row */}
                                                     <div className="flex flex-wrap items-center gap-2 pt-1">
                                                         {getWorkFormatBadge(job.workFormat)}
-                                                        <Badge variant="success" className="bg-emerald-50 text-emerald-700 border-emerald-200 font-bold">
+                                                        <Badge variant="success" className="bg-emerald-50 text-emerald-700 border-emerald-200 font-bold rounded-full px-2.5">
                                                             {formatCurrency(job.stipendAmount)}
                                                         </Badge>
                                                         {job.experienceLevel && (
-                                                            <Badge variant="outline" className="text-slate-600 border-slate-200">
+                                                            <Badge variant="outline" className="text-slate-600 border-slate-200 rounded-full px-2.5">
                                                                 {job.experienceLevel}
                                                             </Badge>
                                                         )}
@@ -350,20 +353,22 @@ export default function JobSearchView() {
                                                 </div>
                                             </div>
 
-                                            {/* Action Button */}
-                                            <div className="flex sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto pt-3 sm:pt-0 border-t sm:border-t-0 border-slate-100 gap-3">
-                                                <div className="text-xs text-slate-400 flex items-center gap-1">
-                                                    <Calendar className="w-3.5 h-3.5" />
-                                                    Hạn nộp: <span className="font-semibold text-slate-600">{job.deadline || "30/11/2026"}</span>
+                                            {/* Action Button Container */}
+                                            <div className="flex sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto pt-3 sm:pt-0 border-t sm:border-t-0 border-slate-100 gap-2.5 sm:gap-3 shrink-0">
+                                                <div className="text-xs text-slate-400 flex items-center gap-1 shrink-0">
+                                                    <Calendar className="w-3.5 h-3.5 shrink-0" />
+                                                    Hạn: <span className="font-semibold text-slate-600">{job.deadline || "30/11/2026"}</span>
                                                 </div>
-                                                <Link href={`/jobs/${job.id}`}>
+                                                <Link href={`/jobs/${job.id}`} className="shrink-0">
                                                     <Button 
                                                         variant="default"
                                                         size="sm"
-                                                        className="bg-sky-700 hover:bg-sky-600 text-white font-medium px-4 text-xs cursor-pointer shadow-sm"
+                                                        className="bg-slate-950 hover:bg-slate-900 text-white font-bold px-4 py-2 text-xs cursor-pointer shadow-xs whitespace-nowrap rounded-full gap-2"
                                                     >
-                                                        Xem chi tiết & Ứng tuyển
-                                                        <ChevronRight className="w-3.5 h-3.5 ml-1" />
+                                                        <span>Chi tiết & Ứng tuyển</span>
+                                                        <div className="w-4 h-4 rounded-full bg-white text-slate-950 flex items-center justify-center -mr-1">
+                                                            <ChevronRight className="w-3 h-3" />
+                                                        </div>
                                                     </Button>
                                                 </Link>
                                             </div>

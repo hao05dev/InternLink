@@ -35,6 +35,7 @@ public class InternshipPlacementResponse {
     private String lecturerName;
     private UUID termId;
     private String termName;
+    private String termStatus;
     private Map<String, Object> workSchedule;
     private LocalDate startDate;
     private LocalDate endDate;

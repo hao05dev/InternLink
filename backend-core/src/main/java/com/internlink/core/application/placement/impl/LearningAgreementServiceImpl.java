@@ -21,6 +21,7 @@ import com.internlink.core.shared.exception.ForbiddenException;
 import com.internlink.core.shared.exception.ResourceNotFoundException;
 import com.internlink.core.shared.security.SecurityGuard;
 import com.internlink.core.shared.security.ResourceAuthorization;
+import com.internlink.core.shared.security.TermGuard;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -88,6 +89,7 @@ public class LearningAgreementServiceImpl implements LearningAgreementService {
     public LearningAgreementResponse createAgreement(UUID studentId, LearningAgreementRequest request) {
         PlacementOffer offer = offerRepository.findById(request.getOfferId())
             .orElseThrow(() -> new ResourceNotFoundException("PlacementOffer", "id", request.getOfferId()));
+        TermGuard.requireNotClosed(offer.getApplication().getJob().getTerm());
 
         if (offer.getStatus() != OfferStatus.ACCEPTED) {
             throw new BadRequestException("Chỉ có thể tạo Thỏa thuận học tập cho Offer đã được chấp nhận (ACCEPTED)");
@@ -149,6 +151,11 @@ public class LearningAgreementServiceImpl implements LearningAgreementService {
     public LearningAgreementResponse signAgreement(UUID id, String signerRole, Map<String, Object> signatureData) {
         LearningAgreement agreement = agreementRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("LearningAgreement", "id", id));
+        if (agreement.getOffer() != null
+            && agreement.getOffer().getApplication() != null
+            && agreement.getOffer().getApplication().getJob() != null) {
+            TermGuard.requireNotClosed(agreement.getOffer().getApplication().getJob().getTerm());
+        }
 
         if (agreement.getStatus() == AgreementStatus.APPROVED || agreement.getStatus() == AgreementStatus.CANCELLED) {
             throw new BadRequestException("Thỏa thuận đã hoàn tất hoặc đã hủy, không thể ký lại");
@@ -244,6 +251,11 @@ public class LearningAgreementServiceImpl implements LearningAgreementService {
     public LearningAgreementResponse reviewAgreementByFaculty(UUID id, AgreementStatus status) {
         LearningAgreement agreement = agreementRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("LearningAgreement", "id", id));
+        if (agreement.getOffer() != null
+            && agreement.getOffer().getApplication() != null
+            && agreement.getOffer().getApplication().getJob() != null) {
+            TermGuard.requireNotClosed(agreement.getOffer().getApplication().getJob().getTerm());
+        }
         ResourceAuthorization.require(ResourceAuthorization.managesDepartment(
             currentActor(), agreement.getDepartment().getId()));
 

@@ -1,7 +1,6 @@
 package com.internlink.core.application;
 
-import com.internlink.core.application.evaluation.impl.FinalResultServiceImpl;
-import com.internlink.core.application.evaluation.impl.RubricEvaluationServiceImpl;
+import com.internlink.core.application.evaluation.impl.*;
 import com.internlink.core.application.student.impl.StudentProfileServiceImpl;
 import com.internlink.core.application.system.impl.DocumentServiceImpl;
 import com.internlink.core.application.system.impl.NotificationServiceImpl;
@@ -69,6 +68,9 @@ class EvaluationAndSystemServiceTest {
     @Mock JpaPlacementTaskRepository taskRepository;
     @Mock JpaWeeklyLogbookRepository logbookRepository;
     @Mock JpaInternshipCaseRepository caseRepository;
+    @Mock JpaStudentRosterRepository studentRosterRepository;
+    @Mock JpaPortfolioFormRepository portfolioFormRepository;
+    @Mock JpaInternshipTermRepository termRepository;
     @Mock NotificationService notificationSender;
     @Mock SecurityGuard securityGuard;
     @Mock AuditLogService auditLogService;
@@ -84,9 +86,24 @@ class EvaluationAndSystemServiceTest {
     void setUp() {
         rubricService = new RubricEvaluationServiceImpl(rubricRepository, placementRepository, userRepository, securityGuard);
         notificationService = new NotificationServiceImpl(notificationRepository, userRepository);
-        finalResultService = new FinalResultServiceImpl(finalResultRepository, placementRepository,
-            userRepository, studentProfileRepository, componentScoreRepository,
-            logbookRepository, reportRepository, securityGuard, auditLogService, notificationSender);
+        FinalResultMapper finalResultMapper = new FinalResultMapper(studentProfileRepository);
+        FinalizationReadinessValidator readinessValidator = new FinalizationReadinessValidator(componentScoreRepository, logbookRepository, reportRepository);
+        FinalResultNotificationHelper finalResultNotificationHelper = new FinalResultNotificationHelper(auditLogService, notificationSender);
+        finalResultService = new FinalResultServiceImpl(
+            finalResultRepository,
+            placementRepository,
+            userRepository,
+            studentRosterRepository,
+            studentProfileRepository,
+            portfolioFormRepository,
+            componentScoreRepository,
+            rubricRepository,
+            termRepository,
+            securityGuard,
+            finalResultMapper,
+            readinessValidator,
+            finalResultNotificationHelper
+        );
         profileService = new StudentProfileServiceImpl(studentProfileRepository, userRepository, programRepository);
         documentService = new DocumentServiceImpl(documentRepository, userRepository, securityGuard, storageServiceRouter,
             applicationRepository, studentFoundApplicationRepository, agreementRepository, placementRepository, taskRepository,

@@ -150,7 +150,9 @@ export default function StudentWeeklyLogsView() {
                 <Button
                     variant="primary"
                     onClick={handleOpenCreateModal}
+                    disabled={placement?.status === 'COMPLETED' || placement?.status === 'CANCELLED'}
                     className="gap-2 self-start sm:self-auto"
+                    title={placement?.status === 'COMPLETED' ? 'Đợt thực tập đã kết thúc, không thể nộp thêm' : undefined}
                 >
                     <Plus className="w-4 h-4" />
                     <span>Nộp nhật ký tuần mới</span>
@@ -204,9 +206,16 @@ export default function StudentWeeklyLogsView() {
                                             T{log.weekNumber}
                                         </div>
                                         <div>
-                                            <CardTitle className="text-base">
-                                                Nhật ký thực tập — Tuần {log.weekNumber}
-                                            </CardTitle>
+                                            <div className="flex items-center gap-2">
+                                                <CardTitle className="text-base">
+                                                    Nhật ký thực tập — Tuần {log.weekNumber}
+                                                </CardTitle>
+                                                {(log as { isLate?: boolean }).isLate && (
+                                                    <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold border border-amber-200">
+                                                        Nộp trễ
+                                                    </span>
+                                                )}
+                                            </div>
                                             <div className="flex items-center gap-4 text-xs text-slate-500 mt-0.5">
                                                 <div className="flex items-center gap-1">
                                                     <Calendar className="w-3.5 h-3.5" />

@@ -14,6 +14,7 @@ import com.internlink.core.shared.enums.PlacementStatus;
 import com.internlink.core.shared.enums.UserRole;
 import com.internlink.core.shared.exception.BadRequestException;
 import com.internlink.core.shared.exception.ResourceNotFoundException;
+import com.internlink.core.shared.security.TermGuard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -55,6 +56,7 @@ public class AttendanceLogServiceImpl implements AttendanceLogService {
     public AttendanceLogResponse checkIn(UUID studentId, AttendanceLogRequest request) {
         InternshipPlacement placement = placementRepository.findById(request.getPlacementId())
             .orElseThrow(() -> new ResourceNotFoundException("InternshipPlacement", "id", request.getPlacementId()));
+        TermGuard.requireNotClosed(placement.getTerm());
 
         if (!placement.getStudent().getId().equals(studentId)) {
             throw new BadRequestException("Sinh viên không thuộc lần thực tập này");
@@ -86,6 +88,7 @@ public class AttendanceLogServiceImpl implements AttendanceLogService {
     public AttendanceLogResponse checkOut(UUID id, UUID studentId, Map<String, Object> checkOutLocation) {
         AttendanceLog log = attendanceRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("AttendanceLog", "id", id));
+        TermGuard.requireNotClosed(log.getPlacement().getTerm());
 
         if (!log.getPlacement().getStudent().getId().equals(studentId)) {
             throw new BadRequestException("Bạn không có quyền Check-out phiên chấm công này");
@@ -117,6 +120,7 @@ public class AttendanceLogServiceImpl implements AttendanceLogService {
     public AttendanceLogResponse confirmAttendance(UUID id, UUID mentorUserId, AttendanceStatus status) {
         AttendanceLog log = attendanceRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("AttendanceLog", "id", id));
+        TermGuard.requireNotClosed(log.getPlacement().getTerm());
 
         User mentor = userRepository.findById(mentorUserId)
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", mentorUserId));

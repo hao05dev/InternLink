@@ -29,8 +29,7 @@ describe("Navbar Component", () => {
         expect(screen.getByText("Vị trí tuyển dụng")).toBeInTheDocument();
         expect(screen.getByText("Doanh nghiệp")).toBeInTheDocument();
         expect(screen.getByText("Cẩm nang")).toBeInTheDocument();
-        expect(screen.getByText("Quy trình 12 bước")).toBeInTheDocument();
-        expect(screen.getByText("Đăng nhập")).toBeInTheDocument();
+        expect(screen.getAllByText("Đăng nhập").length).toBeGreaterThan(0);
     });
 
     it("renders compact avatar button and opens streamlined dropdown for ADMIN with dashboard link", () => {

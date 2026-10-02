@@ -18,6 +18,7 @@ import com.internlink.core.shared.exception.BadRequestException;
 import com.internlink.core.shared.exception.ResourceNotFoundException;
 import com.internlink.core.shared.security.ResourceAuthorization;
 import com.internlink.core.shared.security.SecurityGuard;
+import com.internlink.core.shared.security.TermGuard;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -62,6 +63,7 @@ public class PlacementOfferServiceImpl implements PlacementOfferService {
     public PlacementOfferResponse createOffer(PlacementOfferRequest request) {
         JobApplication application = applicationRepository.findById(request.getApplicationId())
             .orElseThrow(() -> new ResourceNotFoundException("JobApplication", "id", request.getApplicationId()));
+        TermGuard.requireNotClosed(application.getJob().getTerm());
         User actor = currentActor();
         ResourceAuthorization.require(ResourceAuthorization.isAdmin(actor)
             || ResourceAuthorization.representsCompany(actor, application.getJob().getCompany().getId()));
@@ -153,6 +155,7 @@ public class PlacementOfferServiceImpl implements PlacementOfferService {
 
         PlacementOffer offer = offerRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("PlacementOffer", "id", id));
+        TermGuard.requireNotClosed(offer.getApplication().getJob().getTerm());
 
         UUID offerOwnerStudentId = offer.getApplication().getStudent().getId();
         securityGuard.requireSelf(currentUserId, offerOwnerStudentId,

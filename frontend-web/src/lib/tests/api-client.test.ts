@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { ApiError } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
@@ -28,6 +28,36 @@ describe("Utility & API Client Tests", () => {
             const error = new ApiError("Validation failed", 400, errors);
             expect(error.status).toBe(400);
             expect(error.errors).toEqual(errors);
+        });
+    });
+
+    describe("apiClient", () => {
+        it("handles 204 No Content without crashing", async () => {
+            const { apiClient } = await import("@/lib/api-client");
+            const fetchMock = vi.fn().mockResolvedValue({
+                ok: true,
+                status: 204,
+                json: async () => { throw new SyntaxError("Unexpected end of JSON input"); },
+            });
+            vi.stubGlobal("fetch", fetchMock);
+
+            const result = await apiClient.delete("/api/v1/resource/123");
+            expect(result).toEqual({ success: true, data: undefined });
+            vi.unstubAllGlobals();
+        });
+
+        it("handles empty body error response without crashing on json()", async () => {
+            const { apiClient } = await import("@/lib/api-client");
+            const fetchMock = vi.fn().mockResolvedValue({
+                ok: false,
+                status: 500,
+                statusText: "Internal Server Error",
+                json: async () => { throw new SyntaxError("Unexpected end of JSON input"); },
+            });
+            vi.stubGlobal("fetch", fetchMock);
+
+            await expect(apiClient.get("/api/v1/broken")).rejects.toThrow("Internal Server Error");
+            vi.unstubAllGlobals();
         });
     });
 });

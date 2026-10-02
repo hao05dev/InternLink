@@ -12,6 +12,9 @@ import { StatusBadge } from '@/features/workflow/components/status-badge';
 import { Modal } from '@/components/ui/modal';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Badge } from '@/components/ui/badge';
+import { RichEditor } from '@/components/ui/rich-editor';
+import { FileUploader, UploadedFileItem } from '@/components/ui/file-uploader';
+import { AcademicTermFilter } from '@/components/ui/academic-term-filter';
 import {
     Briefcase,
     Plus,
@@ -23,7 +26,9 @@ import {
     CheckCircle2,
     AlertCircle,
     Edit3,
-    Eye
+    Eye,
+    Image,
+    Paperclip
 } from 'lucide-react';
 import type { JobPosition, JobStatus, WorkFormat } from '@/features/jobs/types/recruitment.types';
 
@@ -49,6 +54,8 @@ export default function CompanyJobsView() {
     const [location, setLocation] = useState('KDC Nam Long, P. Hưng Thạnh, Q. Cái Răng, TP. Cần Thơ');
     const [vacancies, setVacancies] = useState('3');
     const [stipendAmount, setStipendAmount] = useState('4000000');
+    const [bannerUrl, setBannerUrl] = useState('');
+    const [attachmentUrls, setAttachmentUrls] = useState<UploadedFileItem[]>([]);
     const [description, setDescription] = useState('');
     const [skillsText, setSkillsText] = useState('Java, Spring Boot, Git');
     const [formError, setFormError] = useState<string | null>(null);
@@ -98,9 +105,17 @@ export default function CompanyJobsView() {
         fetchCompanyJobs();
     }, []);
 
+    const activeSelectedTerm = terms.find(t => t.id === (selectedTermId || terms[0]?.id));
+    const isSelectedTermClosed = activeSelectedTerm?.status === 'CLOSED';
+
     const handleCreateJob = async (e: React.FormEvent) => {
         e.preventDefault();
         setFormError(null);
+
+        if (isSelectedTermClosed) {
+            setFormError('Kỳ thực tập đã kết thúc (CLOSED). Không thể đăng tin tuyển dụng mới cho kỳ này.');
+            return;
+        }
 
         if (!title.trim() || !description.trim()) {
             setFormError('Vui lòng điền đầy đủ tiêu đề và mô tả công việc.');
@@ -127,6 +142,8 @@ export default function CompanyJobsView() {
                 location: location.trim(),
                 vacancies: parseInt(vacancies, 10) || 1,
                 stipendAmount: parseFloat(stipendAmount) || 0,
+                bannerUrl: bannerUrl.trim() || undefined,
+                attachmentUrls: attachmentUrls.length > 0 ? attachmentUrls : undefined,
                 description: description.trim(),
                 mandatorySkillIds: skillsText.split(',').map(s => s.trim()).filter(Boolean),
             });
@@ -136,6 +153,10 @@ export default function CompanyJobsView() {
             }
             setMessage({ type: 'success', text: `Tạo tin tuyển dụng "${title}" thành công (Lưu bản nháp).` });
             setIsCreateModalOpen(false);
+            setTitle('');
+            setDescription('');
+            setBannerUrl('');
+            setAttachmentUrls([]);
         } catch (err: unknown) {
             const errorMsg = err instanceof Error ? err.message : 'Có lỗi xảy ra khi tạo tin tuyển dụng.';
             setFormError(errorMsg);
@@ -144,7 +165,11 @@ export default function CompanyJobsView() {
         }
     };
 
-    const handleSubmitForReview = async (jobId: string, jobTitle: string) => {
+    const handleSubmitForReview = async (jobId: string, jobTitle: string, isTermClosed?: boolean) => {
+        if (isTermClosed) {
+            setMessage({ type: 'error', text: 'Kỳ thực tập của vị trí này đã kết thúc (CLOSED). Không thể gửi duyệt.' });
+            return;
+        }
         try {
             await apiClient.patch(`/api/v1/jobs/${jobId}/submit`);
             setJobs(prev => prev.map(j => j.id === jobId ? { ...j, status: 'PENDING_REVIEW' as JobStatus } : j));
@@ -233,10 +258,21 @@ export default function CompanyJobsView() {
             ) : (
                 <div className="space-y-4">
                     {jobs.map((job) => (
-                        <Card key={job.id} className="hover:border-slate-300 transition-colors">
+                        <Card key={job.id} className="hover:border-slate-300 transition-colors overflow-hidden">
                             <CardContent className="p-6">
-                                <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-                                    <div className="space-y-2.5 flex-1">
+                                <div className="flex flex-col md:flex-row md:items-start justify-between gap-5">
+                                    {/* Optional Banner Thumbnail */}
+                                    {job.bannerUrl && (
+                                        <div className="w-full md:w-36 h-24 rounded-xl overflow-hidden bg-slate-100 shrink-0 border border-slate-200">
+                                            <img
+                                                src={job.bannerUrl}
+                                                alt={job.title}
+                                                className="w-full h-full object-cover"
+                                            />
+                                        </div>
+                                    )}
+
+                                    <div className="space-y-2.5 flex-1 min-w-0">
                                         <div className="flex flex-wrap items-center gap-2">
                                             <span className="font-bold text-base text-slate-900">{job.title}</span>
                                             <StatusBadge status={job.status} type="job" />
@@ -263,26 +299,32 @@ export default function CompanyJobsView() {
                                             {job.description}
                                         </p>
 
-                                        {/* Skills tags */}
-                                        {job.skills && job.skills.length > 0 && (
-                                            <div className="flex flex-wrap gap-1.5 pt-1">
-                                                {job.skills.map((s, idx) => (
-                                                    <Badge key={idx} variant="outline" className="text-[11px] py-0.5">
-                                                        {s.skillName}
-                                                    </Badge>
-                                                ))}
-                                            </div>
-                                        )}
+                                        {/* Skills tags & Attachments count */}
+                                        <div className="flex flex-wrap items-center gap-2 pt-1">
+                                            {job.skills && job.skills.length > 0 && job.skills.map((s, idx) => (
+                                                <Badge key={idx} variant="outline" className="text-[11px] py-0.5">
+                                                    {s.skillName}
+                                                </Badge>
+                                            ))}
+                                            {job.attachmentUrls && job.attachmentUrls.length > 0 && (
+                                                <span className="inline-flex items-center gap-1 text-[11px] text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md border border-sky-200">
+                                                    <Paperclip className="w-3 h-3" />
+                                                    {job.attachmentUrls.length} tệp đính kèm
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
 
                                     {/* Action buttons */}
-                                    <div className="flex items-center gap-2 self-end md:self-start">
+                                    <div className="flex items-center gap-2 self-end md:self-start shrink-0">
                                         {job.status === 'DRAFT' && (
                                             <Button
                                                 variant="primary"
                                                 size="sm"
-                                                onClick={() => handleSubmitForReview(job.id, job.title)}
-                                                className="gap-1.5 text-xs"
+                                                onClick={() => handleSubmitForReview(job.id, job.title, job.termStatus === 'CLOSED')}
+                                                disabled={job.termStatus === 'CLOSED'}
+                                                title={job.termStatus === 'CLOSED' ? 'Kỳ thực tập đã kết thúc (CLOSED)' : undefined}
+                                                className={`gap-1.5 text-xs ${job.termStatus === 'CLOSED' ? 'opacity-50 cursor-not-allowed' : ''}`}
                                             >
                                                 <Send className="w-3.5 h-3.5" />
                                                 <span>Gửi duyệt lên Khoa</span>
@@ -300,6 +342,12 @@ export default function CompanyJobsView() {
                                                 Đang nhận hồ sơ ứng tuyển
                                             </span>
                                         )}
+
+                                        {job.termStatus === 'CLOSED' && (
+                                            <span className="text-xs text-slate-500 bg-slate-100 px-2.5 py-1.5 rounded-lg border border-slate-200 font-medium">
+                                                Kỳ đã kết thúc (CLOSED)
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
                             </CardContent>
@@ -315,7 +363,7 @@ export default function CompanyJobsView() {
                 title="Đăng tin tuyển dụng thực tập mới"
                 maxWidth="2xl"
             >
-                <form onSubmit={handleCreateJob} className="space-y-4">
+                <form onSubmit={handleCreateJob} className="space-y-4 max-h-[80vh] overflow-y-auto pr-1">
                     {formError && (
                         <div
                             role="alert"
@@ -324,6 +372,26 @@ export default function CompanyJobsView() {
                         >
                             <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0" />
                             <span>{formError}</span>
+                        </div>
+                    )}
+
+                    {/* Target Academic Term */}
+                    {terms.length > 0 && (
+                        <div className="space-y-1 p-3 rounded-xl bg-slate-50 border border-slate-200">
+                            <span className="text-xs font-bold text-slate-700 block mb-2">Áp dụng cho Học kỳ & Năm học:</span>
+                            <AcademicTermFilter
+                                terms={terms}
+                                selectedTermId={selectedTermId || terms[0]?.id}
+                                onTermChange={setSelectedTermId}
+                                variant="grid"
+                                showStatusBadge={true}
+                            />
+                            {isSelectedTermClosed && (
+                                <div className="mt-2 p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center gap-2">
+                                    <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                                    <span>Học kỳ này đã kết thúc (CLOSED). Không thể tạo tin tuyển dụng mới.</span>
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -387,15 +455,51 @@ export default function CompanyJobsView() {
                         hint="Hệ thống sẽ đối sánh với kỹ năng sinh viên CICT"
                     />
 
-                    <Textarea
-                        label="Mô tả công việc & Yêu cầu thực tập"
-                        id="description"
-                        rows={4}
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        placeholder="Nêu vắn tắt các nhiệm vụ trong đợt thực tập, yêu cầu kiến thức nền tảng và quyền lợi được hỗ trợ..."
-                        required
-                    />
+                    {/* Banner Poster URL */}
+                    <div className="space-y-1.5">
+                        <label className="block text-xs font-semibold text-slate-700">
+                            Poster / Banner tuyển dụng (Tùy chọn)
+                        </label>
+                        <Input
+                            placeholder="https://images.unsplash.com/... hoặc link ảnh poster"
+                            value={bannerUrl}
+                            onChange={(e) => setBannerUrl(e.target.value)}
+                        />
+                        {bannerUrl && (
+                            <div className="mt-2 rounded-xl overflow-hidden border border-slate-200 h-36 bg-slate-100">
+                                <img
+                                    src={bannerUrl}
+                                    alt="Banner preview"
+                                    className="w-full h-full object-cover"
+                                />
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Rich Editor for Description & Requirements */}
+                    <div className="space-y-1.5">
+                        <label className="block text-xs font-semibold text-slate-700">
+                            Mô tả công việc & Yêu cầu chi tiết *
+                        </label>
+                        <RichEditor
+                            value={description}
+                            onChange={setDescription}
+                            placeholder="Nhập mô tả công việc, quyền lợi, yêu cầu kỹ năng chi tiết (Hỗ trợ định dạng Markdown, danh sách, in đậm, link)..."
+                            minHeight="200px"
+                        />
+                    </div>
+
+                    {/* File Uploader for JD / Guidelines */}
+                    <div className="space-y-1.5 pt-2">
+                        <label className="block text-xs font-semibold text-slate-700">
+                            Tài liệu đính kèm (JD chi tiết, Quy định tiếp nhận, Bài test mẫu)
+                        </label>
+                        <FileUploader
+                            value={attachmentUrls}
+                            onChange={setAttachmentUrls}
+                            accept=".pdf,.docx,.xlsx,.zip"
+                        />
+                    </div>
 
                     <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
                         <Button
@@ -410,6 +514,8 @@ export default function CompanyJobsView() {
                             type="submit"
                             variant="primary"
                             isLoading={isSubmitting}
+                            disabled={isSubmitting || isSelectedTermClosed}
+                            title={isSelectedTermClosed ? 'Học kỳ đã kết thúc (CLOSED)' : undefined}
                             className="gap-2"
                         >
                             <Plus className="w-4 h-4" />

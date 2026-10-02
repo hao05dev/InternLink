@@ -60,6 +60,7 @@ public class StudentFoundApplicationService {
     @Transactional
     public StudentFoundResponse update(UUID id, StudentFoundRequest request) {
         var app = get(id);
+        TermGuard.requireNotClosed(app.getTerm());
         ResourceAuthorization.require(actor().getId().equals(app.getStudent().getId()));
         if (!List.of("DRAFT", "REVISION_REQUIRED", "REJECTED").contains(app.getStatus()))
             throw new BadRequestException("Hồ sơ đã nộp hoặc đã duyệt, không thể sửa");
@@ -84,6 +85,7 @@ public class StudentFoundApplicationService {
     @Transactional
     public StudentFoundResponse submit(UUID id, UUID documentId) {
         var app = get(id);
+        TermGuard.requireNotClosed(app.getTerm());
         ResourceAuthorization.require(actor().getId().equals(app.getStudent().getId()));
         if (!"DRAFT".equals(app.getStatus()) && !"REVISION_REQUIRED".equals(app.getStatus()))
             throw new BadRequestException("Hồ sơ không ở trạng thái được nộp");
@@ -115,6 +117,7 @@ public class StudentFoundApplicationService {
     @Transactional
     public StudentFoundResponse review(UUID id, String decision, String note, UUID lecturerId) {
         var app = get(id);
+        TermGuard.requireNotClosed(app.getTerm());
         var reviewer = actor();
         ResourceAuthorization.require(ResourceAuthorization.managesDepartment(reviewer, app.getTerm().getDepartment().getId()));
         if (!"SUBMITTED".equals(app.getStatus())) throw new BadRequestException("Chỉ xét duyệt hồ sơ đã nộp");
@@ -163,7 +166,7 @@ public class StudentFoundApplicationService {
         } else if ("REJECTED".equals(decision)) {
             notifications.sendNotification(
                 app.getStudent().getId(),
-                "STUDENT_FOUND_REJECTED",
+                "STUDENT_FOUND_REVISION",
                 "Hồ sơ thực tập tự tìm không được duyệt",
                 "Hồ sơ tại " + app.getHostName() + " đã bị từ chối: " + note,
                 "/student/applications"
@@ -179,6 +182,7 @@ public class StudentFoundApplicationService {
     @Transactional
     public int remindEligibleStudentsWithoutPlacement(UUID termId) {
         var term = terms.findById(termId).orElseThrow(() -> new ResourceNotFoundException("InternshipTerm", "id", termId));
+        TermGuard.requireNotClosed(term);
         ResourceAuthorization.require(ResourceAuthorization.managesDepartment(actor(), term.getDepartment().getId()));
 
         List<StudentRoster> eligibleRosters = rosters.findByTermIdAndEligibilityStatus(termId, EligibilityStatus.ELIGIBLE);

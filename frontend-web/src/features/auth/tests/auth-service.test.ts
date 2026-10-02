@@ -5,6 +5,7 @@ const response = (status: number, body: object) => ({
     ok: status >= 200 && status < 300,
     status,
     json: async () => body,
+    text: async () => JSON.stringify(body),
 });
 
 afterEach(() => vi.unstubAllGlobals());

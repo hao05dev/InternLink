@@ -11,6 +11,8 @@ internlink.sql
 /docs/**
 !/docs/MARKET_RESEARCH_AND_BUSINESS_PLAN.md
 !/docs/INTERNSHIP_PORTFOLIO.md
+!/docs/AI_SERVICE_IMPLEMENTATION_PLAN.md
+!/docs/UX_UI_REDESIGN_PLAN.md
 # Operating System Files
 .DS_Store
 Thumbs.db

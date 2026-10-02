@@ -18,7 +18,20 @@ class PortfolioServicePrivacyTest {
     @Mock JpaInternshipPlacementRepository placements;@Mock JpaUserRepository users;@Mock JpaStudentRosterRepository rosters;@Mock JpaPortfolioFormRepository forms;
     @Mock JpaPortfolioRevisionRepository revisions;@Mock JpaPortfolioSignedFileRepository signedFiles;@Mock JpaInternshipReportRepository reports;@Mock SecurityGuard security;
     @Mock DailyJournalService daily;@Mock PortfolioDocxExporter exporter;@Mock DocumentService documents;@Mock InternshipReportService reportService;@Mock PortfolioScoring scoring;
-    @InjectMocks PortfolioService service;
+    PortfolioViewMapper viewMapper;
+    PortfolioMetadataHelper metadataHelper;
+    PortfolioService service;
+
+    @org.junit.jupiter.api.BeforeEach
+    void setUp() {
+        viewMapper = new PortfolioViewMapper(revisions, signedFiles);
+        metadataHelper = new PortfolioMetadataHelper(rosters);
+        service = new PortfolioService(
+            placements, users, forms, revisions, signedFiles, reports,
+            security, daily, exporter, documents, reportService, scoring,
+            metadataHelper, viewMapper
+        );
+    }
     @Test void secretFormCannotBeDownloadedByGuessingRevisionOrSignedFileId(){
         var p=placement();var f=form(p,"M03");f.setStatus("COMPLETED");
         when(placements.findById(p.getId())).thenReturn(Optional.of(p));when(forms.findByPlacementIdAndKind(p.getId(),"M03")).thenReturn(Optional.of(f));when(security.currentUser()).thenReturn(CustomUserDetail.create(p.getStudent()));when(users.findById(p.getStudent().getId())).thenReturn(Optional.of(p.getStudent()));

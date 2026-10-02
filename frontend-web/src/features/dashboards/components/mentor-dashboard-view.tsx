@@ -61,8 +61,10 @@ export default function MentorDashboardView() {
                             <Clock className="w-5 h-5" />
                         </div>
                         <div>
-                            <div className="text-xl font-bold text-slate-900">2</div>
-                            <div className="text-xs text-slate-500">Nhật ký tuần chờ nhận xét</div>
+                            <div className="text-xl font-bold text-slate-900">
+                                {students.filter(s => s.status === 'ACTIVE' || !s.status).length}
+                            </div>
+                            <div className="text-xs text-slate-500">Đang trong tiến trình thực tập</div>
                         </div>
                     </CardContent>
                 </Card>
@@ -73,8 +75,10 @@ export default function MentorDashboardView() {
                             <Award className="w-5 h-5" />
                         </div>
                         <div>
-                            <div className="text-xl font-bold text-slate-900">0</div>
-                            <div className="text-xs text-slate-500">Phiếu đánh giá cuối kỳ</div>
+                            <div className="text-xl font-bold text-slate-900">
+                                {students.filter(s => s.status === 'COMPLETED').length}
+                            </div>
+                            <div className="text-xs text-slate-500">Đã hoàn tất học phần</div>
                         </div>
                     </CardContent>
                 </Card>
