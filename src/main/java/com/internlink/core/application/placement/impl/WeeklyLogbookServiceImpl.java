@@ -17,6 +17,7 @@ import com.internlink.core.shared.exception.BadRequestException;
 import com.internlink.core.shared.exception.ResourceNotFoundException;
 import com.internlink.core.shared.security.ResourceAuthorization;
 import com.internlink.core.shared.security.SecurityGuard;
+import com.internlink.core.shared.security.TermGuard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -60,6 +61,7 @@ public class WeeklyLogbookServiceImpl implements WeeklyLogbookService {
     public WeeklyLogbookResponse submitLogbook(UUID studentId, WeeklyLogbookRequest request) {
         InternshipPlacement placement = placementRepository.findById(request.getPlacementId())
             .orElseThrow(() -> new ResourceNotFoundException("InternshipPlacement", "id", request.getPlacementId()));
+        TermGuard.requireNotClosed(placement.getTerm());
 
         if (!placement.getStudent().getId().equals(studentId)) {
             throw new BadRequestException("Sinh viên không thuộc lần thực tập này");
@@ -130,6 +132,7 @@ public class WeeklyLogbookServiceImpl implements WeeklyLogbookService {
     public WeeklyLogbookResponse reviewByMentor(UUID id, UUID mentorUserId, LogbookStatus status, String mentorFeedback) {
         WeeklyLogbook logbook = logbookRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("WeeklyLogbook", "id", id));
+        TermGuard.requireNotClosed(logbook.getPlacement().getTerm());
 
         User mentor = userRepository.findById(mentorUserId)
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", mentorUserId));
@@ -181,6 +184,7 @@ public class WeeklyLogbookServiceImpl implements WeeklyLogbookService {
     public WeeklyLogbookResponse commentByLecturer(UUID id, UUID lecturerUserId, String lecturerComment) {
         WeeklyLogbook logbook = logbookRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("WeeklyLogbook", "id", id));
+        TermGuard.requireNotClosed(logbook.getPlacement().getTerm());
 
         User lecturer = userRepository.findById(lecturerUserId)
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", lecturerUserId));
@@ -214,6 +218,7 @@ public class WeeklyLogbookServiceImpl implements WeeklyLogbookService {
     public WeeklyLogbookResponse reviewByLecturer(UUID id, UUID lecturerUserId, LogbookStatus status, String feedback) {
         WeeklyLogbook logbook = logbookRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("WeeklyLogbook", "id", id));
+        TermGuard.requireNotClosed(logbook.getPlacement().getTerm());
         var lecturer = userRepository.findById(lecturerUserId)
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", lecturerUserId));
         ResourceAuthorization.require(lecturer.getRole() == UserRole.LECTURER

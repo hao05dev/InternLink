@@ -4,7 +4,7 @@ import com.internlink.core.application.auth.impl.AuthServiceImpl;
 import com.internlink.core.application.company.impl.CompanyServiceImpl;
 import com.internlink.core.application.exception_case.impl.InternshipCaseServiceImpl;
 import com.internlink.core.application.organization.impl.*;
-import com.internlink.core.application.placement.impl.InternshipPlacementServiceImpl;
+import com.internlink.core.application.placement.impl.*;
 import com.internlink.core.application.system.impl.AuditLogServiceImpl;
 import com.internlink.core.domain.auth.User;
 import com.internlink.core.domain.company.Company;
@@ -159,7 +159,9 @@ class CoreServicesTest {
     @Test
     void rosterRejectsProgramFromAnotherDepartment() {
         StudentRosterServiceImpl service = new StudentRosterServiceImpl(rosterRepository, termRepository, programRepository,
-            userRepository, securityGuard, auditLogService, mock(org.springframework.security.crypto.password.PasswordEncoder.class));
+            userRepository, securityGuard, auditLogService, mock(org.springframework.security.crypto.password.PasswordEncoder.class),
+            mock(com.internlink.core.infrastructure.integration.google.GmailSender.class),
+            mock(com.internlink.core.application.system.NotificationService.class));
         Department termDepartment = department();
         User actor = user(UserRole.FACULTY_ADMIN);
         actor.setDepartment(termDepartment);
@@ -190,9 +192,12 @@ class CoreServicesTest {
 
     @Test
     void placementActivationRequiresApprovedAgreement() {
+        InternshipPlacementMapper placementMapper = new InternshipPlacementMapper(profileRepository);
+        PlacementTransitionValidator transitionValidator = new PlacementTransitionValidator(finalResultRepository);
+        PlacementNotificationHelper notificationHelper = new PlacementNotificationHelper(auditLogService, notificationService);
         InternshipPlacementServiceImpl service = new InternshipPlacementServiceImpl(
-            placementRepository, agreementRepository, userRepository, profileRepository, finalResultRepository,
-            termRepository, securityGuard, auditLogService, notificationService);
+            placementRepository, agreementRepository, userRepository,
+            termRepository, securityGuard, placementMapper, transitionValidator, notificationHelper);
         LearningAgreement agreement = LearningAgreement.builder().status(AgreementStatus.DRAFT).build();
         agreement.setId(UUID.randomUUID());
         when(agreementRepository.findById(agreement.getId())).thenReturn(Optional.of(agreement));

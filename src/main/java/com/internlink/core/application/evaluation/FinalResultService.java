@@ -1,8 +1,12 @@
 package com.internlink.core.application.evaluation;
 
+import com.internlink.core.presentation.evaluation.dto.request.BatchPublishResultRequest;
 import com.internlink.core.presentation.evaluation.dto.request.FinalResultRequest;
+import com.internlink.core.presentation.evaluation.dto.response.BatchPublishResultResponse;
+import com.internlink.core.presentation.evaluation.dto.response.FacultyEvaluationSummaryResponse;
 import com.internlink.core.presentation.evaluation.dto.response.FinalResultResponse;
 
+import java.util.List;
 import java.util.UUID;
 
 public interface FinalResultService {
@@ -39,4 +43,32 @@ public interface FinalResultService {
      * @return Kết quả sau khi công bố
      */
     FinalResultResponse publishFinalResult(UUID placementId, UUID publishedByUserId);
+
+    /**
+     * Lấy danh sách tổng hợp đánh giá và điểm số thực tập của tất cả sinh viên trong một kỳ (dành cho Quản lý Khoa).
+     *
+     * @param termId         ID kỳ thực tập
+     * @param facultyAdminId ID người dùng Quản lý Khoa
+     * @return Danh sách tổng hợp điểm và đánh giá
+     */
+    List<FacultyEvaluationSummaryResponse> getTermEvaluationSummary(UUID termId, UUID facultyAdminId);
+
+    /**
+     * Công bố điểm hàng loạt cho các sinh viên trong kỳ.
+     *
+     * @param termId         ID kỳ thực tập
+     * @param request        Yêu cầu công bố (chứa danh sách placementIds hoặc rỗng để công bố tất cả)
+     * @param facultyAdminId ID người dùng Quản lý Khoa
+     * @return Kết quả công bố hàng loạt
+     */
+    BatchPublishResultResponse publishBatchResults(UUID termId, BatchPublishResultRequest request, UUID facultyAdminId);
+
+    /**
+     * Tự động tổng hợp điểm nhanh cho một lần thực tập từ các phiếu đánh giá hiện có.
+     *
+     * @param placementId    ID lần thực tập
+     * @param facultyAdminId ID người dùng Quản lý Khoa
+     * @return Kết quả đánh giá sau khi tổng hợp
+     */
+    FinalResultResponse quickFinalizePlacement(UUID placementId, UUID facultyAdminId);
 }

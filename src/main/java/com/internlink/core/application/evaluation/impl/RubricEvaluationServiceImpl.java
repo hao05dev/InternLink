@@ -14,6 +14,7 @@ import com.internlink.core.shared.exception.BadRequestException;
 import com.internlink.core.shared.exception.ResourceNotFoundException;
 import com.internlink.core.shared.security.ResourceAuthorization;
 import com.internlink.core.shared.security.SecurityGuard;
+import com.internlink.core.shared.security.TermGuard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -56,6 +57,7 @@ public class RubricEvaluationServiceImpl implements RubricEvaluationService {
     public RubricEvaluationResponse submitEvaluation(UUID evaluatorId, RubricEvaluationRequest request) {
         InternshipPlacement placement = placementRepository.findById(request.getPlacementId())
             .orElseThrow(() -> new ResourceNotFoundException("InternshipPlacement", "id", request.getPlacementId()));
+        TermGuard.requireNotClosed(placement.getTerm());
 
         User evaluator = userRepository.findById(evaluatorId)
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", evaluatorId));

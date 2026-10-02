@@ -12,6 +12,7 @@ import com.internlink.core.shared.exception.BadRequestException;
 import com.internlink.core.shared.exception.ResourceNotFoundException;
 import com.internlink.core.shared.security.ResourceAuthorization;
 import com.internlink.core.shared.security.SecurityGuard;
+import com.internlink.core.shared.security.TermGuard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,6 +40,7 @@ public class GoogleSheetRosterService {
     @Transactional
     public List<StudentRosterResponse> importSheet(UUID termId, String spreadsheetId, String range) {
         var term = terms.findById(termId).orElseThrow(() -> new ResourceNotFoundException("InternshipTerm", "id", termId));
+        TermGuard.requireNotClosed(term);
         var actor = users.findById(securityGuard.currentUser().getId()).orElseThrow();
         ResourceAuthorization.require(ResourceAuthorization.managesDepartment(actor, term.getDepartment().getId()));
         if (spreadsheetId == null || !spreadsheetId.matches("[A-Za-z0-9_-]{20,}"))

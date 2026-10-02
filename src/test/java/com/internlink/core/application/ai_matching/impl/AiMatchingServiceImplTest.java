@@ -27,10 +27,10 @@ import com.internlink.core.shared.enums.DocumentType;
 import com.internlink.core.shared.exception.ForbiddenException;
 import com.internlink.core.shared.exception.ResourceNotFoundException;
 import com.internlink.core.shared.security.SecurityGuard;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -85,8 +85,28 @@ class AiMatchingServiceImplTest {
     @Mock
     private SecurityGuard securityGuard;
 
-    @InjectMocks
+    private AiMatchingMapper mapper;
+    private AiCvProcessingHandler cvProcessingHandler;
+    private AiMatchScoringHandler matchScoringHandler;
     private AiMatchingServiceImpl service;
+
+    @BeforeEach
+    void setUp() {
+        mapper = new AiMatchingMapper();
+        cvProcessingHandler = new AiCvProcessingHandler(
+            userRepository, documentRepository, aiRunRepository,
+            taxonomyRepository, studentSkillRepository, aiServiceClient, mapper, securityGuard
+        );
+        matchScoringHandler = new AiMatchScoringHandler(
+            jobPositionRepository, jobSkillRepository, studentSkillRepository,
+            studentProfileRepository, aiServiceClient, mapper
+        );
+        service = new AiMatchingServiceImpl(
+            taxonomyRepository, studentSkillRepository, userRepository,
+            applicationRepository, placementRepository, studentProfileRepository,
+            securityGuard, mapper, cvProcessingHandler, matchScoringHandler
+        );
+    }
 
     @Test
     void adminRetryKeepsOriginalHistoryAndDoesNotOverwriteConfirmedSkill() {

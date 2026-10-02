@@ -11,6 +11,7 @@ import com.internlink.core.shared.exception.BadRequestException;
 import com.internlink.core.shared.exception.ResourceNotFoundException;
 import com.internlink.core.shared.security.ResourceAuthorization;
 import com.internlink.core.shared.security.SecurityGuard;
+import com.internlink.core.shared.security.TermGuard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -45,6 +46,7 @@ public class IntroductionLetterNoticeService {
         read.setReadOnly(true);
         NoticeBatch batch = read.execute(status -> {
             var term = terms.findById(termId).orElseThrow(() -> new ResourceNotFoundException("InternshipTerm", "id", termId));
+            TermGuard.requireNotClosed(term);
             var actor = users.findById(actorId).orElseThrow();
             ResourceAuthorization.require(ResourceAuthorization.managesDepartment(actor, term.getDepartment().getId()));
             List<Recipient> recipients = rosters.findByTermId(termId).stream()

@@ -3,7 +3,10 @@ package com.internlink.core.presentation.organization.controller;
 import com.internlink.core.application.organization.StudentRosterService;
 import com.internlink.core.application.organization.GoogleSheetRosterService;
 import com.internlink.core.shared.api.ApiResponse;
+import com.internlink.core.presentation.organization.dto.request.IneligibleNoticeRequest;
 import com.internlink.core.presentation.organization.dto.request.StudentRosterImportItem;
+import com.internlink.core.presentation.organization.dto.response.BatchProvisionResponse;
+import com.internlink.core.presentation.organization.dto.response.IneligibleNoticeResponse;
 import com.internlink.core.presentation.organization.dto.response.StudentRosterResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -63,5 +66,29 @@ public class StudentRosterController {
         StudentRosterResponse response = rosterService.provisionAccount(rosterId);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Tạo tài khoản sinh viên thành công", response));
+    }
+
+    @PostMapping("/by-term/{termId}/batch-provision")
+    @PreAuthorize("hasRole('FACULTY_ADMIN')")
+    public ResponseEntity<ApiResponse<BatchProvisionResponse>> batchProvisionEligibleAccounts(
+            @PathVariable UUID termId
+    ) {
+        BatchProvisionResponse response = rosterService.batchProvisionEligibleAccounts(termId);
+        String msg = String.format("Đã xử lý tạo tài khoản cho %d sinh viên đủ điều kiện (Mới: %d, Đã liên kết: %d)",
+                response.getTotalEligibleWithoutAccount(), response.getNewlyCreatedCount(), response.getLinkedExistingCount());
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(msg, response));
+    }
+
+    @PostMapping("/by-term/{termId}/ineligible-notice")
+    @PreAuthorize("hasRole('FACULTY_ADMIN')")
+    public ResponseEntity<ApiResponse<IneligibleNoticeResponse>> notifyIneligibleStudents(
+            @PathVariable UUID termId,
+            @RequestBody IneligibleNoticeRequest request
+    ) {
+        IneligibleNoticeResponse response = rosterService.notifyIneligibleStudents(termId, request);
+        String msg = String.format("Đã gửi thông báo cho %d sinh viên chưa đủ điều kiện (%d emails, %d thông báo hệ thống)",
+                response.getTotalIneligible(), response.getEmailsSent(), response.getNotificationsCreated());
+        return ResponseEntity.ok(ApiResponse.success(msg, response));
     }
 }
