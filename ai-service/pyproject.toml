@@ -1,0 +1,10 @@
+[project]
+name = "internlink-ai-service"
+version = "1.1.0"
+description = "Skill extraction and explainable internship matching"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-ra"

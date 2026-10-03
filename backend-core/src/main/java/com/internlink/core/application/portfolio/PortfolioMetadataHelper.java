@@ -37,9 +37,11 @@ public class PortfolioMetadataHelper {
             : p.getStudentFoundApplication() != null ? p.getStudentFoundApplication().getContactEmail() : "");
         m.put("mentorPhone", p.getMentor() != null ? Objects.toString(p.getMentor().getPhoneNumber(), "") : "");
         m.put("lecturerName", p.getLecturer() == null ? "" : p.getLecturer().getFullName());
+        m.put("termId", p.getTerm().getId());
         m.put("termName", p.getTerm().getTermName());
         m.put("semester", p.getTerm().getSemester());
         m.put("academicYear", p.getTerm().getAcademicYear());
+        m.put("termStatus", p.getTerm().getStatus() != null ? p.getTerm().getStatus().name() : "ACTIVE");
         m.put("departmentName", p.getTerm().getDepartment().getName());
         m.put("startDate", p.getStartDate());
         m.put("endDate", p.getEndDate());
@@ -65,6 +67,15 @@ public class PortfolioMetadataHelper {
             m.put("courseCode", s.getCourseCode());
         } else {
             m.put("components", List.of());
+        }
+
+        // Extension override for report due date
+        if (p.getWorkSchedule() != null && p.getWorkSchedule().get("extension") instanceof Map<?, ?> ext) {
+            if (ext.get("reportDueAt") != null) {
+                m.put("reportDueAt", ext.get("reportDueAt"));
+                m.put("extensionReason", ext.get("reason"));
+                m.put("isExtended", true);
+            }
         }
 
         return m;

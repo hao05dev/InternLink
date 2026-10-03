@@ -59,7 +59,7 @@ class AiServiceClientTest {
         assertThat(stringList(result.get("matched_skills"))).containsExactly("java");
         assertThat(stringList(result.get("missing_skills"))).containsExactly("docker");
         assertThat(objectMap(result.get("explanation")))
-            .containsEntry("note", "Fallback Rule-Based Calculator (Mandatory 70% + Optional 30%)");
+            .containsEntry("note", "Fallback Rule-Based Calculator (Mandatory 80% + Optional 20%)");
     }
 
     @Test
@@ -70,6 +70,22 @@ class AiServiceClientTest {
 
         assertThat(result.get("normalized_skills")).isEqualTo(List.of());
         assertThat(result).containsEntry("status", "FAILED");
+    }
+
+    @Test
+    void fallbackMatchesSharedPythonContract() throws Exception {
+        var json = new com.fasterxml.jackson.databind.ObjectMapper();
+        var cases = json.readTree(java.nio.file.Path.of("../ai-service/tests/fixtures/ranking_contract.json").toFile());
+        var client = new AiServiceClient(WebClient.builder(), "http://127.0.0.1:1");
+        for (var sample : cases) {
+            List<String> student = json.convertValue(sample.get("student"), new com.fasterxml.jackson.core.type.TypeReference<List<String>>() {});
+            List<String> mandatory = json.convertValue(sample.get("mandatory"), new com.fasterxml.jackson.core.type.TypeReference<List<String>>() {});
+            List<String> optional = json.convertValue(sample.get("optional"), new com.fasterxml.jackson.core.type.TypeReference<List<String>>() {});
+            var result = client.fallbackMatchScore(student, mandatory, optional);
+            assertThat(((Number) result.get("match_score")).doubleValue()).isEqualTo(sample.get("percentage").asDouble());
+            assertThat(result.get("score_available")).isEqualTo(sample.get("available").asBoolean());
+            assertThat(result.get("semantic_available")).isEqualTo(false);
+        }
     }
 
     @SuppressWarnings("unchecked")

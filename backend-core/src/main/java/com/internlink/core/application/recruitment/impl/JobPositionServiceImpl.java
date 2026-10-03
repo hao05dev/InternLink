@@ -229,7 +229,9 @@ public class JobPositionServiceImpl implements JobPositionService {
             throw new BadRequestException("Vị trí cần ít nhất một kỹ năng bắt buộc trước khi gửi duyệt");
         }
         job.setStatus(JobStatus.PENDING_APPROVAL);
-        return jobPositionMapper.toResponse(jobPositionRepository.save(job));
+        JobPosition submitted = jobPositionRepository.save(job);
+        notificationHelper.notifySubmitted(submitted);
+        return jobPositionMapper.toResponse(submitted);
     }
 
     @Override

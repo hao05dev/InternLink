@@ -85,7 +85,7 @@ class EvaluationAndSystemServiceTest {
     @BeforeEach
     void setUp() {
         rubricService = new RubricEvaluationServiceImpl(rubricRepository, placementRepository, userRepository, securityGuard);
-        notificationService = new NotificationServiceImpl(notificationRepository, userRepository);
+        notificationService = new NotificationServiceImpl(notificationRepository, userRepository, mock(com.internlink.core.application.system.notification.EmailOutboxService.class));
         FinalResultMapper finalResultMapper = new FinalResultMapper(studentProfileRepository);
         FinalizationReadinessValidator readinessValidator = new FinalizationReadinessValidator(componentScoreRepository, logbookRepository, reportRepository);
         FinalResultNotificationHelper finalResultNotificationHelper = new FinalResultNotificationHelper(auditLogService, notificationSender);
@@ -235,6 +235,32 @@ class EvaluationAndSystemServiceTest {
         assertThatThrownBy(() -> documentService.downloadDocument(cv.getId(), lecturer.getId()))
             .isInstanceOf(ForbiddenException.class);
         verify(storageServiceRouter, never()).getStorageService(any());
+    }
+
+    @Test
+    void failedDocumentPersistenceRemovesUploadedObjectAfterRollback() {
+        User owner = user(UserRole.STUDENT);
+        var storage = mock(com.internlink.core.infrastructure.integration.storage.StorageService.class);
+        var stored = com.internlink.core.infrastructure.integration.storage.StoredFileInfo.builder()
+            .provider(StorageProvider.R2).providerFileId("internlink/profile/test.pdf")
+            .originalName("cv.pdf").mimeType("application/pdf").sizeBytes(3L).build();
+        when(userRepository.findById(owner.getId())).thenReturn(Optional.of(owner));
+        when(securityGuard.currentUser()).thenReturn(CustomUserDetail.create(owner));
+        when(storageServiceRouter.getActiveStorageService()).thenReturn(storage);
+        when(storage.store(any(), any())).thenReturn(stored);
+        when(documentRepository.save(any())).thenThrow(new IllegalStateException("database unavailable"));
+        org.springframework.transaction.support.TransactionSynchronizationManager.initSynchronization();
+        try {
+            assertThatThrownBy(() -> documentService.uploadDocument(owner.getId(), ContextType.PROFILE, owner.getId(),
+                DocumentType.CV, new org.springframework.mock.web.MockMultipartFile("file", "cv.pdf", "application/pdf", new byte[]{1,2,3})))
+                .isInstanceOf(IllegalStateException.class);
+            verify(storage, never()).delete(any());
+            org.springframework.transaction.support.TransactionSynchronizationManager.getSynchronizations().forEach(sync ->
+                sync.afterCompletion(org.springframework.transaction.support.TransactionSynchronization.STATUS_ROLLED_BACK));
+            verify(storage).delete(stored.getProviderFileId());
+        } finally {
+            org.springframework.transaction.support.TransactionSynchronizationManager.clearSynchronization();
+        }
     }
 
     @Test

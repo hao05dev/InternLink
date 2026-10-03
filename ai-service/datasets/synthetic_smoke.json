@@ -1,0 +1,65 @@
+{
+  "split": "synthetic",
+  "provenance": "Handwritten software smoke fixture; not real students, not expert relevance labels.",
+  "queries": [
+    {
+      "student": {
+        "id": "synthetic-student",
+        "skill_ids": [
+          "SK-JAVA"
+        ],
+        "bio_summary": "Java Spring REST API"
+      },
+      "jobs": [
+        {
+          "id": "j1",
+          "title": "Java Intern",
+          "description": "Java Spring REST API",
+          "mandatory_skill_ids": [
+            "SK-JAVA"
+          ]
+        },
+        {
+          "id": "j2",
+          "title": "Backend Intern",
+          "description": "Java Docker backend",
+          "mandatory_skill_ids": [
+            "SK-JAVA",
+            "SK-DOCKER"
+          ]
+        },
+        {
+          "id": "j3",
+          "title": "Frontend Intern",
+          "description": "React CSS frontend",
+          "mandatory_skill_ids": [
+            "SK-REACT"
+          ]
+        },
+        {
+          "id": "j4",
+          "title": "Data Intern",
+          "description": "Python data analysis",
+          "mandatory_skill_ids": [
+            "SK-PYTHON"
+          ]
+        },
+        {
+          "id": "j5",
+          "title": "Mobile Intern",
+          "description": "Android Kotlin mobile",
+          "mandatory_skill_ids": [
+            "SK-KOTLIN"
+          ]
+        }
+      ],
+      "judgments": {
+        "j1": 2,
+        "j2": 1,
+        "j3": 0,
+        "j4": 0,
+        "j5": 0
+      }
+    }
+  ]
+}

@@ -79,6 +79,7 @@ public class PortfolioService {
     public record RevisionView(UUID id, String action, String actor, String note, OffsetDateTime createdAt, boolean downloadable) {}
     public record FileView(UUID id, String name, UUID revisionId, OffsetDateTime uploadedAt) {}
     public record Download(String name, String mime, byte[] bytes) {}
+    public record ExtensionRequest(@NotNull OffsetDateTime newReportDueAt, @NotBlank String reason) {}
 
     public static class BytesFile extends BytesMultipartFile {
         public BytesFile(String name, String contentType, byte[] bytes) {
@@ -314,6 +315,32 @@ public class PortfolioService {
             ResourceAuthorization.require(viewMapper.findCurrentRevision(f).map(r -> r.getId().equals(file.getRevision().getId())).orElse(false));
         }
         return new Download(file.getFileName(), file.getMimeType(), file.getBytes());
+    }
+
+    @Transactional
+    public Map<String, Object> extendDeadline(UUID placementId, ExtensionRequest request) {
+        InternshipPlacement p = placement(placementId, true);
+        User a = actor();
+        ResourceAuthorization.require(PortfolioAccess.lecturer(a, p) || PortfolioAccess.faculty(a, p));
+        if (p.getTerm().getStatus() == com.internlink.core.shared.enums.TermStatus.CLOSED) {
+            throw new BadRequestException("Học kỳ đã kết thúc; không thể gia hạn");
+        }
+        if (request.newReportDueAt().isBefore(OffsetDateTime.now())) {
+            throw new BadRequestException("Hạn nộp mới phải ở tương lai");
+        }
+
+        Map<String, Object> workSchedule = new LinkedHashMap<>(p.getWorkSchedule() == null ? Map.of() : p.getWorkSchedule());
+        Map<String, Object> ext = new LinkedHashMap<>();
+        ext.put("reportDueAt", request.newReportDueAt().toString());
+        ext.put("reason", request.reason().trim());
+        ext.put("grantedBy", a.getFullName());
+        ext.put("grantedById", a.getId().toString());
+        ext.put("grantedAt", OffsetDateTime.now().toString());
+        workSchedule.put("extension", ext);
+
+        p.setWorkSchedule(workSchedule);
+        placements.saveAndFlush(p);
+        return metadataHelper.metadata(p);
     }
 
     public Map<String, Object> metadata(InternshipPlacement p) {

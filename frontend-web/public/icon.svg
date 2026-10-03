@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" fill="none">
+  <defs>
+    <linearGradient id="tabBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284c7" />
+      <stop offset="100%" stop-color="#0369a1" />
+    </linearGradient>
+    <linearGradient id="goldTassel" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24" />
+      <stop offset="100%" stop-color="#f59e0b" />
+    </linearGradient>
+  </defs>
+
+  <!-- High-contrast Rounded Background -->
+  <rect width="48" height="48" rx="12" fill="url(#tabBg)" />
+  <rect x="1.5" y="1.5" width="45" height="45" rx="10.5" stroke="#38bdf8" stroke-width="2" />
+
+  <!-- Graduation Cap Top (Pure White) -->
+  <path d="M24 10 L42 18.5 L24 27 L6 18.5 Z" fill="#ffffff" />
+
+  <!-- Graduation Cap Base (Light Sky Blue) -->
+  <path d="M15 24.5 V32 C15 35 24 38 24 38 C24 38 33 35 33 32 V24.5 L24 28.5 Z" fill="#e0f2fe" />
+
+  <!-- Tassel & Golden Connection Node -->
+  <path d="M37 21 V30 C37 32 35 32.5 34 31.5" stroke="url(#goldTassel)" stroke-width="2.5" stroke-linecap="round" />
+  <circle cx="37" cy="30.5" r="2.2" fill="#fbbf24" stroke="#f59e0b" stroke-width="0.5" />
+
+  <!-- Center Active Node -->
+  <circle cx="24" cy="18.5" r="2.8" fill="#38bdf8" stroke="#ffffff" stroke-width="1.2" />
+</svg>

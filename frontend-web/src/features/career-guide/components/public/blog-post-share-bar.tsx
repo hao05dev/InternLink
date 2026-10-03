@@ -23,7 +23,7 @@ export function BlogPostShareBar({ title }: BlogPostShareBarProps) {
     return (
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 py-4 border-y border-slate-200 dark:border-slate-800">
             <Link
-                href="/cam-nang"
+                href="/career-guide"
                 className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 transition-colors"
             >
                 <ArrowLeft className="w-3.5 h-3.5" />

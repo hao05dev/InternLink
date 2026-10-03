@@ -69,6 +69,7 @@ export interface IneligibleNoticePayload {
 export interface IneligibleNoticeResult {
     totalIneligible: number;
     emailsSent: number;
+    emailsQueued: number;
     notificationsCreated: number;
     failedStudentCodes: string[];
 }

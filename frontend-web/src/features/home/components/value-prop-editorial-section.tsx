@@ -145,7 +145,7 @@ export function ValuePropEditorialSection() {
               </div>
 
               <Link
-                href="/doanh-nghiep"
+                href="/companies"
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-slate-900 text-white text-xs sm:text-sm font-semibold hover:bg-slate-800 transition shadow-xs group"
               >
                 <span>Mạng lưới Đối tác Doanh nghiệp</span>

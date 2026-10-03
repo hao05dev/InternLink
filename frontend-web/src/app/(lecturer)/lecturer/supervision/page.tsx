@@ -1,5 +1,5 @@
-import PortfolioWorkspace from "@/features/portfolio/portfolio-workspace";
+import LecturerSupervisionListView from '@/features/portfolio/views/lecturer-supervision-list-view';
 
 export default function LecturerSupervisionPage() {
-    return <PortfolioWorkspace initialTab="days" />;
+  return <LecturerSupervisionListView />;
 }

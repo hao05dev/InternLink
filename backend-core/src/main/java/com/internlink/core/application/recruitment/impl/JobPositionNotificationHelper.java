@@ -21,6 +21,12 @@ public class JobPositionNotificationHelper {
     private final JpaUserRepository userRepository;
     private final JpaStudentRosterRepository studentRosterRepository;
 
+    public void notifySubmitted(JobPosition job) {
+        userRepository.findByDepartmentIdAndRole(job.getDepartment().getId(), UserRole.FACULTY_ADMIN)
+            .forEach(user -> notificationService.sendNotification(user.getId(), "JOB_SUBMITTED", "Tin thực tập chờ duyệt",
+                job.getCompany().getCompanyName() + " gửi duyệt vị trí " + job.getTitle(), "/faculty/job-approvals"));
+    }
+
     public void notifyReviewResult(JobPosition job, JobStatus status, String facultyFeedback) {
         if (status == JobStatus.APPROVED) {
             // 1. Thông báo cho người đại diện doanh nghiệp

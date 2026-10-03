@@ -27,6 +27,16 @@ import java.util.concurrent.ConcurrentHashMap;
 /** Google Workspace REST client using a service-account key kept outside the repository. */
 @Component
 public class GoogleWorkspaceClient {
+    public static class GoogleApiException extends RuntimeException {
+        private final int status;
+        public GoogleApiException(int status) { super("google_http_" + status); this.status = status; }
+        public int status() { return status; }
+    }
+    public static class GoogleAuthenticationException extends RuntimeException {
+        private final boolean retryable;
+        public GoogleAuthenticationException(boolean retryable) { super("google_authentication_failed"); this.retryable=retryable; }
+        public boolean retryable() { return retryable; }
+    }
     public static final String SHEETS_READ = "https://www.googleapis.com/auth/spreadsheets.readonly";
     public static final String DRIVE_FILE = "https://www.googleapis.com/auth/drive.file";
     public static final String GMAIL_SEND = "https://www.googleapis.com/auth/gmail.send";
@@ -50,7 +60,7 @@ public class GoogleWorkspaceClient {
             request.method(method, body == null ? HttpRequest.BodyPublishers.noBody() : HttpRequest.BodyPublishers.ofByteArray(body));
             HttpResponse<byte[]> response = http.send(request.build(), HttpResponse.BodyHandlers.ofByteArray());
             if (response.statusCode() / 100 != 2)
-                throw new IllegalStateException("Google API trả về HTTP " + response.statusCode() + ": " + truncate(response.body()));
+                throw new GoogleApiException(response.statusCode());
             return response.body().length == 0 ? mapper.createObjectNode() : mapper.readTree(response.body());
         } catch (IOException | InterruptedException error) {
             if (error instanceof InterruptedException) Thread.currentThread().interrupt();
@@ -79,7 +89,7 @@ public class GoogleWorkspaceClient {
         Token cached = tokens.get(cacheKey);
         if (cached != null && cached.expiresAt.isAfter(Instant.now().plusSeconds(60))) return cached.value;
         if (keyPath == null || keyPath.isBlank())
-            throw new IllegalStateException("Thiếu GOOGLE_SERVICE_ACCOUNT_KEY_PATH để dùng Google Workspace");
+            throw new GoogleAuthenticationException(false);
         try {
             JsonNode credential = mapper.readTree(Files.readAllBytes(Path.of(keyPath)));
             String issuer = credential.path("client_email").asText();
@@ -103,7 +113,7 @@ public class GoogleWorkspaceClient {
                 .POST(HttpRequest.BodyPublishers.ofString(form)).build();
             HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() != 200)
-                throw new IllegalStateException("Google OAuth từ chối tài khoản dịch vụ (HTTP " + response.statusCode() + ")");
+                throw new GoogleAuthenticationException(response.statusCode()==429 || response.statusCode()>=500);
             JsonNode token = mapper.readTree(response.body());
             String value = token.path("access_token").asText();
             if (value.isBlank()) throw new IllegalStateException("Google OAuth không cấp access token");
@@ -111,15 +121,12 @@ public class GoogleWorkspaceClient {
             return value;
         } catch (Exception error) {
             if (error instanceof InterruptedException) Thread.currentThread().interrupt();
-            if (error instanceof IllegalStateException state) throw state;
-            throw new IllegalStateException("Không thể lấy Google Workspace access token", error);
+            if (error instanceof GoogleAuthenticationException auth) throw auth;
+            // Token acquisition happens before any email submission, so a transient I/O error is safe to retry.
+            throw new GoogleAuthenticationException(error instanceof IOException || error instanceof InterruptedException);
         }
     }
 
     private static String base64(byte[] value) { return Base64.getUrlEncoder().withoutPadding().encodeToString(value); }
-    private static String truncate(byte[] bytes) {
-        String value = new String(bytes, StandardCharsets.UTF_8);
-        return value.substring(0, Math.min(value.length(), 300));
-    }
     private record Token(String value, Instant expiresAt) {}
 }

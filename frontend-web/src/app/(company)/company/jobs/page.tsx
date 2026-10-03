@@ -1,5 +1,5 @@
-import CompanyJobsView from "@/features/jobs/components/company-jobs-view";
+import { CompanyJobsListView } from "@/features/jobs/views/company-jobs-list-view";
 
 export default function CompanyJobsPage() {
-    return <CompanyJobsView />;
+    return <CompanyJobsListView />;
 }

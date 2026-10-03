@@ -182,7 +182,7 @@ class CoreServicesTest {
 
     @Test
     void companyRegistrationRejectsExistingTaxCode() {
-        CompanyServiceImpl service = new CompanyServiceImpl(companyRepository, userRepository, auditLogService, securityGuard);
+        CompanyServiceImpl service = new CompanyServiceImpl(companyRepository, userRepository, auditLogService, securityGuard, mock(com.internlink.core.application.system.NotificationService.class));
         when(companyRepository.existsByTaxCode("123")).thenReturn(true);
         CompanyRequest request = CompanyRequest.builder().companyName("Acme").taxCode("123")
             .address(Map.of("city", "Can Tho")).build();

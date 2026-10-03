@@ -18,6 +18,8 @@ export const portfolioApi = {
     const body = new FormData(); body.append('file', file);
     return apiClient.upload(`${base(id)}/forms/${kind}/signed${revisionId ? `?revisionId=${revisionId}` : ''}`, body);
   },
+  grantExtension: (id: string, body: { newReportDueAt: string; reason: string }) =>
+    apiClient.patch<PlacementMeta>(`${base(id)}/extension`, body),
   exportUrl: (id: string, kind: FormKind, revisionId?: string) => `${base(id)}/forms/${kind}/docx${revisionId ? `?revisionId=${revisionId}` : ''}`,
   signedUrl: (id: string, kind: FormKind, fileId: string) => `${base(id)}/forms/${kind}/signed/${fileId}`,
 };

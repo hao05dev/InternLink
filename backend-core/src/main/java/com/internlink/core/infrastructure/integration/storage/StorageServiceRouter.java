@@ -32,7 +32,7 @@ public class StorageServiceRouter {
         try {
             resolved = StorageProvider.valueOf(activeProviderStr.trim().toUpperCase());
         } catch (Exception e) {
-            resolved = StorageProvider.LOCAL;
+            throw new IllegalArgumentException("STORAGE_PROVIDER phải là LOCAL, GOOGLE_DRIVE hoặc R2");
         }
         this.defaultProvider = resolved;
     }

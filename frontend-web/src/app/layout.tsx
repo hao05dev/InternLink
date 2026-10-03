@@ -8,6 +8,11 @@ import { cn } from "@/lib/utils";
 export const metadata: Metadata = {
   title: "InternLink - Cổng Thông Tin Thực Tập & Tuyển Dụng Doanh Nghiệp | CICT CTU",
   description: "Cổng thông tin quản lý toàn trình thực tập và kết nối tuyển dụng doanh nghiệp - Trường Công nghệ Thông tin & Truyền thông, Trường Đại học Cần Thơ",
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
+  },
 };
 
 const beVietnamPro = Be_Vietnam_Pro({

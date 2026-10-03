@@ -9,6 +9,7 @@ import type { FormKind, Journal, Overview, PlacementMeta } from './types';
 import JournalPanel, { StatePill } from './journal-panel';
 import WeeksPanel from './weeks-panel';
 import FormPanel from './form-panel';
+import TermClosedBanner from './components/term-closed-banner';
 
 type Tab = 'overview' | 'days' | 'weeks' | 'forms';
 export default function PortfolioWorkspace({ initialTab = 'overview', initialKind = 'M01' }: { initialTab?: Tab; initialKind?: FormKind }) {
@@ -30,15 +31,17 @@ export default function PortfolioWorkspace({ initialTab = 'overview', initialKin
     const [o, d] = await Promise.all([portfolioApi.overview(placementId), portfolioApi.days(placementId)]);
     setOverview(o.data!); setDays(d.data || []);
   }, [placementId]);
+  const isTermClosed = overview?.placement.termStatus === 'CLOSED';
   const form = overview?.forms.find(f => f.kind === kind);
   const tabs = [{ key: 'overview', name: 'Tổng quan', icon: BookOpen }, { key: 'days', name: 'Nhật ký ngày', icon: CalendarDays }, { key: 'weeks', name: 'Tổng hợp tuần', icon: ClipboardList }, { key: 'forms', name: 'Biểu mẫu & báo cáo', icon: FileText }] as const;
   return <div className="mx-auto max-w-screen-2xl space-y-5 pb-10">
     <div className="flex flex-wrap items-start justify-between gap-4"><div><h1 className="text-2xl font-bold tracking-tight text-slate-900">Hồ sơ thực tập</h1><p className="mt-1 text-sm text-slate-500">Giao việc, ghi nhật ký mỗi ngày, theo dõi tiến độ và hoàn thiện báo cáo.</p></div><Button variant="outline" size="sm" onClick={() => setRefreshKey(key => key + 1)} disabled={loading}><RefreshCw className="mr-2 h-4 w-4" />Tải lại</Button></div>
-    {placements.length > 0 && <label className="block max-w-xl text-sm font-medium">Hồ sơ đang xem<select aria-label="Chọn hồ sơ thực tập" className={`${fieldClass} mt-2`} value={placementId} onChange={e => setPlacementId(e.target.value)}>{placements.map(p => <option key={p.id} value={p.id}>{p.studentName} {p.studentCode ? `· ${p.studentCode}` : ''} · {p.termName} · {p.companyName}</option>)}</select></label>}
+    {placements.length > 1 && <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs"><label className="block text-xs font-semibold uppercase tracking-wider text-slate-500">Hồ sơ thực tập đang xem<select aria-label="Chọn hồ sơ thực tập" className={`${fieldClass} mt-1`} value={placementId} onChange={e => setPlacementId(e.target.value)}>{placements.map(p => <option key={p.id} value={p.id}>{p.studentName} {p.studentCode ? `· ${p.studentCode}` : ''} · {p.termName} · {p.companyName} {p.termStatus === 'CLOSED' ? '(Học kỳ đóng)' : ''}</option>)}</select></label></div>}
     {error && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{error}</p>}
     {loading && <div role="status" className="rounded-xl border bg-white p-10 text-center text-slate-500">Đang tải hồ sơ thực tập…</div>}
     {!loading && placements.length === 0 && !error && <div className="rounded-xl border bg-white p-10 text-center"><BookOpen className="mx-auto mb-3 h-10 w-10 text-slate-300" /><p className="font-semibold">Chưa có hồ sơ thực tập được phân công</p><p className="mt-2 text-sm text-slate-500">Hồ sơ sẽ xuất hiện khi lần thực tập được khởi tạo và phân công người hướng dẫn.</p></div>}
     {overview && !loading && <>
+      {isTermClosed && <TermClosedBanner termName={overview.placement.termName} />}
       <div className="grid gap-3 rounded-xl border bg-white p-5 text-sm sm:grid-cols-2 xl:grid-cols-4"><div><p className="text-xs text-slate-500">Sinh viên</p><p className="mt-1 font-semibold">{overview.placement.studentName}</p><p>{overview.placement.studentCode}</p></div><div><p className="text-xs text-slate-500">Đơn vị thực tập</p><p className="mt-1 font-semibold">{overview.placement.companyName}</p><p className="text-xs text-slate-500">CBHD: {overview.placement.mentorName}</p></div><div><p className="text-xs text-slate-500">Thời gian · {overview.placement.weekCount} tuần</p><p className="mt-1">{dateLabel(overview.placement.startDate)} – {dateLabel(overview.placement.endDate)}</p><p className="text-xs text-slate-500">GVHD: {overview.placement.lecturerName}</p></div><div><StatePill status={overview.placement.status} />{overview.placement.reportDueAt && <p className="mt-2 text-xs text-slate-500">Hạn báo cáo: {new Date(overview.placement.reportDueAt).toLocaleString('vi-VN')}</p>}</div></div>
       <div role="tablist" aria-label="Các phần hồ sơ" className="flex flex-wrap gap-1 rounded-xl border bg-white p-1">{tabs.map(({ key, name, icon: Icon }) => <button key={key} role="tab" aria-selected={tab === key} onClick={() => setTab(key)} className={`flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium ${tab === key ? 'bg-sky-700 text-white' : 'text-slate-600 hover:bg-slate-50'}`}><Icon className="h-4 w-4" />{name}</button>)}</div>
       {tab === 'overview' && <OverviewPanel overview={overview} days={days} onNavigate={(next, formKind) => { setTab(next); if (formKind) setKind(formKind); }} />}

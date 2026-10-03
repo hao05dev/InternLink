@@ -9,7 +9,7 @@ import {
     GraduationCap, LogOut, Bell, Menu, X, ChevronRight, User, 
     LayoutDashboard, Briefcase, FileText, CheckSquare, Award, 
     Users, Settings, ShieldCheck, Building2, Calendar, BookOpen, Layers, ClipboardCheck, BrainCircuit,
-    Newspaper
+    Newspaper, PlusCircle
 } from "lucide-react";
 import { RoleGuard } from "@/features/auth/components/role-guard";
 import { cn } from "@/lib/utils";
@@ -27,6 +27,8 @@ const PORTAL_NAV_MAP: Record<UserRole, { title: string; subtitle: string; items:
         subtitle: "Trường CNTT&TT - ĐH Cần Thơ",
         items: [
             { label: "Tổng quan", href: "/student/dashboard", icon: LayoutDashboard },
+            { label: "Thông báo", href: "/student/notifications", icon: Bell },
+            { label: "Hỗ trợ AI", href: "/student/ai", icon: BrainCircuit },
             { label: "Hồ sơ & Kỹ năng", href: "/student/profile", icon: User },
             { label: "Đơn ứng tuyển", href: "/student/applications", icon: Briefcase },
             { label: "Thỏa thuận 3 bên", href: "/student/learning-agreement", icon: FileText },
@@ -40,6 +42,9 @@ const PORTAL_NAV_MAP: Record<UserRole, { title: string; subtitle: string; items:
         subtitle: "Đơn vị tiếp nhận thực tập",
         items: [
             { label: "Bàn làm việc", href: "/company/dashboard", icon: LayoutDashboard },
+            { label: "Thông báo", href: "/company/notifications", icon: Bell },
+            { label: "Hỗ trợ AI", href: "/company/ai", icon: BrainCircuit },
+            { label: "Đăng tin tuyển dụng", href: "/company/jobs/new", icon: PlusCircle },
             { label: "Quản lý tuyển dụng", href: "/company/jobs", icon: Briefcase },
             { label: "Hồ sơ ứng viên", href: "/company/candidates", icon: Users },
             { label: "Thực tập sinh & Mentor", href: "/company/interns", icon: Award },
@@ -50,6 +55,8 @@ const PORTAL_NAV_MAP: Record<UserRole, { title: string; subtitle: string; items:
         subtitle: "Mentor Doanh nghiệp",
         items: [
             { label: "Bàn làm việc", href: "/mentor/dashboard", icon: LayoutDashboard },
+            { label: "Thông báo", href: "/mentor/notifications", icon: Bell },
+            { label: "Hỗ trợ AI", href: "/mentor/ai", icon: BrainCircuit },
             { label: "Giao việc & Hồ sơ", href: "/mentor/internship-record", icon: BookOpen },
             { label: "Theo dõi nhật ký ngày", href: "/mentor/weekly-evaluations", icon: CheckSquare },
             { label: "Đánh giá kết thúc kỳ", href: "/mentor/final-assessment", icon: Award },
@@ -60,6 +67,8 @@ const PORTAL_NAV_MAP: Record<UserRole, { title: string; subtitle: string; items:
         subtitle: "Khoa / Trường CNTT&TT",
         items: [
             { label: "Tổng quan học kỳ", href: "/faculty/dashboard", icon: LayoutDashboard },
+            { label: "Thông báo", href: "/faculty/notifications", icon: Bell },
+            { label: "Hỗ trợ AI", href: "/faculty/ai", icon: BrainCircuit },
             { label: "Kỳ thực tập (Terms)", href: "/faculty/terms", icon: Calendar },
             { label: "Danh sách sinh viên", href: "/faculty/roster", icon: Users },
             { label: "Bảng điểm & Đánh giá", href: "/faculty/evaluations", icon: Award },
@@ -76,6 +85,8 @@ const PORTAL_NAV_MAP: Record<UserRole, { title: string; subtitle: string; items:
         subtitle: "Giảng viên hướng dẫn CICT",
         items: [
             { label: "Bàn làm việc GVHD", href: "/lecturer/dashboard", icon: LayoutDashboard },
+            { label: "Thông báo", href: "/lecturer/notifications", icon: Bell },
+            { label: "Hỗ trợ AI", href: "/lecturer/ai", icon: BrainCircuit },
             { label: "Theo dõi & Nhận xét", href: "/lecturer/supervision", icon: CheckSquare },
             { label: "Báo cáo & Biểu mẫu", href: "/lecturer/internship-record", icon: FileText },
             { label: "Chấm điểm & Báo cáo CLO", href: "/lecturer/grading", icon: Award },
@@ -86,6 +97,7 @@ const PORTAL_NAV_MAP: Record<UserRole, { title: string; subtitle: string; items:
         subtitle: "Hệ thống Cổng InternLink",
         items: [
             { label: "Tổng quan", href: "/admin/dashboard", icon: LayoutDashboard },
+            { label: "Thông báo", href: "/admin/notifications", icon: Bell },
             { label: "Quản lý người dùng", href: "/admin/users", icon: Users },
             { label: "Danh bạ doanh nghiệp", href: "/admin/companies", icon: Building2 },
             { label: "Khoa & Ngành đào tạo", href: "/admin/departments", icon: BookOpen },

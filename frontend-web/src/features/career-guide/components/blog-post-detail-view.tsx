@@ -70,7 +70,7 @@ export default function BlogPostDetailView({ slug }: BlogPostDetailViewProps) {
                     <p className="text-xs text-slate-500 max-w-md">
                         Đường dẫn này có thể đã bị thay đổi hoặc bài viết đã được lưu trữ bởi ban quản trị khoa.
                     </p>
-                    <Link href="/cam-nang">
+                    <Link href="/career-guide">
                         <Button variant="outline" size="sm" className="rounded-full text-xs gap-1.5 mt-2">
                             <ArrowLeft className="w-3.5 h-3.5" />
                             Quay lại danh mục cẩm nang
@@ -88,7 +88,7 @@ export default function BlogPostDetailView({ slug }: BlogPostDetailViewProps) {
                     {/* Breadcrumbs */}
                     <div className="flex items-center gap-2 text-xs text-slate-500 mb-6 truncate">
                         <Link
-                            href="/cam-nang"
+                            href="/career-guide"
                             className="hover:text-sky-600 flex items-center gap-1 transition-colors shrink-0"
                         >
                             <ArrowLeft className="w-3.5 h-3.5" />

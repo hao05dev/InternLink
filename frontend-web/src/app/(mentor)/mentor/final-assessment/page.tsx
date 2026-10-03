@@ -1,5 +1,5 @@
-import PortfolioWorkspace from "@/features/portfolio/portfolio-workspace";
+import MentorAssessmentListView from '@/features/portfolio/views/mentor-assessment-list-view';
 
 export default function MentorFinalAssessmentPage() {
-    return <PortfolioWorkspace initialTab="forms" initialKind="M03" />;
+  return <MentorAssessmentListView />;
 }

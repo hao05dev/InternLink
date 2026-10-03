@@ -425,14 +425,14 @@ export default function LoginView() {
                             {activeTab === "school" ? (
                                 <p>
                                     Cần hỗ trợ về quy trình hoặc tài khoản sinh viên/giảng viên?{" "}
-                                    <Link href="/cam-nang" className="text-sky-700 font-semibold hover:underline">
+                                    <Link href="/career-guide" className="text-sky-700 font-semibold hover:underline">
                                         Xem Cẩm nang hướng dẫn
                                     </Link>
                                 </p>
                             ) : (
                                 <p>
                                     Doanh nghiệp chưa có tài khoản hoặc cần kết nối hợp tác?{" "}
-                                    <Link href="/doanh-nghiep" className="text-sky-700 font-semibold hover:underline">
+                                    <Link href="/companies" className="text-sky-700 font-semibold hover:underline">
                                         Tìm hiểu cổng hợp tác Doanh nghiệp
                                     </Link>
                                 </p>

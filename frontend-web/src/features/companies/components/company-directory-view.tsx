@@ -8,22 +8,10 @@ import { Button } from "@/components/ui/button";
 import { PublicShell } from "@/components/layouts/public-shell";
 import { apiClient } from "@/lib/api-client";
 import { Skeleton } from "@/components/ui/skeleton";
-
-interface CompanyItem {
-    id: string;
-    name: string;
-    industry?: string;
-    address?: string;
-    website?: string;
-    taxCode?: string;
-    verificationStatus?: string;
-    status?: string;
-    description?: string;
-    employeeRange?: string;
-}
+import { Company, formatCompanyAddress } from "@/features/companies/types/company.types";
 
 export default function CompanyDirectoryView() {
-    const [companies, setCompanies] = useState<CompanyItem[]>([]);
+    const [companies, setCompanies] = useState<Company[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -31,7 +19,7 @@ export default function CompanyDirectoryView() {
         setIsLoading(true);
         setError(null);
         try {
-            const res = await apiClient.get<CompanyItem[]>("/api/v1/companies");
+            const res = await apiClient.get<Company[]>("/api/v1/companies");
             if (res.data) {
                 const verified = res.data.filter(
                     c => c.verificationStatus === "VERIFIED" || c.status === "VERIFIED"
@@ -111,72 +99,82 @@ export default function CompanyDirectoryView() {
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {companies.map((company) => (
-                                <div 
-                                    key={company.id}
-                                    className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-2xs hover:shadow-card-hover hover:border-sky-300 transition-colors duration-200 flex flex-col justify-between group"
-                                >
-                                    <div className="space-y-4">
-                                        <div className="flex items-start justify-between gap-3">
-                                            <div className="w-12 h-12 rounded-2xl bg-sky-50 border border-sky-100 flex items-center justify-center p-2 shrink-0">
-                                                <Building2 className="w-6 h-6 text-sky-700" />
-                                            </div>
-                                            <Badge variant="success" className="text-[10px] py-0.5 px-2.5 rounded-full bg-emerald-50 text-emerald-700 border-emerald-200 font-bold">
-                                                Đã xác minh
-                                            </Badge>
-                                        </div>
+                            {companies.map((company) => {
+                                const displayName = company.companyName || company.name || "Doanh nghiệp đối tác";
+                                const formattedAddress = formatCompanyAddress(company.address);
 
-                                        <div>
-                                            <h3 className="text-base font-bold text-slate-900 group-hover:text-sky-700 transition-colors line-clamp-1">
-                                                {company.name}
-                                            </h3>
-                                            {company.industry && (
-                                                <div className="text-xs text-slate-500 mt-1">{company.industry}</div>
-                                            )}
-                                        </div>
-
-                                        <p className="text-xs text-slate-600 leading-relaxed line-clamp-3">
-                                            {company.description || "Đơn vị tiếp nhận sinh viên thực tập thuộc mạng lưới đối tác đã được thẩm định."}
-                                        </p>
-
-                                        <div className="space-y-2 text-xs text-slate-600 pt-2 border-t border-slate-100">
-                                            {company.address && (
-                                                <div className="flex items-start gap-2">
-                                                    <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
-                                                    <span className="line-clamp-1">{company.address}</span>
+                                return (
+                                    <div 
+                                        key={company.id}
+                                        className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-2xs hover:shadow-card-hover hover:border-sky-300 transition-colors duration-200 flex flex-col justify-between group"
+                                    >
+                                        <div className="space-y-4">
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div className="w-12 h-12 rounded-2xl bg-sky-50 border border-sky-100 flex items-center justify-center p-2 shrink-0">
+                                                    <Building2 className="w-6 h-6 text-sky-700" />
                                                 </div>
+                                                <Badge variant="success" className="text-[10px] py-0.5 px-2.5 rounded-full bg-emerald-50 text-emerald-700 border-emerald-200 font-bold">
+                                                    Đã xác minh
+                                                </Badge>
+                                            </div>
+
+                                            <div>
+                                                <h3 className="text-base font-bold text-slate-900 group-hover:text-sky-700 transition-colors line-clamp-1">
+                                                    {displayName}
+                                                </h3>
+                                                {company.industry && (
+                                                    <div className="text-xs text-slate-500 mt-1">{company.industry}</div>
+                                                )}
+                                            </div>
+
+                                            <p className="text-xs text-slate-600 leading-relaxed line-clamp-3">
+                                                {company.description || "Đơn vị tiếp nhận sinh viên thực tập thuộc mạng lưới đối tác đã được thẩm định."}
+                                            </p>
+
+                                            <div className="space-y-2 text-xs text-slate-600 pt-2 border-t border-slate-100">
+                                                {formattedAddress && (
+                                                    <div className="flex items-start gap-2">
+                                                        <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+                                                        <span className="line-clamp-1">{formattedAddress}</span>
+                                                    </div>
+                                                )}
+                                                {company.taxCode && (
+                                                    <div className="text-[11px] text-slate-400">
+                                                        MST: <span className="text-slate-600 font-medium">{company.taxCode}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between">
+                                            {company.website ? (
+                                                <a 
+                                                    href={company.website.startsWith("http") ? company.website : `https://${company.website}`} 
+                                                    target="_blank" 
+                                                    rel="noopener noreferrer"
+                                                    className="text-xs text-slate-500 hover:text-slate-800 flex items-center gap-1 transition-colors"
+                                                >
+                                                    <Globe className="w-3 h-3" />
+                                                    Website
+                                                    <ExternalLink className="w-3 h-3" />
+                                                </a>
+                                            ) : (
+                                                <span className="text-xs text-slate-400">Chưa có website</span>
                                             )}
+                                            <Link href={`/jobs?companyId=${company.id}`}>
+                                                <Button 
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="text-xs rounded-full hover:border-sky-500 hover:text-sky-700 font-semibold gap-1"
+                                                >
+                                                    <span>Xem vị trí</span>
+                                                    <ChevronRight className="w-3.5 h-3.5" />
+                                                </Button>
+                                            </Link>
                                         </div>
                                     </div>
-
-                                    <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between">
-                                        {company.website ? (
-                                            <a 
-                                                href={company.website.startsWith("http") ? company.website : `https://${company.website}`} 
-                                                target="_blank" 
-                                                rel="noopener noreferrer"
-                                                className="text-xs text-slate-500 hover:text-slate-800 flex items-center gap-1 transition-colors"
-                                            >
-                                                <Globe className="w-3 h-3" />
-                                                Website
-                                                <ExternalLink className="w-3 h-3" />
-                                            </a>
-                                        ) : (
-                                            <span className="text-xs text-slate-400">Chưa có website</span>
-                                        )}
-                                        <Link href={`/jobs?companyId=${company.id}`}>
-                                            <Button 
-                                                variant="outline"
-                                                size="sm"
-                                                className="text-xs rounded-full hover:border-sky-500 hover:text-sky-700 font-semibold gap-1"
-                                            >
-                                                <span>Xem vị trí</span>
-                                                <ChevronRight className="w-3.5 h-3.5" />
-                                            </Button>
-                                        </Link>
-                                    </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
                 </div>

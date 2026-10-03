@@ -1,0 +1,39 @@
+{
+  "split": "synthetic",
+  "provenance": "Handwritten software smoke fixture; not real students, not expert relevance labels.",
+  "synthetic": true,
+  "query_count": 1,
+  "gain": "2^relevance-1",
+  "relevant_threshold": 1,
+  "semantic_policy": "only queries with real compatible supplied vectors",
+  "results": {
+    "Jaccard": {
+      "evaluated_queries": 1,
+      "metrics": {
+        "nDCG@5": 1.0,
+        "P@5": 0.4,
+        "Recall@5": 1.0,
+        "MRR": 1.0
+      }
+    },
+    "BM25": {
+      "evaluated_queries": 1,
+      "metrics": {
+        "nDCG@5": 1.0,
+        "P@5": 0.4,
+        "Recall@5": 1.0,
+        "MRR": 1.0
+      }
+    },
+    "Skill_Only": {
+      "evaluated_queries": 1,
+      "metrics": {
+        "nDCG@5": 1.0,
+        "P@5": 0.4,
+        "Recall@5": 1.0,
+        "MRR": 1.0
+      }
+    }
+  },
+  "dataset_sha256": "c1655ebc0e65099e9d706cae9c2d7e232e6c9bf038263acc0647b448617ee491"
+}

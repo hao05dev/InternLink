@@ -7,6 +7,7 @@ import { notificationService } from '@/features/notifications/services/notificat
 vi.mock('@/features/notifications/services/notification.service', () => ({
     notificationService: {
         getMyNotifications: vi.fn(),
+        getUnreadCount: vi.fn(),
         markRead: vi.fn(),
         markAllRead: vi.fn(),
     },
@@ -15,6 +16,7 @@ vi.mock('@/features/notifications/services/notification.service', () => ({
 describe('NotificationCenter Component', () => {
     beforeEach(() => {
         vi.restoreAllMocks();
+        vi.mocked(notificationService.getUnreadCount).mockResolvedValue({success:true,data:1});
     });
 
     it('renders null when user is not authenticated', async () => {

@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import { BrandLogo } from "@/components/ui/brand-logo";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { UserRole } from "@/features/auth/types/auth.types";
 import {
@@ -108,11 +109,8 @@ export function Navbar() {
         <header className="border-b border-slate-200/80 bg-white/95 backdrop-blur-md sticky top-0 z-50 transition-colors duration-200 shadow-2xs">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 md:h-22 flex items-center justify-between gap-4">
                 {/* 1. BRAND LOGO */}
-                <Link href="/" className="flex items-center space-x-2 group shrink-0">
-                    <span className="text-2xl sm:text-3xl lg:text-[32px] font-black text-slate-900 tracking-tighter transition-colors group-hover:text-sky-700">
-                        InternLink
-                    </span>
-                    <span className="w-2.5 h-2.5 rounded-full bg-sky-500 inline-block shadow-glow-sky animate-pulse" />
+                <Link href="/" className="shrink-0">
+                    <BrandLogo showText size={36} textClassName="text-2xl sm:text-3xl lg:text-[32px] font-black text-slate-900 tracking-tighter transition-colors group-hover:text-sky-700" />
                 </Link>
 
                 {/* 2. CENTER FLOATING PILL MENU */}
@@ -125,14 +123,14 @@ export function Navbar() {
                         <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
                     </Link>
                     <Link
-                        href="/doanh-nghiep"
+                        href="/companies"
                         className="px-4 py-2 rounded-full hover:bg-white hover:text-slate-900 transition-colors flex items-center gap-1.5 text-[13.5px] lg:text-[15px] font-semibold tracking-tight"
                     >
                         <span>Doanh nghiệp</span>
                         <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
                     </Link>
                     <Link
-                        href="/cam-nang"
+                        href="/career-guide"
                         className="px-4 py-2 rounded-full hover:bg-white hover:text-slate-900 transition-colors flex items-center gap-1.5 text-[13.5px] lg:text-[15px] font-semibold tracking-tight"
                     >
                         <span>Cẩm nang</span>
@@ -313,7 +311,7 @@ export function Navbar() {
                             <span>Vị trí tuyển dụng</span>
                         </Link>
                         <Link
-                            href="/doanh-nghiep"
+                            href="/companies"
                             onClick={() => setMobileMenuOpen(false)}
                             className="px-4 py-3 rounded-2xl hover:bg-slate-50 flex items-center gap-3"
                         >
@@ -321,7 +319,7 @@ export function Navbar() {
                             <span>Doanh nghiệp</span>
                         </Link>
                         <Link
-                            href="/cam-nang"
+                            href="/career-guide"
                             onClick={() => setMobileMenuOpen(false)}
                             className="px-4 py-3 rounded-2xl hover:bg-slate-50 flex items-center gap-3"
                         >

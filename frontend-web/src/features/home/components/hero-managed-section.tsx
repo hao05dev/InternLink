@@ -75,7 +75,7 @@ export function HeroManagedSection({
 
               {/* Glass Pill Button */}
               <Link
-                href="/doanh-nghiep"
+                href="/companies"
                 className="inline-flex items-center gap-2 px-5 sm:px-6 py-3 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md text-white border border-white/30 text-xs sm:text-sm font-semibold tracking-wide uppercase transition-all duration-200 group cursor-pointer shadow-lg"
               >
                 <span>Khám phá doanh nghiệp</span>

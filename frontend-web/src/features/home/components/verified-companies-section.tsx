@@ -3,18 +3,10 @@
 import React from "react";
 import Link from "next/link";
 import { Building2, ShieldCheck, ArrowUpRight } from "lucide-react";
-
-interface VerifiedCompany {
-  id: string;
-  name: string;
-  industry?: string;
-  address?: string;
-  verificationStatus?: string;
-  status?: string;
-}
+import { Company } from "@/features/companies/types/company.types";
 
 interface VerifiedCompaniesSectionProps {
-  companies: VerifiedCompany[];
+  companies: Array<Partial<Company> & { id: string; name?: string; companyName?: string }>;
 }
 
 export function VerifiedCompaniesSection({ companies }: VerifiedCompaniesSectionProps) {
@@ -37,7 +29,7 @@ export function VerifiedCompaniesSection({ companies }: VerifiedCompaniesSection
         </div>
 
         <Link
-          href="/doanh-nghiep"
+          href="/companies"
           className="inline-flex items-center gap-1.5 text-xs font-bold text-sky-700 hover:text-sky-800 transition"
         >
           <span>Xem tất cả đối tác</span>
@@ -46,15 +38,18 @@ export function VerifiedCompaniesSection({ companies }: VerifiedCompaniesSection
       </div>
 
       <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4">
-        {companies.map((comp) => (
-          <div
-            key={comp.id}
-            className="flex items-center gap-2 px-5 py-3 rounded-full border border-slate-200 bg-white font-semibold text-slate-700 text-xs sm:text-sm tracking-tight shadow-2xs hover:border-sky-400 hover:text-sky-700 hover:shadow-card transition-all group cursor-default"
-          >
-            <Building2 className="w-4 h-4 text-slate-400 group-hover:text-sky-600 transition-colors shrink-0" />
-            <span className="truncate max-w-xs">{comp.name}</span>
-          </div>
-        ))}
+        {companies.map((comp) => {
+          const displayName = comp.companyName || comp.name || "Doanh nghiệp đối tác";
+          return (
+            <div
+              key={comp.id}
+              className="flex items-center gap-2 px-5 py-3 rounded-full border border-slate-200 bg-white font-semibold text-slate-700 text-xs sm:text-sm tracking-tight shadow-2xs hover:border-sky-400 hover:text-sky-700 hover:shadow-card transition-all group cursor-default"
+            >
+              <Building2 className="w-4 h-4 text-slate-400 group-hover:text-sky-600 transition-colors shrink-0" />
+              <span className="truncate max-w-xs">{displayName}</span>
+            </div>
+          );
+        })}
       </div>
     </section>
   );

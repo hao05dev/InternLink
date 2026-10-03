@@ -1,5 +1,5 @@
-import PortfolioWorkspace from "@/features/portfolio/portfolio-workspace";
+import MentorWeeklyListView from '@/features/portfolio/views/mentor-weekly-list-view';
 
 export default function MentorWeeklyEvaluationsPage() {
-    return <PortfolioWorkspace initialTab="days" />;
+  return <MentorWeeklyListView />;
 }

@@ -2,9 +2,15 @@ export type FormKind = 'M01' | 'M02' | 'M03' | 'M04' | 'M05';
 export type Attendance = 'PRESENT' | 'REMOTE' | 'LEAVE' | 'ABSENT' | 'DAY_OFF';
 export interface PlacementMeta {
   id: string; studentName: string; studentCode?: string; companyName: string; mentorName: string;
-  lecturerName: string; termName: string; startDate: string; endDate: string; status: string; source: string;
-  hasMentor: boolean; weekCount: number; requiredWeeks?: number; reportDueAt?: string; schemeReference?: string;
+  lecturerName: string; termId?: string; termName: string; termStatus?: string; academicYear?: string;
+  semester?: string; startDate: string; endDate: string; status: string; source: string;
+  hasMentor: boolean; weekCount: number; requiredWeeks?: number; reportDueAt?: string;
+  isExtended?: boolean; extensionReason?: string; schemeReference?: string;
   programName?: string; courseCode?: string; components: { code: string; name: string; weight: number; assessorRole: string; criteria?: { code: string; name: string; weight: number }[] }[];
+}
+export interface ExtensionRequestDto {
+  newReportDueAt: string;
+  reason: string;
 }
 export interface JournalInput {
   attendance: Attendance; startTime: string | null; endTime: string | null; breakMinutes: number; sessions: number;

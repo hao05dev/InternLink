@@ -1,4 +1,6 @@
 export interface Notification {
+    category?: string;
+    deliveryStatus?: { inApp?: string; email?: string };
     id: string;
     recipientUserId?: string;
     notificationType: string;

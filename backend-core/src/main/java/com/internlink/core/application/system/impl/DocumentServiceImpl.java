@@ -140,11 +140,30 @@ public class DocumentServiceImpl implements DocumentService {
             .status("ACTIVE")
             .build();
 
-        Document savedDoc = documentRepository.save(doc);
+        boolean synchronizedTransaction = org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive();
+        if (synchronizedTransaction) {
+            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                new org.springframework.transaction.support.TransactionSynchronization() {
+                    @Override public void afterCompletion(int status) {
+                        if (status == STATUS_ROLLED_BACK) cleanupStoredFile(storageService, storedInfo.getProviderFileId());
+                    }
+                });
+        }
+        Document savedDoc;
+        try { savedDoc = documentRepository.save(doc); }
+        catch (RuntimeException ex) {
+            if (!synchronizedTransaction) cleanupStoredFile(storageService, storedInfo.getProviderFileId());
+            throw ex;
+        }
         log.info("Tải lên tài liệu thành công: id={}, name={}, provider={}", 
             savedDoc.getId(), savedDoc.getOriginalName(), savedDoc.getStorageProvider());
 
         return mapToResponse(savedDoc, true);
+    }
+
+    private void cleanupStoredFile(StorageService storageService, String key) {
+        try { storageService.delete(key); }
+        catch (RuntimeException ex) { log.warn("Storage cleanup failed after document rollback ({})", storageService.getProviderType()); }
     }
 
     /**

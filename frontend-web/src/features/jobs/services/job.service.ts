@@ -14,6 +14,31 @@ export interface ApplyJobPayload {
     coverLetter?: string;
 }
 
+export interface JobFormPayload {
+    companyId: string;
+    termId: string;
+    departmentId: string;
+    title: string;
+    workFormat: string;
+    location: string;
+    vacancies: number;
+    description: string;
+    stipendAmount?: number;
+    bannerUrl?: string;
+    attachmentUrls?: Array<{
+        id: string;
+        fileName: string;
+        fileUrl: string;
+        fileSize?: string;
+        fileType?: string;
+    }>;
+    mandatorySkillIds?: string[];
+    optionalSkillIds?: string[];
+    targetProgramCodes?: string[];
+    targetLearningOutcomes?: string[];
+    benefits?: string[];
+}
+
 export const jobService = {
     getAllJobs: async (params?: JobSearchParams): Promise<JobPosition[]> => {
         const queryParams = new URLSearchParams();
@@ -22,7 +47,7 @@ export const jobService = {
         if (params?.companyId) queryParams.append("companyId", params.companyId);
 
         const qs = queryParams.toString();
-        const endpoint = qs ? `/api/v1/jobs/public/all?${qs}` : "/api/v1/jobs/public/all";
+        const endpoint = qs ? `/api/v1/jobs?${qs}` : "/api/v1/jobs";
         const response = await apiClient.get<JobPosition[]>(endpoint);
         return response.data || [];
     },
@@ -40,11 +65,26 @@ export const jobService = {
     },
 
     getJobById: async (id: string): Promise<JobPosition> => {
-        const response = await apiClient.get<JobPosition>(`/api/v1/jobs/public/${id}`);
+        const response = await apiClient.get<JobPosition>(`/api/v1/jobs/${id}`);
         if (response.data) {
             return response.data;
         }
         throw new Error("Không tìm thấy vị trí tuyển dụng");
+    },
+
+    createJob: async (payload: JobFormPayload): Promise<JobPosition> => {
+        const response = await apiClient.post<JobPosition>("/api/v1/jobs", payload);
+        return response.data;
+    },
+
+    updateJob: async (id: string, payload: JobFormPayload): Promise<JobPosition> => {
+        const response = await apiClient.put<JobPosition>(`/api/v1/jobs/${id}`, payload);
+        return response.data;
+    },
+
+    submitJob: async (id: string): Promise<JobPosition> => {
+        const response = await apiClient.patch<JobPosition>(`/api/v1/jobs/${id}/submit`);
+        return response.data;
     },
 
     applyJob: async (payload: ApplyJobPayload): Promise<JobApplication> => {

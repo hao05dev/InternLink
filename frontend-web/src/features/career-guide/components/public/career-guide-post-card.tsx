@@ -55,7 +55,7 @@ export function CareerGuidePostCard({ post }: CareerGuidePostCardProps) {
                         )}
                     </div>
 
-                    <Link href={`/cam-nang/${post.slug}`}>
+                    <Link href={`/career-guide/${post.slug}`}>
                         <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors line-clamp-2 leading-snug">
                             {post.title}
                         </h3>
@@ -78,7 +78,7 @@ export function CareerGuidePostCard({ post }: CareerGuidePostCardProps) {
                     </div>
 
                     <Link
-                        href={`/cam-nang/${post.slug}`}
+                        href={`/career-guide/${post.slug}`}
                         className="inline-flex items-center gap-1 text-sky-600 dark:text-sky-400 font-medium hover:text-sky-700 shrink-0 text-xs"
                     >
                         <span>Chi tiết</span>

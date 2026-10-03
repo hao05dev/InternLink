@@ -23,4 +23,9 @@ public class AiMatchScoreResponse {
     private List<String> matchedSkills;
     private List<String> missingSkills;
     private Map<String, Object> explanation;
+    private String mode;
+    private Boolean scoreAvailable;
+    private Boolean semanticAvailable;
+    private String algorithmVersion;
+    private List<String> warnings;
 }

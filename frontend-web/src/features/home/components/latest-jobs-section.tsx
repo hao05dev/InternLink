@@ -78,7 +78,7 @@ export function LatestJobsSection({ jobs, isLoading, error, onRetry }: LatestJob
           <p className="text-xs text-slate-500 max-w-md mx-auto">
             Hiện tại chưa có tin tuyển dụng thực tập nào được mở. Vui lòng quay lại sau hoặc theo dõi cẩm nang hướng dẫn.
           </p>
-          <Link href="/cam-nang">
+          <Link href="/career-guide">
             <Button variant="outline" size="sm" className="mt-2 text-xs rounded-full">
               Xem Cẩm nang thực tập
             </Button>

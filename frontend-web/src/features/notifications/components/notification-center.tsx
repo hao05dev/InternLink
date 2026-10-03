@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import {
     Bell,
     CheckCheck,
@@ -24,6 +23,7 @@ import {
 import { useAuth } from '@/features/auth/hooks/use-auth';
 import { notificationService } from '@/features/notifications/services/notification.service';
 import type { Notification } from '@/features/notifications/types/notification.types';
+import { notificationAction as resolveActionUrl, notificationInbox } from '../lib/notification-links';
 import { cn } from '@/lib/utils';
 
 function formatTimeAgo(isoString: string): string {
@@ -124,43 +124,12 @@ function getNotificationVisuals(type: string) {
     }
 }
 
-function resolveActionUrl(url?: string, role?: string, type?: string): string | null {
-    if (url && url.startsWith('/')) {
-        // Nếu là thỏa thuận và là sinh viên, chuyển hướng về portal thỏa thuận học tập sinh viên
-        if (role === 'STUDENT' && url.startsWith('/agreements/')) {
-            return '/student/learning-agreement';
-        }
-        return url;
-    }
-
-    // Fallback theo role và type nếu actionUrl trống
-    if (!type || !role) return null;
-
-    if (role === 'STUDENT') {
-        if (type.startsWith('LOGBOOK_')) return '/student/weekly-logs';
-        if (type.startsWith('STUDENT_FOUND_') || type.startsWith('COMPANY_FORM_') || type.startsWith('OFFER_'))
-            return '/student/applications';
-        if (type === 'FINAL_RESULT_PUBLISHED') return '/student/final-report';
-        if (type === 'INTRODUCTION_LETTER_PICKUP') return '/student/dashboard';
-        if (type === 'NEW_JOB_POSTED') return '/jobs';
-    } else if (role === 'LECTURER') {
-        if (type.startsWith('LOGBOOK_') || type === 'LECTURER_ASSIGNED') return '/lecturer/supervision';
-    } else if (role === 'COMPANY_MENTOR') {
-        if (type.startsWith('LOGBOOK_')) return '/mentor/weekly-evaluations';
-    } else if (role === 'FACULTY_ADMIN') {
-        if (type.startsWith('STUDENT_FOUND_') || type.startsWith('JOB_')) return '/faculty/job-approvals';
-    } else if (role === 'COMPANY_REP') {
-        if (type.startsWith('JOB_')) return '/company/jobs';
-        if (type.startsWith('OFFER_')) return '/company/candidates';
-    }
-
-    return null;
-}
-
 export function NotificationCenter() {
     const { user, isAuthenticated } = useAuth();
     const [open, setOpen] = useState(false);
     const [items, setItems] = useState<Notification[]>([]);
+    const [totalUnread, setTotalUnread] = useState(0);
+    const requestVersion = useRef(0);
     const [loading, setLoading] = useState(false);
     const [filter, setFilter] = useState<'all' | 'unread'>('all');
     const [markingAll, setMarkingAll] = useState(false);
@@ -168,24 +137,39 @@ export function NotificationCenter() {
 
     const loadNotifications = useCallback(async () => {
         if (!isAuthenticated || !user) return;
+        const version = ++requestVersion.current;
         setLoading(true);
         try {
-            const res = await notificationService.getMyNotifications();
+            const [res, count] = await Promise.all([
+                notificationService.getMyNotifications(),
+                notificationService.getUnreadCount(),
+            ]);
+            if (version !== requestVersion.current) return;
             setItems(res.data ?? []);
+            setTotalUnread(count.data ?? 0);
         } catch {
-            // Không làm phiền người dùng nếu lỗi ngầm
+            // Background polling keeps the last successful snapshot.
         } finally {
-            setLoading(false);
+            if (version === requestVersion.current) setLoading(false);
         }
-    }, [isAuthenticated, user?.id]);
+    }, [isAuthenticated, user]);
 
     useEffect(() => {
-        loadNotifications();
-        // Polling nhẹ mỗi 45 giây để cập nhật thông báo mới
+        requestVersion.current++;
+        setItems([]);
+        setTotalUnread(0);
+        setOpen(false);
+        void loadNotifications();
         const timer = setInterval(() => {
-            loadNotifications();
+            if (document.visibilityState === 'visible') void loadNotifications();
         }, 45000);
-        return () => clearInterval(timer);
+        const refresh = () => { void loadNotifications(); };
+        window.addEventListener('internlink:notifications-updated', refresh);
+        return () => {
+            requestVersion.current++;
+            clearInterval(timer);
+            window.removeEventListener('internlink:notifications-updated', refresh);
+        };
     }, [loadNotifications]);
 
     // Click outside listener
@@ -201,7 +185,7 @@ export function NotificationCenter() {
 
         if (open) {
             document.addEventListener('mousedown', handleClickOutside);
-            document.addEventListener('touchstart', handleClickOutside);
+            document.addEventListener('touchstart', handleClickOutside, { passive: true });
             document.addEventListener('keydown', handleKeyDown);
         }
         return () => {
@@ -215,6 +199,7 @@ export function NotificationCenter() {
         if (e) e.stopPropagation();
         try {
             await notificationService.markRead(id);
+            if (items.some(item => item.id === id && !item.isRead)) setTotalUnread(current => Math.max(0,current-1));
             setItems(current =>
                 current.map(item => (item.id === id ? { ...item, isRead: true } : item))
             );
@@ -227,6 +212,7 @@ export function NotificationCenter() {
         setMarkingAll(true);
         try {
             await notificationService.markAllRead();
+            setTotalUnread(0);
             setItems(current => current.map(item => ({ ...item, isRead: true })));
         } catch {
             // ignore
@@ -235,7 +221,7 @@ export function NotificationCenter() {
         }
     };
 
-    const unreadCount = items.filter(item => !item.isRead).length;
+    const unreadCount = totalUnread;
     const displayedItems = filter === 'unread' ? items.filter(item => !item.isRead) : items;
 
     if (!isAuthenticated) return null;
@@ -329,6 +315,11 @@ export function NotificationCenter() {
                         </button>
                     </div>
 
+                    <div className="border-b px-4 py-2 text-right">
+                        <Link href={notificationInbox(user?.role)} onClick={() => setOpen(false)}
+                            className="text-xs font-semibold text-sky-800">Xem toàn bộ thông báo và tùy chọn email</Link>
+                    </div>
+
                     {/* Notification List */}
                     <div className="max-h-[22rem] overflow-y-auto divide-y divide-slate-100">
                         {displayedItems.length === 0 ? (
@@ -349,18 +340,8 @@ export function NotificationCenter() {
                                 const targetUrl = resolveActionUrl(item.actionUrl, user?.role, item.notificationType);
 
                                 return (
-                                    <Link
+                                    <div
                                         key={item.id}
-                                        href={targetUrl || '#'}
-                                        onClick={(e) => {
-                                            if (!targetUrl) {
-                                                e.preventDefault();
-                                            }
-                                            if (!item.isRead) {
-                                                handleMarkAsRead(item.id);
-                                            }
-                                            setOpen(false);
-                                        }}
                                         className={cn(
                                             "p-3.5 flex gap-3 transition-colors text-left group hover:bg-slate-50 relative",
                                             !item.isRead ? "bg-sky-50/40" : "bg-white"
@@ -387,7 +368,10 @@ export function NotificationCenter() {
                                                             : "font-semibold text-slate-700"
                                                     )}
                                                 >
-                                                    {item.title}
+                                                    <Link href={targetUrl || notificationInbox(user?.role)} onClick={() => {
+                                                        if (!item.isRead) void handleMarkAsRead(item.id);
+                                                        setOpen(false);
+                                                    }}>{item.title}</Link>
                                                 </h4>
                                                 {!item.isRead && (
                                                     <span className="w-2 h-2 rounded-full bg-sky-600 shrink-0 mt-1" />
@@ -406,10 +390,13 @@ export function NotificationCenter() {
 
                                                 <div className="flex items-center gap-2">
                                                     {targetUrl && (
-                                                        <span className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-sky-700 group-hover:underline">
+                                                        <Link href={targetUrl} onClick={() => {
+                                                            if (!item.isRead) void handleMarkAsRead(item.id);
+                                                            setOpen(false);
+                                                        }} className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-sky-700 group-hover:underline">
                                                             Chi tiết
                                                             <ExternalLink className="w-3 h-3 ml-0.5 opacity-70" />
-                                                        </span>
+                                                        </Link>
                                                     )}
 
                                                     {!item.isRead && (
@@ -425,7 +412,7 @@ export function NotificationCenter() {
                                                 </div>
                                             </div>
                                         </div>
-                                    </Link>
+                                    </div>
                                 );
                             })
                         )}

@@ -346,36 +346,43 @@ class AiMatchingServiceImplTest {
     }
 
     @Test
-    void recommendJobsForStudentSortsScoresDescendingAndSkipsFailedJobs() {
-        UUID studentId = UUID.randomUUID();
-        UUID termId = UUID.randomUUID();
-        UUID highJobId = UUID.randomUUID();
-        UUID lowJobId = UUID.randomUUID();
-        UUID failedJobId = UUID.randomUUID();
+    void recommendationsUseOneBatchAndSortAvailableScoresFirst() {
+        UUID studentId = UUID.randomUUID(), termId = UUID.randomUUID();
+        JobPosition high = job(UUID.randomUUID(), "High Match", "A");
+        JobPosition low = job(UUID.randomUUID(), "Low Match", "B");
+        when(jobPositionRepository.findByTermIdAndStatus(termId, JobStatus.APPROVED)).thenReturn(List.of(low, high));
+        when(aiServiceClient.rankJobs(any(), any())).thenReturn(List.of(
+            Map.of("job_id", low.getId().toString(), "match_score", 0.0, "score_available", false, "mode", "insufficient_data"),
+            Map.of("job_id", high.getId().toString(), "match_score", 90.0, "score_available", true, "mode", "skill_only")
+        ));
+        var responses = service.recommendJobsForStudent(studentId, termId);
+        assertThat(responses).extracting(AiMatchScoreResponse::getJobTitle).containsExactly("High Match", "Low Match");
+        assertThat(responses.getFirst().getMode()).isEqualTo("skill_only");
+        verify(aiServiceClient, times(1)).rankJobs(any(), any());
+        verify(jobSkillRepository).findByIdJobIdIn(List.of(low.getId(), high.getId()));
+        verify(jobPositionRepository, never()).findById(any());
+    }
 
-        JobPosition highJob = job(highJobId, "High Match", "A");
-        JobPosition lowJob = job(lowJobId, "Low Match", "B");
-        JobPosition failedJob = job(failedJobId, "Broken", "C");
-        SkillTaxonomy java = taxonomy("skill-java", "Java");
+    @Test
+    void negatedSkillCannotBeConfirmed() {
+        UUID id = UUID.randomUUID();
+        StudentSkill skill = studentSkill(id, taxonomy("SK-DOCKER", "Docker"));
+        skill.setAiEvidence(Map.of("assertionStatus", "negated"));
+        when(securityGuard.currentUser()).thenReturn(CustomUserDetail.create(student(id)));
+        when(studentSkillRepository.findById(new StudentSkillId(id, "SK-DOCKER"))).thenReturn(Optional.of(skill));
+        assertThatThrownBy(() -> service.confirmStudentSkill(id, "SK-DOCKER", true)).isInstanceOf(BadRequestException.class);
+        verify(studentSkillRepository, never()).save(any());
+    }
 
-        when(jobPositionRepository.findByTermIdAndStatus(termId, JobStatus.APPROVED))
-            .thenReturn(List.of(lowJob, failedJob, highJob));
-        when(jobPositionRepository.findById(lowJobId)).thenReturn(Optional.of(lowJob));
-        when(jobPositionRepository.findById(failedJobId)).thenThrow(new IllegalStateException("Cannot score"));
-        when(jobPositionRepository.findById(highJobId)).thenReturn(Optional.of(highJob));
-        when(studentSkillRepository.findByIdStudentIdAndIsConfirmedTrue(studentId))
-            .thenReturn(List.of(studentSkill(studentId, java)));
-        when(jobSkillRepository.findByIdJobId(lowJobId)).thenReturn(List.of(jobSkill(lowJobId, java, RequirementType.MANDATORY)));
-        when(jobSkillRepository.findByIdJobId(highJobId)).thenReturn(List.of(jobSkill(highJobId, java, RequirementType.MANDATORY)));
-        when(aiServiceClient.calculateMatchScore(eq(studentId), eq(lowJobId), any(), any(), eq(""), eq(List.of("skill-java")), eq(List.of("skill-java")), eq(List.of())))
-            .thenReturn(Map.of("match_score", 40.0));
-        when(aiServiceClient.calculateMatchScore(eq(studentId), eq(highJobId), any(), any(), eq(""), eq(List.of("skill-java")), eq(List.of("skill-java")), eq(List.of())))
-            .thenReturn(Map.of("match_score", 90.0));
-
-        List<AiMatchScoreResponse> responses = service.recommendJobsForStudent(studentId, termId);
-
-        assertThat(responses).extracting(AiMatchScoreResponse::getJobTitle)
-            .containsExactly("High Match", "Low Match");
+    @Test
+    void unpublishedJobCannotBeScored() {
+        UUID jobId = UUID.randomUUID();
+        JobPosition job = job(jobId, "Draft", "A");
+        job.setStatus(JobStatus.DRAFT);
+        when(jobPositionRepository.findById(jobId)).thenReturn(Optional.of(job));
+        assertThatThrownBy(() -> service.calculateMatchScoreForJob(UUID.randomUUID(), jobId))
+            .isInstanceOf(ResourceNotFoundException.class);
+        verifyNoInteractions(aiServiceClient);
     }
 
     private User student(UUID id) {
@@ -424,6 +431,7 @@ class AiMatchingServiceImplTest {
         JobPosition job = JobPosition.builder()
             .company(company)
             .title(title)
+            .status(JobStatus.APPROVED)
             .description("Description")
             .build();
         job.setId(id);

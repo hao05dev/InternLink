@@ -69,8 +69,8 @@ export function PublicShell({ children, hideNavbar = false }: PublicShellProps) 
                     <div className="pt-6 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-400">
                         <p>© 2026 Trường Công nghệ Thông tin và Truyền thông – Đại học Cần Thơ.</p>
                         <div className="flex space-x-6 mt-4 sm:mt-0">
-                            <Link href="/cam-nang" className="hover:text-slate-600 transition">Quy chế học phần</Link>
-                            <Link href="/doanh-nghiep" className="hover:text-slate-600 transition">Mạng lưới đối tác</Link>
+                            <Link href="/career-guide" className="hover:text-slate-600 transition">Quy chế học phần</Link>
+                            <Link href="/companies" className="hover:text-slate-600 transition">Mạng lưới đối tác</Link>
                             <Link href="/jobs" className="hover:text-slate-600 transition">Vị trí tuyển dụng</Link>
                         </div>
                     </div>

@@ -26,6 +26,10 @@ service-account.json
 **/uploads/**
 !**/uploads/.gitkeep
 **/storage/**
+!backend-core/src/main/java/com/internlink/core/infrastructure/integration/storage/
+!backend-core/src/main/java/com/internlink/core/infrastructure/integration/storage/*.java
+!backend-core/src/test/java/com/internlink/core/infrastructure/integration/storage/
+!backend-core/src/test/java/com/internlink/core/infrastructure/integration/storage/*.java
 **/media/**
 
 # --------------------------------------------------------------------
@@ -40,7 +44,12 @@ ehthumbs.db
 Thumbs.db
 Desktop.ini
 $RECYCLE.BIN/
-
+*.sql
+!backend-core/src/main/resources/db/migration/V16__ai_evidence_and_taxonomy_provenance.sql
+!backend-core/src/main/resources/db/migration/V17__notification_email_outbox_and_r2.sql
+docs/
+init-scripts/
+docker-compose.yml
 # --------------------------------------------------------------------
 # 3. IDEs & Editors
 # --------------------------------------------------------------------

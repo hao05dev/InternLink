@@ -20,6 +20,7 @@ export interface JobPosition {
     companyAddress?: string;
     termId: string;
     termName?: string;
+    termStatus?: string;
     departmentId?: string;
     departmentName?: string;
     title: string;

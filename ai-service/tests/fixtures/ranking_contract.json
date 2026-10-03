@@ -1,0 +1,83 @@
+[
+  {
+    "student": [
+      "SK-JAVA"
+    ],
+    "mandatory": [
+      "SK-JAVA"
+    ],
+    "optional": [],
+    "percentage": 100,
+    "available": true
+  },
+  {
+    "student": [
+      "SK-JAVA"
+    ],
+    "mandatory": [],
+    "optional": [
+      "SK-JAVA",
+      "SK-DOCKER"
+    ],
+    "percentage": 50,
+    "available": true
+  },
+  {
+    "student": [
+      "SK-JAVA"
+    ],
+    "mandatory": [
+      "SK-JAVA"
+    ],
+    "optional": [
+      "SK-DOCKER"
+    ],
+    "percentage": 80,
+    "available": true
+  },
+  {
+    "student": [],
+    "mandatory": [
+      "SK-JAVA"
+    ],
+    "optional": [],
+    "percentage": 0,
+    "available": false
+  },
+  {
+    "student": [
+      "SK-JAVA"
+    ],
+    "mandatory": [],
+    "optional": [],
+    "percentage": 0,
+    "available": false
+  },
+  {
+    "student": [
+      "SK-DOCKER"
+    ],
+    "mandatory": [
+      "SK-JAVA"
+    ],
+    "optional": [],
+    "percentage": 0,
+    "available": true
+  },
+  {
+    "student": [
+      "SK-JAVA",
+      "SK-JAVA"
+    ],
+    "mandatory": [
+      "SK-JAVA",
+      "SK-JAVA"
+    ],
+    "optional": [
+      "SK-JAVA",
+      "SK-DOCKER"
+    ],
+    "percentage": 80,
+    "available": true
+  }
+]

@@ -276,7 +276,7 @@ export default function StudentDashboardView() {
                             <p className="text-slate-500">Email: cict@ctu.edu.vn</p>
                             <p className="text-slate-500">Điện thoại: (0292) 3831 301</p>
                             <div className="pt-2">
-                                <Link href="/cam-nang" className="text-sky-700 font-semibold hover:underline inline-flex items-center gap-1">
+                                <Link href="/career-guide" className="text-sky-700 font-semibold hover:underline inline-flex items-center gap-1">
                                     Đọc cẩm nang thực tập
                                     <ChevronRight className="w-3.5 h-3.5" />
                                 </Link>

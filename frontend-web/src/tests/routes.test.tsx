@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import JobDetailPage from '@/app/jobs/[id]/page';
-import BlogPostDetailPage from '@/app/cam-nang/[slug]/page';
+import BlogPostDetailPage from '@/app/career-guide/[slug]/page';
 
 vi.mock('@/features/jobs/components/job-detail-view', () => ({
     default: ({ id }: { id: string }) => <div data-testid="job-id">{id}</div>,

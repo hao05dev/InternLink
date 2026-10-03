@@ -163,7 +163,7 @@ export function FacultyPostsTable({
                                         <div className="flex items-center justify-end gap-1">
                                             {isPublished && (
                                                 <Link
-                                                    href={`/cam-nang/${post.slug}`}
+                                                    href={`/career-guide/${post.slug}`}
                                                     target="_blank"
                                                     className="p-1.5 rounded-lg text-slate-400 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-slate-800 transition-colors"
                                                     title="Xem bài viết công khai"

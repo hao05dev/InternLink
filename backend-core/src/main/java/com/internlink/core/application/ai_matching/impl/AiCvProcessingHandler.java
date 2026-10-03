@@ -29,6 +29,8 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.*;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 
 @Slf4j
 @Component
@@ -65,9 +67,13 @@ public class AiCvProcessingHandler {
 
         // 1. Gọi sang AI Microservice để trích xuất kỹ năng
         OffsetDateTime startedAt = OffsetDateTime.now();
-        Map<String, Object> aiResult = aiServiceClient.extractSkills(cvText);
+        boolean allowCloud = Boolean.TRUE.equals(context.get("allow_cloud"));
+        Map<String, Object> aiResult = context.containsKey("document_base64")
+            ? aiServiceClient.extractDocument(cvDocument.getOriginalName(), (String) context.get("document_base64"), allowCloud)
+            : allowCloud ? aiServiceClient.extractSkills(cvText, true) : aiServiceClient.extractSkills(cvText);
         boolean failed = Set.of("FAILED", "EMPTY_RESPONSE").contains(aiResult.getOrDefault("status", ""));
         Map<String, Object> snapshot = new HashMap<>(context);
+        snapshot.remove("document_base64");
         snapshot.put("text_length", cvText.length());
 
         // 2. Ghi nhật ký chạy AI (ai_runs)
@@ -77,7 +83,9 @@ public class AiCvProcessingHandler {
             .sourceDocument(cvDocument)
             .status(failed ? AiRunStatus.FAILED : AiRunStatus.COMPLETED)
             .modelName(String.valueOf(aiResult.getOrDefault("model", "skills-extraction-transformer")))
-            .inputHash(Integer.toHexString(cvText != null ? cvText.hashCode() : 0))
+            .inputHash(aiResult.get("source_hash") == null ? sha256(cvText) : aiResult.get("source_hash").toString())
+            .taxonomyVersion((String) aiResult.get("taxonomy_version"))
+            .modelVersion((String) aiResult.get("prompt_version"))
             .inputSnapshot(snapshot)
             .outputResult(aiResult)
             .errorDetail(failed ? Map.of("message", "Dịch vụ AI không trả được kết quả trích xuất. Kiểm tra kết nối và thử lại.") : null)
@@ -120,12 +128,28 @@ public class AiCvProcessingHandler {
             // chưa xác nhận (isConfirmed = false) để sinh viên rà soát và xác nhận thủ công.
             studentSkill.setIsConfirmed(false);
             studentSkill.setEvidenceDocument(cvDocument);
+            Map<String, Object> evidence = new HashMap<>();
+            if (run.getId() != null) evidence.put("runId", run.getId().toString());
+            evidence.put("sourceHash", run.getInputHash());
+            evidence.put("sourceKind", context.containsKey("document_base64") ? "document" : "submitted_text");
+            evidence.put("assertionStatus", item.getOrDefault("assertion_status", "unknown"));
+            evidence.put("evidence", item.getOrDefault("evidence", Map.of()));
+            evidence.put("taxonomyVersion", aiResult.getOrDefault("taxonomy_version", "unknown"));
+            studentSkill.setAiEvidence(evidence);
 
             skillsToSave.add(studentSkill);
         }
 
         List<StudentSkill> saved = studentSkillRepository.saveAll(skillsToSave);
         return new CvProcessingResult(run, saved.stream().map(mapper::toStudentSkillResponse).toList());
+    }
+
+    private static String sha256(String text) {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(text.getBytes(StandardCharsets.UTF_8)));
+        } catch (java.security.NoSuchAlgorithmException impossible) {
+            throw new IllegalStateException(impossible);
+        }
     }
 
     public UUID reprocessFailedCvRun(UUID runId, String cvText) {

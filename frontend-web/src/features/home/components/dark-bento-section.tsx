@@ -18,7 +18,7 @@ export function DarkBentoSection() {
       desc: "Ký kết thỏa thuận tiếp nhận thực tập điện tử, đảm bảo quyền lợi, phụ cấp và bảo hiểm cho sinh viên.",
       icon: ShieldCheck,
       highlight: true, // Vibrant Electric Blue Card
-      href: "/cam-nang",
+      href: "/career-guide",
     },
     {
       title: "Nhật ký & Giám sát Tuần",
@@ -32,7 +32,7 @@ export function DarkBentoSection() {
       desc: "100% doanh nghiệp và tin tuyển dụng được thẩm định tư cách pháp nhân bởi Ban Quản lý Khoa.",
       icon: CheckCircle2,
       highlight: false,
-      href: "/doanh-nghiep",
+      href: "/companies",
     },
     {
       title: "Hồ sơ Năng lực Động (Portfolio)",

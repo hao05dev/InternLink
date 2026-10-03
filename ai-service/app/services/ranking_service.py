@@ -1,112 +1,82 @@
-﻿from typing import List, Dict, Any, Tuple
-import numpy as np
+"""Deterministic ranking. No HTTP, SDK, database, or model initialization."""
+import math
+
+from app.schemas.matching import JobDTO, MatchResult, StudentProfileDTO
+
 
 class RankingService:
-    def __init__(self, alpha: float = 0.55, beta: float = 0.35, gamma: float = 0.10):
-        # α: Trọng số kỹ năng cụ thể
-        # β: Trọng số độ tương đồng ngữ nghĩa toàn văn
-        # γ: Trọng số học lực / chuyên ngành / điểm thưởng
-        self.alpha = alpha
-        self.beta = beta
-        self.gamma = gamma
-
-    def cosine_similarity(self, vec1: List[float], vec2: List[float]) -> float:
-        v1 = np.array(vec1, dtype=np.float32)
-        v2 = np.array(vec2, dtype=np.float32)
-        norm1 = np.linalg.norm(v1)
-        norm2 = np.linalg.norm(v2)
-        if norm1 == 0 or norm2 == 0:
-            return 0.0
-        dot = np.dot(v1, v2)
-        return float(np.clip(dot / (norm1 * norm2), 0.0, 1.0))
-
-    def calculate_skill_score(
-        self,
-        student_skill_ids: List[str],
-        job_mandatory_skill_ids: List[str],
-        job_optional_skill_ids: List[str]
-    ) -> Tuple[float, List[str], List[str]]:
-        student_set = set(student_skill_ids)
-        mandatory_set = set(job_mandatory_skill_ids)
-        optional_set = set(job_optional_skill_ids)
-
-        # Kỹ năng bắt buộc khớp và thiếu
-        matched_mandatory = student_set.intersection(mandatory_set)
-        missing_mandatory = mandatory_set.difference(student_set)
-
-        # Kỹ năng mong muốn khớp
-        matched_optional = student_set.intersection(optional_set)
-
-        # Trọng số tính điểm: Bắt buộc chiếm 80%, mong muốn chiếm 20%
-        mand_score = len(matched_mandatory) / len(mandatory_set) if mandatory_set else 0.0
-        opt_score = len(matched_optional) / len(optional_set) if optional_set else 0.0
-
-        if mandatory_set and optional_set:
-            skill_score = (mand_score * 0.8) + (opt_score * 0.2)
-        else:
-            skill_score = mand_score if mandatory_set else opt_score
-        all_matched = list(matched_mandatory.union(matched_optional))
-        all_missing = list(missing_mandatory)
-
-        return float(np.clip(skill_score, 0.0, 1.0)), all_matched, all_missing
-
-    def rank_job_for_student(
-        self,
-        student: Dict[str, Any],
-        job: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """
-        Tính điểm và sinh giải thích chi tiết cho 1 cặp Sinh viên - Vị trí thực tập
-        """
-        student_skills = student.get("skill_ids", [])
-        job_mandatory = job.get("mandatory_skill_ids", [])
-        job_optional = job.get("optional_skill_ids", [])
-
-        # 1. Tính điểm kỹ năng
-        skill_score, matched_skills, missing_skills = self.calculate_skill_score(
-            student_skills, job_mandatory, job_optional
+    def calculate_skill_score(self, student_skill_ids, mandatory_ids, optional_ids):
+        student, mandatory = set(student_skill_ids), set(mandatory_ids)
+        optional = set(optional_ids) - mandatory
+        matched = student & (mandatory | optional)
+        missing = mandatory - student
+        mandatory_score = len(student & mandatory) / len(mandatory) if mandatory else 0.0
+        optional_score = len(student & optional) / len(optional) if optional else 0.0
+        score = (
+            0.8 * mandatory_score + 0.2 * optional_score
+            if mandatory and optional else mandatory_score if mandatory else optional_score
         )
+        return score, sorted(matched), sorted(missing)
 
-        # 2. Tính điểm tương đồng ngữ nghĩa (pgvector / Gemini embeddings)
-        student_vec = student.get("embedding", [])
-        job_vec = job.get("embedding", [])
-        semantic_score = self.cosine_similarity(student_vec, job_vec) if student_vec and job_vec else 0.5
+    def cosine_similarity(self, left, right):
+        if len(left) != len(right) or not left:
+            raise ValueError("Embedding dimensions must match")
+        if not all(math.isfinite(v) for v in [*left, *right]):
+            raise ValueError("Embedding values must be finite")
+        # Scale before normalization to avoid overflow from large supplied values.
+        left_scale, right_scale = max(map(abs, left)), max(map(abs, right))
+        if not left_scale or not right_scale:
+            raise ValueError("Embedding cannot be zero")
+        a, b = [v / left_scale for v in left], [v / right_scale for v in right]
+        denominator = math.sqrt(sum(v * v for v in a)) * math.sqrt(sum(v * v for v in b))
+        return max(0.0, min(1.0, sum(x * y for x, y in zip(a, b)) / denominator))
 
-        # 3. Điểm học lực / Chuyên ngành
-        academic_score = 1.0
-        if job.get("target_major") and student.get("major"):
-            if job["target_major"].lower() not in student["major"].lower():
-                academic_score *= 0.7
-        gpa = student.get("gpa", 3.0)
-        # Chuẩn hóa GPA thang 4
-        gpa_score = np.clip(gpa / 4.0, 0.0, 1.0)
-        academic_score = (academic_score * 0.5) + (gpa_score * 0.5)
-
-        # 4. Final Hybrid Score
-        final_score = (self.alpha * skill_score) + (self.beta * semantic_score) + (self.gamma * academic_score)
-        final_percentage = round(final_score * 100, 1)
-
-        # 5. Khuyến nghị & Giải thích (Explainability)
-        recommendation = ""
-        if len(missing_skills) == 0:
-            recommendation = "Hồ sơ của bạn đáp ứng đầy đủ tất cả kỹ năng yêu cầu! Rất khuyến khích ứng tuyển."
-        elif len(missing_skills) <= 2:
-            recommendation = f"Bạn đáp ứng phần lớn yêu cầu. Cần ôn tập hoặc bổ sung kiến thức về: {', '.join(missing_skills)}."
+    def rank_job_for_student(self, student: StudentProfileDTO, job: JobDTO) -> MatchResult:
+        skill, matched, missing = self.calculate_skill_score(
+            student.skill_ids, job.mandatory_skill_ids, job.optional_skill_ids,
+        )
+        warnings = []
+        skill_available = bool(student.skill_ids) and bool(job.mandatory_skill_ids or job.optional_skill_ids)
+        if not student.skill_ids:
+            warnings.append("student_skills_unknown")
+        if not job.mandatory_skill_ids and not job.optional_skill_ids:
+            warnings.append("job_skills_unknown")
+        semantic, semantic_available = 0.0, False
+        if student.embedding is not None and job.embedding is not None:
+            if student.embedding_model != job.embedding_model:
+                warnings.append("embedding_model_mismatch")
+            elif len(student.embedding) != len(job.embedding):
+                warnings.append("embedding_dimension_mismatch")
+            else:
+                semantic = self.cosine_similarity(student.embedding, job.embedding)
+                semantic_available = True
+        if not semantic_available:
+            warnings.append("semantic_unavailable")
+        if skill_available and semantic_available:
+            # Renormalize the existing skill/semantic weights; academic defaults removed.
+            score, mode = (0.55 * skill + 0.35 * semantic) / 0.9, "hybrid"
+        elif skill_available:
+            score, mode = skill, "skill_only"
+        elif semantic_available:
+            score, mode = semantic, "semantic_only"
         else:
-            recommendation = f"Vị trí này đòi hỏi thêm một số kỹ năng chuyên sâu: {', '.join(missing_skills[:3])}."
+            score, mode = 0.0, "insufficient_data"
 
-        return {
-            "job_id": job.get("id"),
-            "job_title": job.get("title"),
-            "company_name": job.get("company_name"),
-            "final_score": round(final_score, 4),
-            "match_percentage": final_percentage,
-            "skill_score": round(skill_score, 4),
-            "semantic_score": round(semantic_score, 4),
-            "academic_score": round(academic_score, 4),
-            "matched_skills": matched_skills,
-            "missing_skills": missing_skills,
-            "recommendation": recommendation
-        }
-
-ranking_service = RankingService()
+        if mode == "insufficient_data":
+            recommendation = "Chưa đủ dữ liệu để tính điểm phù hợp; hãy bổ sung hồ sơ hoặc yêu cầu vị trí."
+        elif not job.mandatory_skill_ids:
+            recommendation = "JD chưa có kỹ năng bắt buộc để đối chiếu; điểm hiện tại chỉ mang tính tham khảo."
+        elif not student.skill_ids:
+            recommendation = "Hồ sơ chưa có kỹ năng đã xác nhận; cần rà soát trước khi đối chiếu yêu cầu."
+        elif missing:
+            recommendation = "Chưa thấy minh chứng đã xác nhận cho các kỹ năng: " + ", ".join(missing) + "."
+        else:
+            recommendation = "Các kỹ năng bắt buộc đã có trong hồ sơ xác nhận; cần xem thêm điều kiện của vị trí."
+        return MatchResult(
+            job_id=job.id, job_title=job.title, company_name=job.company_name,
+            final_score=round(score, 4), match_percentage=round(score * 100, 1),
+            skill_score=round(skill, 4), semantic_score=round(semantic, 4),
+            matched_skills=matched, missing_skills=missing, recommendation=recommendation,
+            mode=mode, score_available=mode != "insufficient_data",
+            semantic_available=semantic_available, warnings=warnings,
+        )

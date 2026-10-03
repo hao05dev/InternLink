@@ -177,7 +177,7 @@ export function useFacultyRoster() {
             const data = res.data;
             setMessage({
                 type: data?.failedStudentCodes?.length ? 'error' : 'success',
-                text: `Đã gửi thông báo cho ${data?.emailsSent ?? 0}/${data?.totalIneligible ?? 0} sinh viên chưa đủ điều kiện.${data?.failedStudentCodes?.length ? ` Thất bại: ${data.failedStudentCodes.join(', ')}` : ''}`,
+                text: `Đã xếp hàng email cho ${data?.emailsQueued ?? 0}/${data?.totalIneligible ?? 0} sinh viên chưa đủ điều kiện.${data?.failedStudentCodes?.length ? ` Thất bại: ${data.failedStudentCodes.join(', ')}` : ''}`,
             });
             return true;
         } catch (err: unknown) {
@@ -242,13 +242,13 @@ export function useFacultyRoster() {
         setIsActionLoading(true);
         try {
             const result = await apiClient.post<{
-                eligible: number; emailsSent: number;
+                eligible: number; emailsSent: number; emailsQueued: number;
                 notificationsCreated: number; failedStudentCodes: string[];
             }>(`/api/v1/terms/${selectedTermId}/introduction-letter-notice`, payload);
             const data = result.data;
             setMessage({
                 type: data?.failedStudentCodes?.length ? 'error' : 'success',
-                text: `Đã gửi ${data?.emailsSent ?? 0}/${data?.eligible ?? 0} email thông báo.${data?.failedStudentCodes?.length ? ` Lỗi gửi cho: ${data.failedStudentCodes.join(', ')}` : ''}`,
+                text: `Đã xếp hàng ${data?.emailsQueued ?? 0}/${data?.eligible ?? 0} email thông báo.${data?.failedStudentCodes?.length ? ` Lỗi gửi cho: ${data.failedStudentCodes.join(', ')}` : ''}`,
             });
             setIsEmailModalOpen(false);
         } catch (error) {

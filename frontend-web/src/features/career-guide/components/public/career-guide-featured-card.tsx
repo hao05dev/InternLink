@@ -41,7 +41,7 @@ export function CareerGuideFeaturedCard({ post }: CareerGuideFeaturedCardProps) 
                             </span>
                         </div>
 
-                        <Link href={`/cam-nang/${post.slug}`}>
+                        <Link href={`/career-guide/${post.slug}`}>
                             <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900 dark:text-slate-100 group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors leading-snug">
                                 {post.title}
                             </h2>
@@ -68,7 +68,7 @@ export function CareerGuideFeaturedCard({ post }: CareerGuideFeaturedCardProps) 
                         </div>
 
                         <Link
-                            href={`/cam-nang/${post.slug}`}
+                            href={`/career-guide/${post.slug}`}
                             className="inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300 hover:bg-sky-100 dark:hover:bg-sky-900 text-xs font-semibold transition-colors"
                         >
                             <span>Xem chi tiết</span>

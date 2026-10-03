@@ -12,19 +12,11 @@ import { DarkBentoSection } from "./dark-bento-section";
 import { LatestJobsSection } from "./latest-jobs-section";
 import { RolePortalsSection } from "./role-portals-section";
 import { VerifiedCompaniesSection } from "./verified-companies-section";
-
-interface VerifiedCompany {
-  id: string;
-  name: string;
-  industry?: string;
-  address?: string;
-  verificationStatus?: string;
-  status?: string;
-}
+import { Company } from "@/features/companies/types/company.types";
 
 export default function HomeView() {
   const [jobs, setJobs] = useState<JobPosition[]>([]);
-  const [companies, setCompanies] = useState<VerifiedCompany[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [isLoadingJobs, setIsLoadingJobs] = useState(true);
   const [jobsError, setJobsError] = useState<string | null>(null);
 
@@ -41,7 +33,7 @@ export default function HomeView() {
     }
 
     try {
-      const compRes = await apiClient.get<VerifiedCompany[]>("/api/v1/companies");
+      const compRes = await apiClient.get<Company[]>("/api/v1/companies");
       if (compRes.data) {
         const verified = compRes.data.filter(
           (c) => c.verificationStatus === "VERIFIED" || c.status === "VERIFIED"

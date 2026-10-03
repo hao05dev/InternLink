@@ -1,2 +1,5 @@
-import PortfolioWorkspace from '@/features/portfolio/portfolio-workspace';
-export default function Page() { return <PortfolioWorkspace initialTab="forms" initialKind="M05" />; }
+import LecturerRecordsListView from '@/features/portfolio/views/lecturer-records-list-view';
+
+export default function LecturerInternshipRecordPage() {
+  return <LecturerRecordsListView />;
+}

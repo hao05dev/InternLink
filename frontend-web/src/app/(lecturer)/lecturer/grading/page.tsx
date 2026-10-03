@@ -1,5 +1,5 @@
-import PortfolioWorkspace from "@/features/portfolio/portfolio-workspace";
+import LecturerGradingListView from '@/features/evaluations/views/lecturer-grading-list-view';
 
 export default function LecturerGradingPage() {
-    return <PortfolioWorkspace initialTab="forms" initialKind="M04" />;
+  return <LecturerGradingListView />;
 }
