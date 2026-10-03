@@ -1,54 +1,87 @@
 # ====================================================================
-# InternLink Gitignore
+# InternLink - Comprehensive .gitignore
 # ====================================================================
-mo_ta_luan_van.txt
-internlink.sql
-/frontend-web/.agent
-/frontend-web/.agents
-/frontend-web/skills-lock.json
-/docs
-!/docs/
-/docs/**
-!/docs/MARKET_RESEARCH_AND_BUSINESS_PLAN.md
-!/docs/INTERNSHIP_PORTFOLIO.md
-!/docs/AI_SERVICE_IMPLEMENTATION_PLAN.md
-!/docs/UX_UI_REDESIGN_PLAN.md
-# Operating System Files
+
+# --------------------------------------------------------------------
+# 1. Sensitive Data, Secrets & Credentials (Bảo mật & Thông tin nhạy cảm)
+# --------------------------------------------------------------------
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.test
+
+# Private Keys & Certificates
+*.pem
+*.key
+*.p12
+*.pfx
+*.keystore
+*.jks
+*credentials*.json
+*secret*.json
+google-credentials.json
+service-account.json
+
+# User Uploaded Content & Media (Tránh lộ CV, tài liệu cá nhân sinh viên)
+**/uploads/**
+!**/uploads/.gitkeep
+**/storage/**
+**/media/**
+
+# --------------------------------------------------------------------
+# 2. Operating System & Local Temporary Files
+# --------------------------------------------------------------------
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
 Desktop.ini
 $RECYCLE.BIN/
 
-# IDE & Editor Files
+# --------------------------------------------------------------------
+# 3. IDEs & Editors
+# --------------------------------------------------------------------
 .idea/
 .vscode/*
 !.vscode/extensions.json
+!.vscode/settings.json
 *.iml
 *.iws
 *.ipr
 *.swp
 *.swo
+*.sublime-project
+*.sublime-workspace
 
-# Docker / Database data
-postgres_data/
-*.sql.bak
+# Agent & AI Editor Temporary Directories
+**/.agent/
+**/.agents/
+**/skills-lock.json
 
-# Logs & Temporary Files
+# --------------------------------------------------------------------
+# 4. Logs & Process Files
+# --------------------------------------------------------------------
 *.log
+**/logs/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Environment Secrets
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+# --------------------------------------------------------------------
+# 5. Database & Docker Local Data
+# --------------------------------------------------------------------
+postgres_data/
+**/postgres_data/
+*.sql.bak
+mo_ta_luan_van.txt
+internlink.sql
 
 # --------------------------------------------------------------------
-# Java / Maven (backend-core)
+# 6. Backend - Java / Maven / Spring Boot (backend-core)
 # --------------------------------------------------------------------
 **/target/
 **/.mvn/wrapper/maven-wrapper.jar
@@ -61,10 +94,13 @@ pnpm-debug.log*
 **/*.tar.gz
 **/*.rar
 **/hs_err_pid*
+**/.factorypath
+**/.apt_generated/
 
 # --------------------------------------------------------------------
-# Python / FastAPI (ai-service)
+# 7. AI Service - Python / FastAPI (ai-service)
 # --------------------------------------------------------------------
+**/.venv/
 **/venv/
 **/env/
 **/ENV/
@@ -72,12 +108,19 @@ pnpm-debug.log*
 **/*.py[cod]
 **/*$py.class
 **/.pytest_cache/
+**/.ruff_cache/
+**/.mypy_cache/
 **/.coverage
 **/htmlcov/
-**/.mypy_cache/
+**/.cache/
+# Large ML models & checkpoints
+**/*.onnx
+**/*.pt
+**/*.bin
+**/*.safetensors
 
 # --------------------------------------------------------------------
-# Node / Next.js (frontend-web)
+# 8. Frontend - Node.js / Next.js / React (frontend-web)
 # --------------------------------------------------------------------
 **/node_modules/
 **/.next/
