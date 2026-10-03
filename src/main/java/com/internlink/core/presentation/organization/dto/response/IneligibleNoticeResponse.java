@@ -14,6 +14,7 @@ import java.util.List;
 public class IneligibleNoticeResponse {
     private int totalIneligible;
     private int emailsSent;
+    private int emailsQueued;
     private int notificationsCreated;
     private List<String> failedStudentCodes;
 }

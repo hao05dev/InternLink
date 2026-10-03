@@ -18,6 +18,8 @@ public class SkillTaxonomyResponse {
     private String skillName;
     private SkillCategory category;
     private String framework;
+    private String externalUri;
+    private String taxonomyVersion;
     private String description;
     private List<String> aliases;
 }

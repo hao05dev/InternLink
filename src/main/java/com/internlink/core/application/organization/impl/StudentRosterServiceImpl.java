@@ -329,8 +329,7 @@ public class StudentRosterServiceImpl implements StudentRosterService {
                 .replace("{{contactInfo}}", contact);
 
             try {
-                gmailSender.send(roster.getOfficialEmail(), subject, body);
-                emailsSent++;
+                if (gmailSender.queue(roster.getOfficialEmail(), subject, body)) emailsSent++;
             } catch (RuntimeException err) {
                 failedCodes.add(roster.getStudentCode());
             }
@@ -339,7 +338,7 @@ public class StudentRosterServiceImpl implements StudentRosterService {
                 : userRepository.findByEmail(roster.getOfficialEmail()).map(User::getId).orElse(null);
 
             if (recipientUserId != null) {
-                notificationService.sendNotification(
+                notificationService.sendInAppNotification(
                     recipientUserId,
                     "INELIGIBLE_ROSTER_ALERT",
                     subject,
@@ -353,13 +352,14 @@ public class StudentRosterServiceImpl implements StudentRosterService {
         auditLogService.logAction(securityGuard.currentUser().getId(), "NOTIFY_INELIGIBLE_STUDENTS",
             "InternshipTerm", termId, failedCodes.isEmpty() ? "SUCCESS" : "PARTIAL", Map.of(
                 "totalIneligible", ineligibleRosters.size(),
-                "emailsSent", emailsSent,
+                "emailsQueued", emailsSent,
                 "notificationsCreated", inAppNotifs
             ), null);
 
         return IneligibleNoticeResponse.builder()
             .totalIneligible(ineligibleRosters.size())
-            .emailsSent(emailsSent)
+            .emailsSent(0)
+            .emailsQueued(emailsSent)
             .notificationsCreated(inAppNotifs)
             .failedStudentCodes(failedCodes)
             .build();

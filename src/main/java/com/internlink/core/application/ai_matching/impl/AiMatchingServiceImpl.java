@@ -43,6 +43,7 @@ public class AiMatchingServiceImpl implements AiMatchingService {
     @Transactional(readOnly = true)
     public List<SkillTaxonomyResponse> getAllTaxonomySkills() {
         return taxonomyRepository.findAll().stream()
+            .filter(skill -> Boolean.TRUE.equals(skill.getIsActive()))
             .map(mapper::toTaxonomyResponse)
             .toList();
     }
@@ -60,7 +61,7 @@ public class AiMatchingServiceImpl implements AiMatchingService {
                     actor, profile.getProgram().getDepartment().getId())).orElse(false);
         boolean lecturerAccess = actor.getRole() == UserRole.LECTURER
             && placementRepository.findByStudentId(studentId).stream()
-                .anyMatch(placement -> actorId.equals(placement.getLecturer().getId()));
+                .anyMatch(placement -> placement.getLecturer() != null && actorId.equals(placement.getLecturer().getId()));
         boolean companyAccess = actor.getRole() == UserRole.COMPANY_REP
             && applicationRepository.findByStudentId(studentId).stream()
                 .anyMatch(app -> ResourceAuthorization.representsCompany(
@@ -69,7 +70,11 @@ public class AiMatchingServiceImpl implements AiMatchingService {
             || facultyAccess || lecturerAccess || companyAccess);
         return studentSkillRepository.findByIdStudentId(studentId).stream()
             .filter(skill -> isSelf || Boolean.TRUE.equals(skill.getIsConfirmed()))
-            .map(mapper::toStudentSkillResponse)
+            .map(skill -> {
+                StudentSkillResponse response = mapper.toStudentSkillResponse(skill);
+                if (!isSelf) response.setAiEvidence(Map.of());
+                return response;
+            })
             .toList();
     }
 
@@ -98,6 +103,11 @@ public class AiMatchingServiceImpl implements AiMatchingService {
         StudentSkill skill = studentSkillRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("StudentSkill", "id", skillId));
 
+        if (Boolean.TRUE.equals(confirmed) && skill.getAiEvidence() != null
+                && java.util.Set.of("negated", "learning").contains(skill.getAiEvidence().getOrDefault("assertionStatus", "unknown"))) {
+            throw new com.internlink.core.shared.exception.BadRequestException(
+                "Câu nguồn chưa thể hiện kỹ năng đã có. Hãy sửa CV hoặc tự khai kỹ năng với minh chứng mới.");
+        }
         skill.setIsConfirmed(confirmed);
         return mapper.toStudentSkillResponse(studentSkillRepository.save(skill));
     }

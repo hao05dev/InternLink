@@ -21,6 +21,8 @@ public class AiMatchingMapper {
             .skillName(entity.getSkillName())
             .category(entity.getCategory())
             .framework(entity.getFramework())
+            .externalUri(entity.getExternalUri())
+            .taxonomyVersion(entity.getTaxonomyVersion())
             .description(entity.getDescription())
             .aliases(entity.getAliases())
             .build();
@@ -38,6 +40,7 @@ public class AiMatchingMapper {
             .isConfirmed(entity.getIsConfirmed())
             .evidenceDocumentId(entity.getEvidenceDocument() != null ? entity.getEvidenceDocument().getId() : null)
             .createdAt(entity.getCreatedAt())
+            .aiEvidence(entity.getAiEvidence())
             .build();
     }
 

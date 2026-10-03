@@ -12,6 +12,9 @@ import java.time.OffsetDateTime;
 
 @Repository
 public interface JpaNotificationRepository extends JpaRepository<Notification, UUID> {
+    org.springframework.data.domain.Page<Notification> findByRecipientId(UUID recipientId, org.springframework.data.domain.Pageable page);
+    org.springframework.data.domain.Page<Notification> findByRecipientIdAndIsReadFalse(UUID recipientId, org.springframework.data.domain.Pageable page);
+    List<Notification> findTop50ByRecipientIdOrderByCreatedAtDesc(UUID recipientId);
     List<Notification> findByRecipientIdOrderByCreatedAtDesc(UUID recipientId);
     List<Notification> findByRecipientIdAndIsReadFalseOrderByCreatedAtDesc(UUID recipientId);
     long countByRecipientIdAndIsReadFalse(UUID recipientId);

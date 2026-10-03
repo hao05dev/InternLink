@@ -13,6 +13,8 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class NotificationResponse {
+    private String category;
+    private java.util.Map<String,Object> deliveryStatus;
 
     private UUID id;
     private UUID recipientUserId;

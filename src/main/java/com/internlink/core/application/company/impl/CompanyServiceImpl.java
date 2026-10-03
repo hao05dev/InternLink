@@ -31,6 +31,7 @@ public class CompanyServiceImpl implements CompanyService {
     private final JpaUserRepository userRepository;
     private final AuditLogService auditLogService;
     private final SecurityGuard securityGuard;
+    private final com.internlink.core.application.system.NotificationService notifications;
 
     @Override
     @Transactional(readOnly = true)
@@ -74,7 +75,13 @@ public class CompanyServiceImpl implements CompanyService {
             .verificationDetail(Map.of())
             .build();
 
-        return mapToResponse(companyRepository.save(company));
+        Company saved = companyRepository.save(company);
+        for (UserRole role : List.of(UserRole.FACULTY_ADMIN, UserRole.ADMIN)) {
+            userRepository.findByRole(role).forEach(user -> notifications.sendNotification(user.getId(), "COMPANY_REGISTERED",
+                "Doanh nghiệp mới chờ thẩm định", saved.getCompanyName() + " đã đăng ký tham gia hệ thống.",
+                role == UserRole.ADMIN ? "/admin/companies" : "/faculty/companies"));
+        }
+        return mapToResponse(saved);
     }
 
     @Override
@@ -125,6 +132,9 @@ public class CompanyServiceImpl implements CompanyService {
         Company saved = companyRepository.save(company);
         auditLogService.logAction(verifiedByUserId, "REVIEW_COMPANY", "Company", saved.getId(),
             "SUCCESS", Map.of("status", status.name()), null);
+        userRepository.findByCompanyIdAndRole(saved.getId(), UserRole.COMPANY_REP).forEach(user ->
+            notifications.sendNotification(user.getId(), "COMPANY_REVIEWED", "Kết quả thẩm định doanh nghiệp",
+                "Hồ sơ " + saved.getCompanyName() + " có trạng thái " + status.name() + ". Xem ghi chú trong hệ thống.", "/company/dashboard"));
         return mapToResponse(saved);
     }
 

@@ -47,6 +47,7 @@ public class JobApplicationServiceImpl implements JobApplicationService {
     private final JpaStudentRosterRepository studentRosterRepository;
     private final JpaPlacementOfferRepository offerRepository;
     private final SecurityGuard securityGuard;
+    private final com.internlink.core.application.system.NotificationService notifications;
 
     /** Giới hạn số đơn ứng tuyển đang hoạt động trong một kỳ. */
     private static final int MAX_ACTIVE_APPLICATIONS_PER_TERM = 5;
@@ -222,7 +223,10 @@ public class JobApplicationServiceImpl implements JobApplicationService {
             .interviewRounds(List.of())
             .build();
 
-        return mapToResponse(applicationRepository.save(application));
+        JobApplication saved = applicationRepository.save(application);
+        notifyCompany(saved, "APPLICATION_SUBMITTED", "Hồ sơ ứng tuyển mới",
+            student.getFullName() + " đã ứng tuyển vị trí " + job.getTitle());
+        return mapToResponse(saved);
     }
 
     @Override
@@ -240,7 +244,10 @@ public class JobApplicationServiceImpl implements JobApplicationService {
         }
 
         app.setStatus(status);
-        return mapToResponse(applicationRepository.save(app));
+        JobApplication saved = applicationRepository.save(app);
+        notifications.sendNotification(saved.getStudent().getId(), "APPLICATION_STATUS_CHANGED", "Cập nhật hồ sơ ứng tuyển",
+            "Hồ sơ vị trí " + saved.getJob().getTitle() + " chuyển sang " + status.name() + ".", "/student/applications");
+        return mapToResponse(saved);
     }
 
     @Override
@@ -258,7 +265,15 @@ public class JobApplicationServiceImpl implements JobApplicationService {
             throw new BadRequestException("Chỉ có thể rút hồ sơ trước khi nhận offer");
         }
         app.setStatus(ApplicationStatus.WITHDRAWN);
-        return mapToResponse(applicationRepository.save(app));
+        JobApplication saved = applicationRepository.save(app);
+        notifyCompany(saved, "APPLICATION_WITHDRAWN", "Sinh viên rút hồ sơ",
+            saved.getStudent().getFullName() + " đã rút hồ sơ vị trí " + saved.getJob().getTitle());
+        return mapToResponse(saved);
+    }
+
+    private void notifyCompany(JobApplication app, String type, String title, String message) {
+        userRepository.findByCompanyIdAndRole(app.getJob().getCompany().getId(), UserRole.COMPANY_REP)
+            .forEach(user -> notifications.sendNotification(user.getId(), type, title, message, "/company/candidates"));
     }
 
     private User currentActor() {

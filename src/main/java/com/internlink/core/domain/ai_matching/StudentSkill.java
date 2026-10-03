@@ -9,6 +9,9 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.Map;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 
 
@@ -47,6 +50,11 @@ public class StudentSkill {
     @Builder.Default
     @Column(name = "is_confirmed", nullable = false)
     private Boolean isConfirmed = false;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Builder.Default
+    @Column(name = "ai_evidence", columnDefinition = "jsonb", nullable = false)
+    private Map<String, Object> aiEvidence = Map.of();
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "evidence_document_id")

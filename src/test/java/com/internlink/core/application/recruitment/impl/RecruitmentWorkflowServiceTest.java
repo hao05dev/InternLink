@@ -74,7 +74,7 @@ class RecruitmentWorkflowServiceTest {
             departmentRepository, userRepository, jobSkillRepository, auditLogService, securityGuard,
             mapper, skillHandler, notifHelper);
         applicationService = new JobApplicationServiceImpl(applicationRepository, jobRepository,
-            userRepository, documentRepository, studentProfileRepository, studentRosterRepository, offerRepository, securityGuard);
+            userRepository, documentRepository, studentProfileRepository, studentRosterRepository, offerRepository, securityGuard, notificationService);
         offerService = new PlacementOfferServiceImpl(offerRepository, applicationRepository, userRepository, securityGuard, auditLogService, notificationService);
         lenient().when(jobRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         lenient().when(applicationRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));

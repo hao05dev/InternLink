@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;
+import java.util.Map;
 
 @Data
 @Builder
@@ -27,4 +28,5 @@ public class StudentSkillResponse {
     private Boolean isConfirmed;
     private UUID evidenceDocumentId;
     private OffsetDateTime createdAt;
+    private Map<String, Object> aiEvidence;
 }

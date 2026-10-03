@@ -11,4 +11,8 @@ public interface NotificationService {
     NotificationResponse markAsRead(UUID id, UUID recipientId);
     void markAllAsRead(UUID recipientId);
     void sendNotification(UUID recipientId, String type, String title, String message, String actionUrl);
+
+    default void sendInAppNotification(UUID recipientId, String type, String title, String message, String actionUrl) {
+        sendNotification(recipientId, type, title, message, actionUrl);
+    }
 }

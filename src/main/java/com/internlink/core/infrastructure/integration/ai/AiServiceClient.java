@@ -5,184 +5,157 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 @Slf4j
 @Component
 public class AiServiceClient {
-
     private final WebClient webClient;
+    @Value("${internlink.ai-service.api-key:}")
+    private String serviceApiKey = "";
 
-    public AiServiceClient(
-        WebClient.Builder webClientBuilder,
-        @Value("${internlink.ai-service.base-url:http://localhost:8001}") String aiServiceUrl
-    ) {
-        this.webClient = webClientBuilder
-            .baseUrl(aiServiceUrl)
-            .build();
+    public AiServiceClient(WebClient.Builder builder,
+            @Value("${internlink.ai-service.base-url:http://localhost:8001}") String url) {
+        webClient = builder.baseUrl(url).codecs(config -> config.defaultCodecs().maxInMemorySize(4 * 1024 * 1024)).build();
     }
 
-    /**
-     * Gọi sang Python AI Service để trích xuất và chuẩn hóa kỹ năng từ văn bản CV
-     */
     public Map<String, Object> health() {
         try {
             return webClient.get().uri("/").retrieve()
                 .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
-                .timeout(Duration.ofSeconds(3)).blockOptional()
-                .orElse(Map.of("status", "unavailable"));
+                .timeout(Duration.ofSeconds(3)).blockOptional().orElse(Map.of("status", "unavailable"));
         } catch (Exception ex) {
             return Map.of("status", "unavailable");
         }
     }
 
-    public Map<String, Object> extractSkills(String cvRawText) {
+    public Map<String, Object> infer(String endpoint, Map<String, Object> body) {
         try {
-            Map<String, Object> requestBody = Map.of(
-                "text", cvRawText != null ? cvRawText : ""
-            );
-
-            return webClient.post()
-                .uri("/api/v1/skills/extract")
-                .bodyValue(requestBody)
-                .retrieve()
+            return webClient.post().uri(endpoint).header("X-InternLink-AI-Key", serviceApiKey)
+                .bodyValue(body).retrieve()
                 .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
-                .timeout(Duration.ofSeconds(10))
-                .blockOptional()
-                .orElse(Map.of("normalized_skills", List.of(), "status", "EMPTY_RESPONSE"));
-        } catch (Exception ex) {
-            log.error("Lỗi khi gọi AI Service trích xuất kỹ năng: {}", ex.getMessage());
-            // Fallback trả về danh sách rỗng nếu AI Service tạm thời offline
-            return Map.of("normalized_skills", List.of(), "model", "fallback", "status", "FAILED");
-        }
-    }
-
-    /**
-     * Gọi sang Python AI Service để tính Match Score và Skill Gap với đầy đủ ngữ cảnh:
-     * - Tiêu đề công việc và mô tả công việc (phục vụ tính tương đồng ngữ nghĩa semantic matching)
-     * - Phân loại rõ ràng kỹ năng bắt buộc (mandatory) và kỹ năng mong muốn (optional)
-     */
-    public Map<String, Object> calculateMatchScore(
-        UUID studentId,
-        UUID jobId,
-        String jobTitle,
-        String jobDescription,
-        String studentBio,
-        List<String> studentSkills,
-        List<String> mandatorySkillIds,
-        List<String> optionalSkillIds
-    ) {
-        try {
-            Map<String, Object> jobPayload = new HashMap<>();
-            jobPayload.put("id", jobId.toString());
-            jobPayload.put("title", jobTitle != null ? jobTitle : "");
-            jobPayload.put("description", jobDescription != null ? jobDescription : "");
-            jobPayload.put("mandatory_skill_ids", mandatorySkillIds != null ? mandatorySkillIds : List.of());
-            jobPayload.put("optional_skill_ids", optionalSkillIds != null ? optionalSkillIds : List.of());
-
-            Map<String, Object> studentPayload = new HashMap<>();
-            studentPayload.put("id", studentId.toString());
-            studentPayload.put("skill_ids", studentSkills != null ? studentSkills : List.of());
-            studentPayload.put("bio_summary", studentBio != null ? studentBio : "");
-            Map<String, Object> requestBody = Map.of("student", studentPayload, "jobs", List.of(jobPayload));
-
-            Map<String, Object> response = webClient.post()
-                .uri("/api/v1/matching/rank-jobs")
-                .bodyValue(requestBody)
-                .retrieve()
-                .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
-                .timeout(Duration.ofSeconds(10))
-                .blockOptional()
-                .orElse(Map.of("rankings", List.of()));
-
-            Object rankings = response.get("rankings");
-            if (rankings instanceof List<?> list && !list.isEmpty() && list.get(0) instanceof Map<?, ?> first) {
-                return normalizeRankingResponse(first);
+                .timeout(Duration.ofSeconds(20)).blockOptional()
+                .orElse(Map.of("status", "FAILED", "error_code", "empty_response"));
+        } catch (WebClientResponseException ex) {
+            // Return only known parser errors, never an upstream message containing CV text.
+            String code = "ai_unavailable";
+            for (String known : List.of("ocr_required", "encrypted_pdf", "unsupported_document_type",
+                    "document_too_large", "document_text_too_large", "unreadable_document", "too_many_pages")) {
+                if (ex.getStatusCode().value() == 422 && ex.getResponseBodyAsString().contains("\"" + known + "\"")) code = known;
             }
-
-            return fallbackMatchScore(studentSkills, mandatorySkillIds, optionalSkillIds);
+            return Map.of("status", "FAILED", "error_code", code);
         } catch (Exception ex) {
-            log.error("Lỗi khi gọi AI Service tính toán độ phù hợp: {}", ex.getMessage());
-            // Fallback tính toán cơ bản theo quy tắc
-            return fallbackMatchScore(studentSkills, mandatorySkillIds, optionalSkillIds);
+            log.warn("AI request failed: {}", ex.getClass().getSimpleName());
+            return Map.of("status", "FAILED", "error_code", "ai_unavailable");
         }
     }
 
-    /** Overload giữ tương thích ngược */
-    public Map<String, Object> calculateMatchScore(
-        UUID studentId,
-        UUID jobId,
-        List<String> studentSkills,
-        List<String> jobSkills
-    ) {
-        return calculateMatchScore(studentId, jobId, "", "", "", studentSkills, jobSkills, List.of());
+    public Map<String, Object> extractSkills(String text) {
+        return extractSkills(text, false);
     }
 
-    private Map<String, Object> normalizeRankingResponse(Map<?, ?> ranking) {
-        Object score = ranking.get("match_percentage");
-        if (score == null) {
-            score = ranking.get("match_score");
+    public Map<String, Object> extractSkills(String text, boolean allowCloud) {
+        Map<String, Object> result = new HashMap<>(infer("/api/v1/skills/extract", Map.of("text", text == null ? "" : text, "allow_cloud", allowCloud)));
+        result.putIfAbsent("normalized_skills", List.of());
+        return result;
+    }
+
+    public Map<String, Object> extractDocument(String name, String base64, boolean allowCloud) {
+        return infer("/api/v1/skills/extract-document",
+            Map.of("filename", name, "content_base64", base64, "allow_cloud", allowCloud));
+    }
+
+    public List<Map<String, Object>> rankJobs(Map<String, Object> student, List<Map<String, Object>> jobs) {
+        if (jobs.isEmpty()) return List.of();
+        Map<String, Object> response = infer("/api/v1/matching/rank-jobs", Map.of("student", student, "jobs", jobs));
+        Map<String, Map<?, ?>> byId = new HashMap<>();
+        if (response.get("rankings") instanceof List<?> rows) {
+            for (Object row : rows) if (row instanceof Map<?, ?> map && map.get("job_id") instanceof String id) byId.put(id, map);
         }
-
-        return Map.of(
-            "match_score", score != null ? score : 0.0,
-            "matched_skills", getOrDefault(ranking, "matched_skills", List.of()),
-            "missing_skills", getOrDefault(ranking, "missing_skills", List.of()),
-            "explanation", Map.of(
-                "final_score", getOrDefault(ranking, "final_score", 0.0),
-                "skill_score", getOrDefault(ranking, "skill_score", 0.0),
-                "semantic_score", getOrDefault(ranking, "semantic_score", 0.0),
-                "academic_score", getOrDefault(ranking, "academic_score", 0.0),
-                "recommendation", getOrDefault(ranking, "recommendation", "")
-            )
-        );
+        List<Map<String, Object>> results = new ArrayList<>();
+        for (Map<String, Object> job : jobs) {
+            String id = String.valueOf(job.get("id"));
+            Map<String, Object> normalized = byId.containsKey(id) ? normalizeRankingResponse(byId.get(id))
+                : fallbackMatchScore(strings(student.get("skill_ids")), strings(job.get("mandatory_skill_ids")), strings(job.get("optional_skill_ids")));
+            Map<String, Object> row = new HashMap<>(normalized);
+            row.put("job_id", id);
+            results.add(row);
+        }
+        return results;
     }
 
-    private Object getOrDefault(Map<?, ?> map, String key, Object defaultValue) {
-        Object value = map.get(key);
-        return value != null ? value : defaultValue;
+    public Map<String, Object> calculateMatchScore(UUID studentId, UUID jobId, String title,
+            String description, String bio, List<String> skills, List<String> mandatory, List<String> optional) {
+        return rankJobs(Map.of("id", studentId.toString(), "skill_ids", skills, "bio_summary", bio == null ? "" : bio),
+            List.of(Map.of("id", jobId.toString(), "title", title == null || title.isBlank() ? "Internship" : title,
+                "description", description == null ? "" : description, "mandatory_skill_ids", mandatory,
+                "optional_skill_ids", optional))).getFirst();
     }
 
-    private Map<String, Object> fallbackMatchScore(
-        List<String> studentSkills,
-        List<String> mandatorySkillIds,
-        List<String> optionalSkillIds
-    ) {
-        List<String> safeStudent = studentSkills != null ? studentSkills : List.of();
-        List<String> safeMandatory = mandatorySkillIds != null ? mandatorySkillIds : List.of();
-        List<String> safeOptional = optionalSkillIds != null ? optionalSkillIds : List.of();
+    public Map<String, Object> calculateMatchScore(UUID studentId, UUID jobId, List<String> skills, List<String> required) {
+        return calculateMatchScore(studentId, jobId, "Internship", "", "", skills, required, List.of());
+    }
 
-        long mandatoryMatches = safeStudent.stream().filter(safeMandatory::contains).count();
-        long optionalMatches = safeStudent.stream().filter(safeOptional::contains).count();
+    public Map<String, Object> normalizeRankingResponse(Map<?, ?> ranking) {
+        Map<String, Object> result = new HashMap<>();
+        result.put("match_score", value(ranking, "match_percentage", value(ranking, "match_score", 0.0)));
+        result.put("matched_skills", value(ranking, "matched_skills", List.of()));
+        result.put("missing_skills", value(ranking, "missing_skills", List.of()));
+        result.put("mode", value(ranking, "mode", "unknown"));
+        result.put("score_available", value(ranking, "score_available", false));
+        result.put("semantic_available", value(ranking, "semantic_available", false));
+        result.put("algorithm_version", value(ranking, "algorithm_version", "unknown"));
+        result.put("warnings", value(ranking, "warnings", List.of()));
+        Map<String, Object> explanation = new HashMap<>();
+        for (String key : List.of("final_score", "skill_score", "semantic_score", "preference_score", "academic_score",
+                "recommendation", "constraints", "effective_weights")) {
+            if (ranking.get(key) != null) explanation.put(key, ranking.get(key));
+        }
+        result.put("explanation", explanation);
+        return result;
+    }
 
-        double mandatoryRatio = safeMandatory.isEmpty() ? 0.0 : (double) mandatoryMatches / safeMandatory.size();
-        double optionalRatio = safeOptional.isEmpty() ? 0.0 : (double) optionalMatches / safeOptional.size();
-        double finalScore = safeMandatory.isEmpty()
-            ? optionalRatio * 100.0
-            : safeOptional.isEmpty() ? mandatoryRatio * 100.0
-            : (mandatoryRatio * 0.7 + optionalRatio * 0.3) * 100.0;
+    private static Object value(Map<?, ?> map, String key, Object fallback) {
+        return map.get(key) == null ? fallback : map.get(key);
+    }
 
-        List<String> matched = new ArrayList<>();
-        safeStudent.stream().filter(s -> safeMandatory.contains(s) || safeOptional.contains(s)).forEach(matched::add);
+    private static List<String> strings(Object raw) {
+        return raw instanceof List<?> items ? items.stream().filter(Objects::nonNull).map(Object::toString).toList() : List.of();
+    }
 
-        List<String> missing = new ArrayList<>();
-        safeMandatory.stream().filter(s -> !safeStudent.contains(s)).forEach(missing::add);
-
-        return Map.of(
-            "match_score", finalScore,
-            "matched_skills", matched,
-            "missing_skills", missing,
-            "explanation", Map.of(
-                "note", "Fallback Rule-Based Calculator (Mandatory 70% + Optional 30%)",
-                "mandatory_coverage", mandatoryRatio,
-                "optional_coverage", optionalRatio
-            )
-        );
+    public Map<String, Object> fallbackMatchScore(List<String> student, List<String> required, List<String> desired) {
+        Set<String> skills = new TreeSet<>(student == null ? List.of() : student);
+        Set<String> mandatory = new TreeSet<>(required == null ? List.of() : required);
+        Set<String> optional = new TreeSet<>(desired == null ? List.of() : desired);
+        optional.removeAll(mandatory);
+        double requiredRatio = mandatory.isEmpty() ? 0 : (double) mandatory.stream().filter(skills::contains).count() / mandatory.size();
+        double optionalRatio = optional.isEmpty() ? 0 : (double) optional.stream().filter(skills::contains).count() / optional.size();
+        double score = mandatory.isEmpty() ? optionalRatio : optional.isEmpty() ? requiredRatio : 0.8 * requiredRatio + 0.2 * optionalRatio;
+        boolean available = !skills.isEmpty() && (!mandatory.isEmpty() || !optional.isEmpty());
+        List<String> missing = mandatory.stream().filter(id -> !skills.contains(id)).toList();
+        Map<String, Object> raw = new HashMap<>();
+        raw.put("match_percentage", Math.round(score * 1000) / 10.0);
+        raw.put("skill_score", score);
+        raw.put("final_score", score);
+        raw.put("semantic_score", 0.0);
+        raw.put("academic_score", 0.0);
+        raw.put("matched_skills", skills.stream().filter(id -> mandatory.contains(id) || optional.contains(id)).toList());
+        raw.put("missing_skills", missing);
+        raw.put("mode", available ? "skill_only" : "insufficient_data");
+        raw.put("score_available", available);
+        raw.put("semantic_available", false);
+        raw.put("algorithm_version", "skill-semantic-v2");
+        raw.put("warnings", List.of("ai_unavailable", "semantic_unavailable", "preferences_not_evaluated"));
+        raw.put("recommendation", available
+            ? "Điểm theo kỹ năng đã xác nhận; dịch vụ AI tạm thời không khả dụng. Cần xem thêm điều kiện thực tập."
+            : "Chưa đủ dữ liệu để tính điểm phù hợp.");
+        Map<String, Object> result = normalizeRankingResponse(raw);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> explanation = (Map<String, Object>) result.get("explanation");
+        explanation.put("note", "Fallback Rule-Based Calculator (Mandatory 80% + Optional 20%)");
+        return result;
     }
 }

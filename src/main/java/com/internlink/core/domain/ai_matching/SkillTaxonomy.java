@@ -33,7 +33,10 @@ public class SkillTaxonomy {
 
     @Builder.Default
     @Column(name = "framework", nullable = false, length = 50)
-    private String framework = "ESCO";
+    private String framework = "INTERNLINK";
+
+    @Column(name = "external_uri", columnDefinition = "text")
+    private String externalUri;
 
     @Column(name = "description", columnDefinition = "text")
     private String description;

@@ -22,11 +22,12 @@ public class NotificationServiceImpl implements NotificationService {
 
     private final JpaNotificationRepository notificationRepository;
     private final JpaUserRepository userRepository;
+    private final com.internlink.core.application.system.notification.EmailOutboxService emailOutbox;
 
     @Override
     @Transactional(readOnly = true)
     public List<NotificationResponse> getMyNotifications(UUID recipientId) {
-        return notificationRepository.findByRecipientIdOrderByCreatedAtDesc(recipientId).stream()
+        return notificationRepository.findTop50ByRecipientIdOrderByCreatedAtDesc(recipientId).stream()
             .map(this::mapToResponse)
             .toList();
     }
@@ -47,6 +48,7 @@ public class NotificationServiceImpl implements NotificationService {
             throw new ForbiddenException("Bạn không có quyền cập nhật thông báo này");
         }
 
+        if (Boolean.TRUE.equals(notification.getIsRead())) return mapToResponse(notification);
         notification.setIsRead(true);
         notification.setReadAt(OffsetDateTime.now());
 
@@ -62,19 +64,49 @@ public class NotificationServiceImpl implements NotificationService {
     @Override
     @Transactional
     public void sendNotification(UUID recipientId, String type, String title, String message, String actionUrl) {
+        create(recipientId, type, title, message, actionUrl, true);
+    }
+
+    @Override
+    @Transactional
+    public void sendInAppNotification(UUID recipientId, String type, String title, String message, String actionUrl) {
+        create(recipientId, type, title, message, actionUrl, false);
+    }
+
+    private void create(UUID recipientId, String type, String title, String message, String actionUrl, boolean email) {
         User recipient = userRepository.findById(recipientId)
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", recipientId));
 
+        if (!Boolean.TRUE.equals(recipient.getIsActive())) return;
+        if (type == null || !type.matches("[A-Z0-9_]{1,50}") || title == null || title.isBlank()
+            || title.length() > 255 || message == null || message.length() > 50000)
+            throw new IllegalArgumentException("Nội dung thông báo không hợp lệ");
         Notification notification = Notification.builder()
             .recipient(recipient)
             .notificationType(type)
             .title(title)
             .message(message)
-            .actionUrl(actionUrl)
+            .actionUrl(com.internlink.core.application.system.notification.NotificationLinks.normalize(actionUrl, recipient.getRole()))
             .isRead(false)
             .build();
 
+        // JdbcTemplate cannot flush Hibernate's pending INSERT before checking the outbox FK.
+        notificationRepository.saveAndFlush(notification);
+        String status = email ? emailOutbox.enqueue(notification) : "SEPARATE_NOTICE";
+        notification.setDeliveryChannels(java.util.Map.of("inApp", true, "email", "QUEUED".equals(status)));
+        notification.setDeliveryStatus(java.util.Map.of("inApp", "DELIVERED", "email", status));
         notificationRepository.save(notification);
+    }
+
+    public record NotificationPage(List<NotificationResponse> items, long totalElements, int totalPages, long unreadCount) {}
+    @Transactional(readOnly=true)
+    public NotificationPage getPage(UUID recipientId, int page, int size, boolean unread) {
+        var paging = org.springframework.data.domain.PageRequest.of(Math.max(0,page),Math.max(1,Math.min(100,size)),
+            org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Order.desc("createdAt"),org.springframework.data.domain.Sort.Order.desc("id")));
+        var rows = unread ? notificationRepository.findByRecipientIdAndIsReadFalse(recipientId,paging)
+            : notificationRepository.findByRecipientId(recipientId,paging);
+        return new NotificationPage(rows.getContent().stream().map(this::mapToResponse).toList(),rows.getTotalElements(),rows.getTotalPages(),
+            notificationRepository.countByRecipientIdAndIsReadFalse(recipientId));
     }
 
     private NotificationResponse mapToResponse(Notification entity) {
@@ -88,6 +120,8 @@ public class NotificationServiceImpl implements NotificationService {
             .isRead(entity.getIsRead())
             .readAt(entity.getReadAt())
             .createdAt(entity.getCreatedAt())
+            .category(com.internlink.core.application.system.notification.NotificationPolicy.category(entity.getNotificationType()).name())
+            .deliveryStatus(entity.getDeliveryStatus())
             .build();
     }
 }

@@ -34,7 +34,7 @@ public class IntroductionLetterNoticeService {
     private final AuditLogService audit;
     private final PlatformTransactionManager transactionManager;
 
-    public record NoticeResult(int eligible, int emailsSent, int notificationsCreated, List<String> failedStudentCodes) {}
+    public record NoticeResult(int eligible, int emailsSent, int emailsQueued, int notificationsCreated, List<String> failedStudentCodes) {}
     private record Recipient(String studentCode, String email, UUID userId) {}
     private record NoticeBatch(String termName, List<Recipient> recipients) {}
 
@@ -66,16 +66,16 @@ public class IntroductionLetterNoticeService {
         int inApp = 0;
         java.util.ArrayList<String> failures = new java.util.ArrayList<>();
         for (Recipient recipient : batch.recipients()) {
-            try { gmail.send(recipient.email(), subject, body); emails++; }
+            try { if (gmail.queue(recipient.email(), subject, body)) emails++; }
             catch (RuntimeException error) { failures.add(recipient.studentCode()); }
             if (recipient.userId() != null) {
-                notifications.sendNotification(recipient.userId(), "INTRODUCTION_LETTER_PICKUP", subject, body, "/student/dashboard");
+                notifications.sendInAppNotification(recipient.userId(), "INTRODUCTION_LETTER_PICKUP", subject, body, "/student/dashboard");
                 inApp++;
             }
         }
         audit.logAction(actorId, "NOTIFY_INTRODUCTION_LETTER_PICKUP", "InternshipTerm", termId,
-            failures.isEmpty() ? "SUCCESS" : "PARTIAL", Map.of("eligible", batch.recipients().size(), "emailsSent", emails,
+            failures.isEmpty() ? "SUCCESS" : "PARTIAL", Map.of("eligible", batch.recipients().size(), "emailsQueued", emails,
                 "notificationsCreated", inApp), null);
-        return new NoticeResult(batch.recipients().size(), emails, inApp, failures);
+        return new NoticeResult(batch.recipients().size(), 0, emails, inApp, failures);
     }
 }
