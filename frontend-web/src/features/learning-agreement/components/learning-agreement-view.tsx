@@ -262,19 +262,52 @@ export default function LearningAgreementView() {
                     </div>
 
                     {/* Learning Objectives */}
-                    <div className="space-y-3">
-                        <h4 className="text-sm font-bold text-slate-900">Mục tiêu đào tạo & Chuẩn đầu ra (CLO)</h4>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            {agreement.learningObjectives?.map((clo, idx) => (
-                                <div key={idx} className="p-3 bg-white border border-slate-200 rounded-lg text-xs text-slate-700 flex items-start gap-2">
-                                    <span className="w-5 h-5 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold text-[10px] flex-shrink-0">
-                                        {idx + 1}
-                                    </span>
-                                    <span>{clo}</span>
+                    {(() => {
+                        const objectives = (() => {
+                            const raw = agreement.learningObjectives;
+                            if (!raw) return [];
+                            if (Array.isArray(raw)) return raw;
+                            if (typeof raw === 'string') {
+                                const trimmed = raw.trim();
+                                if (!trimmed) return [];
+                                if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+                                    try {
+                                        const parsed = JSON.parse(trimmed);
+                                        if (Array.isArray(parsed)) return parsed.map(String);
+                                    } catch {}
+                                }
+                                if (trimmed.includes('\n')) {
+                                    return trimmed
+                                        .split('\n')
+                                        .map((s) => s.trim().replace(/^[-*•\d.]+\s*/, ''))
+                                        .filter(Boolean);
+                                }
+                                if (trimmed.includes(';')) {
+                                    return trimmed.split(';').map((s) => s.trim()).filter(Boolean);
+                                }
+                                return [trimmed];
+                            }
+                            return [];
+                        })();
+
+                        if (objectives.length === 0) return null;
+
+                        return (
+                            <div className="space-y-3">
+                                <h4 className="text-sm font-bold text-slate-900">Mục tiêu đào tạo & Chuẩn đầu ra (CLO)</h4>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    {objectives.map((clo, idx) => (
+                                        <div key={idx} className="p-3 bg-white border border-slate-200 rounded-lg text-xs text-slate-700 flex items-start gap-2">
+                                            <span className="w-5 h-5 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold text-[10px] flex-shrink-0">
+                                                {idx + 1}
+                                            </span>
+                                            <span>{clo}</span>
+                                        </div>
+                                    ))}
                                 </div>
-                            ))}
-                        </div>
-                    </div>
+                            </div>
+                        );
+                    })()}
 
                     {/* Terms & Conditions summary */}
                     <div className="space-y-2 p-4 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-600 leading-relaxed">

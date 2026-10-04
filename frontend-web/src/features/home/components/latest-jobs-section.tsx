@@ -1,8 +1,7 @@
 "use client";
 
-import React from "react";
 import Link from "next/link";
-import { ArrowRight, Briefcase, Building2, MapPin, Search, RotateCcw } from "lucide-react";
+import { ArrowRight, Building2, MapPin, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { JobPosition } from "@/features/jobs/types/job.types";
@@ -14,145 +13,77 @@ interface LatestJobsSectionProps {
   onRetry: () => void;
 }
 
+const linkClassName = "inline-flex min-h-11 items-center gap-2 rounded-md text-sm font-medium text-sky-700 transition-colors hover:text-sky-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2";
+const stipendFormatter = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" });
+
 export function LatestJobsSection({ jobs, isLoading, error, onRetry }: LatestJobsSectionProps) {
   return (
-    <section id="jobs" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-      <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between mb-8 gap-4 pb-4 border-b border-slate-200/80">
+    <section id="jobs" aria-labelledby="jobs-heading" className="mx-auto max-w-7xl scroll-mt-28 px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
+      <div className="mb-6 flex flex-col justify-between gap-2 sm:flex-row sm:items-center sm:gap-6">
         <div>
-          <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-sky-700 bg-sky-50 px-3 py-1 rounded-full border border-sky-200/60 mb-2">
-            <Briefcase className="w-3.5 h-3.5" />
-            <span>Cơ hội tiếp nhận thực tập</span>
-          </div>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-            Vị Trí Thực Tập Mới Nhất
-          </h2>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Các vị trí thực tập đã được Ban Quản lý Khoa CICT phê duyệt
-          </p>
+          <h2 id="jobs-heading" className="text-2xl font-semibold tracking-tight text-slate-900">Vị trí thực tập mới nhất</h2>
+          <p className="mt-2 text-sm text-slate-600">Các cơ hội thực tập đã được Khoa phê duyệt.</p>
         </div>
-        <Link href="/jobs">
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5 font-semibold text-xs rounded-full border-slate-300 hover:border-sky-500 hover:text-sky-700"
-          >
-            <span>Xem tất cả vị trí</span>
-            <ArrowRight className="w-4 h-4" />
-          </Button>
+        <Link href="/jobs" className={linkClassName + " self-start sm:shrink-0 sm:self-auto"}>
+          Xem tất cả vị trí <ArrowRight aria-hidden="true" className="h-4 w-4" />
         </Link>
       </div>
 
-      {/* Trạng thái tải dữ liệu */}
       {isLoading ? (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className="p-6 rounded-3xl border border-slate-200 bg-white space-y-4 shadow-2xs">
-              <div className="flex justify-between items-start">
+        <div role="status">
+          <span className="sr-only">Đang tải vị trí thực tập</span>
+          <div aria-hidden="true" className="grid gap-4 md:grid-cols-3">
+            {[1, 2, 3].map((item) => (
+              <div key={item} className="space-y-4 rounded-2xl border border-slate-200 p-5 sm:p-6">
                 <Skeleton className="h-6 w-3/4" />
-                <Skeleton className="h-5 w-16 rounded-full" />
+                <Skeleton className="h-5 w-2/3" />
+                <Skeleton className="h-5 w-1/2" />
+                <Skeleton className="h-5 w-2/3" />
+                <Skeleton className="h-11 w-24" />
               </div>
-              <Skeleton className="h-4 w-1/2" />
-              <Skeleton className="h-4 w-2/3" />
-              <div className="flex gap-2 pt-2">
-                <Skeleton className="h-5 w-16 rounded-md" />
-                <Skeleton className="h-5 w-16 rounded-md" />
-              </div>
-              <Skeleton className="h-10 w-full rounded-2xl pt-2" />
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       ) : error ? (
-        <div className="rounded-3xl border border-rose-200 bg-rose-50/50 p-8 text-center space-y-3">
-          <p className="text-sm font-semibold text-rose-700">{error}</p>
-          <Button variant="outline" size="sm" onClick={onRetry} className="gap-1.5 text-xs rounded-full">
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span>Thử lại</span>
+        <div role="alert" className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-6 text-center sm:p-8">
+          <p className="text-sm font-medium text-slate-900">Không thể tải vị trí thực tập</p>
+          <p className="break-words text-sm text-slate-600">{error}</p>
+          <Button type="button" variant="outline" onClick={onRetry} className="min-h-11 gap-2">
+            <RotateCcw aria-hidden="true" className="h-4 w-4" /> Thử lại
           </Button>
         </div>
       ) : jobs.length === 0 ? (
-        <div className="rounded-3xl border border-dashed border-slate-200 bg-white p-12 text-center space-y-3">
-          <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
-            <Search className="w-6 h-6" />
-          </div>
-          <h3 className="text-base font-bold text-slate-800">Chưa có vị trí đang tuyển trong kỳ này</h3>
-          <p className="text-xs text-slate-500 max-w-md mx-auto">
-            Hiện tại chưa có tin tuyển dụng thực tập nào được mở. Vui lòng quay lại sau hoặc theo dõi cẩm nang hướng dẫn.
-          </p>
-          <Link href="/career-guide">
-            <Button variant="outline" size="sm" className="mt-2 text-xs rounded-full">
-              Xem Cẩm nang thực tập
-            </Button>
+        <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center sm:p-8">
+          <h3 className="text-base font-semibold text-slate-900">Chưa có vị trí đang tuyển trong kỳ này</h3>
+          <p className="mt-2 text-sm text-slate-600">Bạn có thể xem hướng dẫn để chuẩn bị cho kỳ thực tập.</p>
+          <Link href="/career-guide" className={linkClassName + " mt-3"}>
+            Xem tin tức & hướng dẫn <ArrowRight aria-hidden="true" className="h-4 w-4" />
           </Link>
         </div>
       ) : (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {jobs.map((job) => (
-            <div
-              key={job.id}
-              className="p-6 rounded-3xl bg-white border border-slate-200/80 hover:border-sky-300 hover:shadow-card-hover transition-all duration-300 flex flex-col justify-between group shadow-2xs"
-            >
-              <div className="space-y-3">
-                <div className="flex items-start justify-between gap-2">
-                  <h3 className="text-base font-bold text-slate-900 group-hover:text-sky-700 transition line-clamp-2">
-                    {job.title}
-                  </h3>
-                  {job.workFormat && (
-                    <span className="text-[11px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wide bg-sky-50 text-sky-700 border border-sky-200 shrink-0">
-                      {job.workFormat}
-                    </span>
-                  )}
-                </div>
-
-                <p className="text-xs sm:text-sm font-semibold text-slate-700 flex items-center gap-1.5">
-                  <Building2 className="w-4 h-4 text-sky-600 shrink-0" />
-                  <span className="truncate">{job.companyName || "Doanh nghiệp tiếp nhận"}</span>
+        <div className="grid gap-4 md:grid-cols-3">
+          {jobs.slice(0, 3).map((job) => (
+            <article key={job.id} className="flex min-w-0 flex-col rounded-2xl border border-slate-200 bg-white p-5 transition-colors hover:border-sky-300 sm:p-6">
+              <h3 className="break-words text-base font-semibold leading-snug text-slate-900">{job.title}</h3>
+              <p className="mt-3 flex items-start gap-2 text-sm text-slate-600">
+                <Building2 aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+                <span className="min-w-0 break-words">{job.companyName || "Doanh nghiệp tiếp nhận"}</span>
+              </p>
+              {job.location && (
+                <p className="mt-2 flex items-start gap-2 text-sm text-slate-600">
+                  <MapPin aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+                  <span className="min-w-0 break-words">{job.location}</span>
                 </p>
-
-                <div className="space-y-1.5 text-xs text-slate-500 pt-1">
-                  {job.location && (
-                    <div className="flex items-center gap-1.5">
-                      <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <span className="truncate">{job.location}</span>
-                    </div>
-                  )}
-                  {job.stipendAmount ? (
-                    <div className="text-emerald-700 font-semibold">
-                      Phụ cấp: {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(job.stipendAmount)}
-                    </div>
-                  ) : null}
-                </div>
-
-                {/* Tags Kỹ Năng */}
-                {job.skills && job.skills.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {job.skills.slice(0, 3).map((skill, idx) => (
-                      <span
-                        key={idx}
-                        className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[11px] font-medium border border-slate-200/60"
-                      >
-                        {skill.skillName || skill.skillId}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-xs text-slate-500">
-                  Chỉ tiêu: <strong className="text-slate-800">{job.vacancies} SV</strong>
-                </span>
-                <Link href={`/jobs/${job.id}`}>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="gap-1 text-xs rounded-full hover:border-sky-500 hover:text-sky-700"
-                  >
-                    <span>Chi tiết</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </Button>
+              )}
+              {job.stipendAmount != null && (
+                <p className="mt-3 text-sm font-medium text-slate-900">Phụ cấp: {stipendFormatter.format(job.stipendAmount)}</p>
+              )}
+              <div className="mt-auto pt-4">
+                <Link href={`/jobs/${job.id}`} aria-label={`Xem chi tiết: ${job.title}`} className={linkClassName}>
+                  Xem chi tiết <ArrowRight aria-hidden="true" className="h-4 w-4" />
                 </Link>
               </div>
-            </div>
+            </article>
           ))}
         </div>
       )}

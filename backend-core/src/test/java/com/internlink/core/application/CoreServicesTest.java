@@ -1,19 +1,23 @@
 package com.internlink.core.application;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
 import com.internlink.core.application.auth.impl.AuthServiceImpl;
 import com.internlink.core.application.company.impl.CompanyServiceImpl;
 import com.internlink.core.application.exception_case.impl.InternshipCaseServiceImpl;
 import com.internlink.core.application.organization.impl.*;
 import com.internlink.core.application.placement.impl.*;
+import com.internlink.core.application.system.AuditLogService;
+import com.internlink.core.application.system.NotificationService;
 import com.internlink.core.application.system.impl.AuditLogServiceImpl;
 import com.internlink.core.domain.auth.User;
 import com.internlink.core.domain.company.Company;
 import com.internlink.core.domain.organization.*;
 import com.internlink.core.domain.placement.InternshipPlacement;
 import com.internlink.core.domain.placement.LearningAgreement;
-import com.internlink.core.domain.recruitment.JobApplication;
-import com.internlink.core.domain.recruitment.JobPosition;
-import com.internlink.core.domain.recruitment.PlacementOffer;
 import com.internlink.core.infrastructure.persistence.jpa.*;
 import com.internlink.core.infrastructure.security.CookieUtils;
 import com.internlink.core.infrastructure.security.CustomUserDetail;
@@ -23,12 +27,12 @@ import com.internlink.core.presentation.company.dto.request.CompanyRequest;
 import com.internlink.core.presentation.exception_case.dto.request.InternshipCaseRequest;
 import com.internlink.core.presentation.organization.dto.request.*;
 import com.internlink.core.shared.enums.*;
-import com.internlink.core.application.system.AuditLogService;
-import com.internlink.core.application.system.NotificationService;
 import com.internlink.core.shared.exception.BadRequestException;
 import com.internlink.core.shared.exception.UnauthorizedException;
 import com.internlink.core.shared.security.SecurityGuard;
+
 import jakarta.servlet.http.HttpServletResponse;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -45,11 +49,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class CoreServicesTest {
@@ -77,19 +76,32 @@ class CoreServicesTest {
 
     @BeforeEach
     void setUp() {
-        lenient().when(departmentRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
-        lenient().when(programRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
-        lenient().when(companyRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
-        lenient().when(auditRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        lenient()
+                .when(departmentRepository.save(any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        lenient()
+                .when(programRepository.save(any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        lenient()
+                .when(companyRepository.save(any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        lenient()
+                .when(auditRepository.save(any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
         SecurityContextHolder.clearContext();
     }
 
     @Test
     void departmentCreationNormalizesCodeAndEmail() {
-        DepartmentServiceImpl service = new DepartmentServiceImpl(departmentRepository, auditLogService, securityGuard);
+        DepartmentServiceImpl service =
+                new DepartmentServiceImpl(departmentRepository, auditLogService, securityGuard);
         when(securityGuard.currentUser()).thenReturn(CustomUserDetail.create(user(UserRole.ADMIN)));
-        DepartmentRequest request = DepartmentRequest.builder().code("  cit ").name("  CNTT ")
-            .contactEmail("  IT@EXAMPLE.COM ").build();
+        DepartmentRequest request =
+                DepartmentRequest.builder()
+                        .code("  cit ")
+                        .name("  CNTT ")
+                        .contactEmail("  IT@EXAMPLE.COM ")
+                        .build();
 
         var response = service.createDepartment(request);
 
@@ -99,69 +111,113 @@ class CoreServicesTest {
 
     @Test
     void academicProgramRejectsDuplicateCode() {
-        AcademicProgramServiceImpl service = new AcademicProgramServiceImpl(programRepository, departmentRepository,
-            profileRepository, rosterRepository, assessmentSchemeRepository, auditLogService, securityGuard);
+        AcademicProgramServiceImpl service =
+                new AcademicProgramServiceImpl(
+                        programRepository,
+                        departmentRepository,
+                        profileRepository,
+                        rosterRepository,
+                        assessmentSchemeRepository,
+                        auditLogService,
+                        securityGuard);
         Department department = department();
         when(departmentRepository.findById(department.getId())).thenReturn(Optional.of(department));
         when(programRepository.existsByCode("SE")).thenReturn(true);
-        AcademicProgramRequest request = AcademicProgramRequest.builder().departmentId(department.getId())
-            .code("se").name("Software Engineering").build();
+        AcademicProgramRequest request =
+                AcademicProgramRequest.builder()
+                        .departmentId(department.getId())
+                        .code("se")
+                        .name("Software Engineering")
+                        .build();
 
-        assertThatThrownBy(() -> service.createProgram(request)).isInstanceOf(BadRequestException.class);
+        assertThatThrownBy(() -> service.createProgram(request))
+                .isInstanceOf(BadRequestException.class);
     }
 
     @Test
     void academicProgramUpdateAndRejectReferencedDelete() {
-        AcademicProgramServiceImpl service = new AcademicProgramServiceImpl(programRepository, departmentRepository,
-            profileRepository, rosterRepository, assessmentSchemeRepository, auditLogService, securityGuard);
+        AcademicProgramServiceImpl service =
+                new AcademicProgramServiceImpl(
+                        programRepository,
+                        departmentRepository,
+                        profileRepository,
+                        rosterRepository,
+                        assessmentSchemeRepository,
+                        auditLogService,
+                        securityGuard);
         Department department = department();
         AcademicProgram program = program(department);
         when(programRepository.findById(program.getId())).thenReturn(Optional.of(program));
         when(departmentRepository.findById(department.getId())).thenReturn(Optional.of(department));
         when(securityGuard.currentUser()).thenReturn(CustomUserDetail.create(user(UserRole.ADMIN)));
 
-        AcademicProgramRequest updateRequest = AcademicProgramRequest.builder()
-            .departmentId(department.getId())
-            .code("SE_NEW")
-            .name("Software Engineering Advanced")
-            .track("REGULAR")
-            .isActive(true)
-            .build();
+        AcademicProgramRequest updateRequest =
+                AcademicProgramRequest.builder()
+                        .departmentId(department.getId())
+                        .code("SE_NEW")
+                        .name("Software Engineering Advanced")
+                        .track("REGULAR")
+                        .isActive(true)
+                        .build();
 
         var updated = service.updateProgram(program.getId(), updateRequest);
         assertThat(updated.getCode()).isEqualTo("SE_NEW");
 
         when(profileRepository.existsByProgram_Id(program.getId())).thenReturn(true);
         assertThatThrownBy(() -> service.deleteProgram(program.getId()))
-            .isInstanceOf(BadRequestException.class);
+                .isInstanceOf(BadRequestException.class);
     }
 
     @Test
     void internshipTermRejectsReversedDates() {
-        InternshipTermServiceImpl service = new InternshipTermServiceImpl(termRepository, departmentRepository, placementRepository,
-            userRepository, securityGuard, auditLogService);
+        InternshipTermServiceImpl service =
+                new InternshipTermServiceImpl(
+                        termRepository,
+                        departmentRepository,
+                        placementRepository,
+                        userRepository,
+                        securityGuard,
+                        auditLogService);
         Department department = department();
         User actor = user(UserRole.FACULTY_ADMIN);
         actor.setDepartment(department);
         when(securityGuard.currentUser()).thenReturn(CustomUserDetail.create(actor));
         when(userRepository.findById(actor.getId())).thenReturn(Optional.of(actor));
         when(departmentRepository.findById(department.getId())).thenReturn(Optional.of(department));
-        InternshipTermRequest request = InternshipTermRequest.builder().departmentId(department.getId())
-            .code("T1").termName("Term").academicYear("2026").semester("1")
-            .registrationOpenAt(OffsetDateTime.now()).registrationCloseAt(OffsetDateTime.now().plusDays(1))
-            .startDate(LocalDate.now().plusMonths(2)).endDate(LocalDate.now().plusMonths(1))
-            .applicationDeadline(OffsetDateTime.now().plusDays(10))
-            .evaluationDeadline(OffsetDateTime.now().plusMonths(3)).build();
+        InternshipTermRequest request =
+                InternshipTermRequest.builder()
+                        .departmentId(department.getId())
+                        .code("T1")
+                        .termName("Term")
+                        .academicYear("2026")
+                        .semester("1")
+                        .registrationOpenAt(OffsetDateTime.now())
+                        .registrationCloseAt(OffsetDateTime.now().plusDays(1))
+                        .startDate(LocalDate.now().plusMonths(2))
+                        .endDate(LocalDate.now().plusMonths(1))
+                        .applicationDeadline(OffsetDateTime.now().plusDays(10))
+                        .evaluationDeadline(OffsetDateTime.now().plusMonths(3))
+                        .build();
 
-        assertThatThrownBy(() -> service.createTerm(request)).isInstanceOf(BadRequestException.class);
+        assertThatThrownBy(() -> service.createTerm(request))
+                .isInstanceOf(BadRequestException.class);
     }
 
     @Test
     void rosterRejectsProgramFromAnotherDepartment() {
-        StudentRosterServiceImpl service = new StudentRosterServiceImpl(rosterRepository, termRepository, programRepository,
-            userRepository, securityGuard, auditLogService, mock(org.springframework.security.crypto.password.PasswordEncoder.class),
-            mock(com.internlink.core.infrastructure.integration.google.GmailSender.class),
-            mock(com.internlink.core.application.system.NotificationService.class));
+        StudentRosterServiceImpl service =
+                new StudentRosterServiceImpl(
+                        rosterRepository,
+                        termRepository,
+                        programRepository,
+                        userRepository,
+                        securityGuard,
+                        auditLogService,
+                        mock(org.springframework.security.crypto.password.PasswordEncoder.class),
+                        mock(
+                                com.internlink.core.application.system.notification
+                                        .EmailOutboxService.class),
+                        mock(com.internlink.core.application.system.NotificationService.class));
         Department termDepartment = department();
         User actor = user(UserRole.FACULTY_ADMIN);
         actor.setDepartment(termDepartment);
@@ -172,38 +228,69 @@ class CoreServicesTest {
         AcademicProgram program = program(otherDepartment);
         when(termRepository.findById(term.getId())).thenReturn(Optional.of(term));
         when(programRepository.findById(program.getId())).thenReturn(Optional.of(program));
-        StudentRosterImportItem item = StudentRosterImportItem.builder().programId(program.getId())
-            .studentCode("B20").officialEmail("student@example.com").fullName("Student")
-            .academicYear("2020").internshipCourseCode("CT518E").build();
+        StudentRosterImportItem item =
+                StudentRosterImportItem.builder()
+                        .programId(program.getId())
+                        .studentCode("B20")
+                        .officialEmail("student@example.com")
+                        .fullName("Student")
+                        .academicYear("2020")
+                        .internshipCourseCode("CT518E")
+                        .build();
 
         assertThatThrownBy(() -> service.importRosterList(term.getId(), List.of(item)))
-            .isInstanceOf(BadRequestException.class);
+                .isInstanceOf(BadRequestException.class);
     }
 
     @Test
     void companyRegistrationRejectsExistingTaxCode() {
-        CompanyServiceImpl service = new CompanyServiceImpl(companyRepository, userRepository, auditLogService, securityGuard, mock(com.internlink.core.application.system.NotificationService.class));
+        CompanyServiceImpl service =
+                new CompanyServiceImpl(
+                        companyRepository,
+                        userRepository,
+                        auditLogService,
+                        securityGuard,
+                        mock(com.internlink.core.application.system.NotificationService.class));
         when(companyRepository.existsByTaxCode("123")).thenReturn(true);
-        CompanyRequest request = CompanyRequest.builder().companyName("Acme").taxCode("123")
-            .address(Map.of("city", "Can Tho")).build();
+        CompanyRequest request =
+                CompanyRequest.builder()
+                        .companyName("Acme")
+                        .taxCode("123")
+                        .address(Map.of("city", "Can Tho"))
+                        .build();
 
-        assertThatThrownBy(() -> service.registerCompany(request)).isInstanceOf(BadRequestException.class);
+        assertThatThrownBy(() -> service.registerCompany(request))
+                .isInstanceOf(BadRequestException.class);
     }
 
     @Test
     void placementActivationRequiresApprovedAgreement() {
-        InternshipPlacementMapper placementMapper = new InternshipPlacementMapper(profileRepository);
-        PlacementTransitionValidator transitionValidator = new PlacementTransitionValidator(finalResultRepository);
-        PlacementNotificationHelper notificationHelper = new PlacementNotificationHelper(auditLogService, notificationService);
-        InternshipPlacementServiceImpl service = new InternshipPlacementServiceImpl(
-            placementRepository, agreementRepository, userRepository,
-            termRepository, securityGuard, placementMapper, transitionValidator, notificationHelper);
-        LearningAgreement agreement = LearningAgreement.builder().status(AgreementStatus.DRAFT).build();
+        InternshipPlacementMapper placementMapper =
+                new InternshipPlacementMapper(profileRepository);
+        PlacementTransitionValidator transitionValidator =
+                new PlacementTransitionValidator(finalResultRepository);
+        PlacementNotificationHelper notificationHelper =
+                new PlacementNotificationHelper(auditLogService, notificationService);
+        InternshipPlacementServiceImpl service =
+                new InternshipPlacementServiceImpl(
+                        placementRepository,
+                        agreementRepository,
+                        userRepository,
+                        termRepository,
+                        securityGuard,
+                        placementMapper,
+                        transitionValidator,
+                        notificationHelper);
+        LearningAgreement agreement =
+                LearningAgreement.builder().status(AgreementStatus.DRAFT).build();
         agreement.setId(UUID.randomUUID());
         when(agreementRepository.findById(agreement.getId())).thenReturn(Optional.of(agreement));
 
-        assertThatThrownBy(() -> service.activatePlacementFromAgreement(agreement.getId(), UUID.randomUUID()))
-            .isInstanceOf(BadRequestException.class);
+        assertThatThrownBy(
+                        () ->
+                                service.activatePlacementFromAgreement(
+                                        agreement.getId(), UUID.randomUUID()))
+                .isInstanceOf(BadRequestException.class);
     }
 
     @Test
@@ -220,18 +307,25 @@ class CoreServicesTest {
 
     @Test
     void reportedCaseStartsOpenAndKeepsReporter() {
-        InternshipCaseServiceImpl service = new InternshipCaseServiceImpl(
-            caseRepository, placementRepository, userRepository);
+        InternshipCaseServiceImpl service =
+                new InternshipCaseServiceImpl(caseRepository, placementRepository, userRepository);
         User reporter = user(UserRole.STUDENT);
-        Company company = Company.builder().companyName("Acme").taxCode("123").address(Map.of()).build();
+        Company company =
+                Company.builder().companyName("Acme").taxCode("123").address(Map.of()).build();
         company.setId(UUID.randomUUID());
-        InternshipPlacement placement = InternshipPlacement.builder().student(reporter).company(company).build();
+        InternshipPlacement placement =
+                InternshipPlacement.builder().student(reporter).company(company).build();
         placement.setId(UUID.randomUUID());
         when(placementRepository.findById(placement.getId())).thenReturn(Optional.of(placement));
         when(userRepository.findById(reporter.getId())).thenReturn(Optional.of(reporter));
         when(caseRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
-        InternshipCaseRequest request = InternshipCaseRequest.builder().placementId(placement.getId())
-            .caseType(CaseType.INCIDENT).severity(CaseSeverity.HIGH).summary("Incident").build();
+        InternshipCaseRequest request =
+                InternshipCaseRequest.builder()
+                        .placementId(placement.getId())
+                        .caseType(CaseType.INCIDENT)
+                        .severity(CaseSeverity.HIGH)
+                        .summary("Incident")
+                        .build();
 
         var response = service.reportCase(reporter.getId(), request);
 
@@ -241,44 +335,67 @@ class CoreServicesTest {
 
     @Test
     void authMapsBadCredentialsToDomainUnauthorizedException() {
-        AuthServiceImpl service = new AuthServiceImpl(authenticationManager, jwtUtil, cookieUtils, userRepository);
-        when(authenticationManager.authenticate(any())).thenThrow(new BadCredentialsException("bad"));
+        AuthServiceImpl service =
+                new AuthServiceImpl(authenticationManager, jwtUtil, cookieUtils, userRepository);
+        when(authenticationManager.authenticate(any()))
+                .thenThrow(new BadCredentialsException("bad"));
 
-        assertThatThrownBy(() -> service.login(
-            LoginRequest.builder().email("user@example.com").password("secret").build(), servletResponse))
-            .isInstanceOf(UnauthorizedException.class);
+        assertThatThrownBy(
+                        () ->
+                                service.login(
+                                        LoginRequest.builder()
+                                                .email("user@example.com")
+                                                .password("secret")
+                                                .build(),
+                                        servletResponse))
+                .isInstanceOf(UnauthorizedException.class);
     }
 
     @Test
     void authCurrentUserRequiresAuthenticatedPrincipal() {
-        AuthServiceImpl service = new AuthServiceImpl(authenticationManager, jwtUtil, cookieUtils, userRepository);
+        AuthServiceImpl service =
+                new AuthServiceImpl(authenticationManager, jwtUtil, cookieUtils, userRepository);
 
         assertThatThrownBy(service::getCurrentUser).isInstanceOf(UnauthorizedException.class);
     }
 
     private Department department() {
-        Department value = Department.builder().code(UUID.randomUUID().toString()).name("CNTT")
-            .contactEmail("it@example.com").build();
+        Department value =
+                Department.builder()
+                        .code(UUID.randomUUID().toString())
+                        .name("CNTT")
+                        .contactEmail("it@example.com")
+                        .build();
         value.setId(UUID.randomUUID());
         return value;
     }
 
     private AcademicProgram program(Department department) {
-        AcademicProgram value = AcademicProgram.builder().department(department).code("SE")
-            .name("Software Engineering").build();
+        AcademicProgram value =
+                AcademicProgram.builder()
+                        .department(department)
+                        .code("SE")
+                        .name("Software Engineering")
+                        .build();
         value.setId(UUID.randomUUID());
         return value;
     }
 
     private InternshipTerm term(Department department) {
-        InternshipTerm value = InternshipTerm.builder().department(department).code("T1").termName("Term").build();
+        InternshipTerm value =
+                InternshipTerm.builder().department(department).code("T1").termName("Term").build();
         value.setId(UUID.randomUUID());
         return value;
     }
 
     private User user(UserRole role) {
-        User value = User.builder().email(UUID.randomUUID() + "@example.com").passwordHash("hash")
-            .fullName("User").role(role).build();
+        User value =
+                User.builder()
+                        .email(UUID.randomUUID() + "@example.com")
+                        .passwordHash("hash")
+                        .fullName("User")
+                        .role(role)
+                        .build();
         value.setId(UUID.randomUUID());
         return value;
     }

@@ -10,70 +10,54 @@ interface PublicShellProps {
     hideNavbar?: boolean;
 }
 
+const footerLinkClassName = "inline-flex min-h-11 items-center rounded-md hover:text-sky-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2";
+
 export function PublicShell({ children, hideNavbar = false }: PublicShellProps) {
     return (
         <div className="min-h-screen flex flex-col justify-between bg-slate-50">
             {!hideNavbar && <Navbar />}
             <main className="flex-1">{children}</main>
-            <footer className="border-t bg-white pt-12 pb-8 text-slate-600 text-sm">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-8 pb-8 border-b border-slate-200">
-                        {/* Unit info */}
-                        <div className="space-y-3 md:col-span-2">
-                            <div className="flex items-center space-x-2.5">
-                                <div className="w-8 h-8 rounded-lg bg-sky-700 flex items-center justify-center text-white">
-                                    <GraduationCap className="w-5 h-5" />
-                                </div>
-                                <span className="text-lg font-bold text-slate-900">InternLink</span>
+            <footer className="border-t border-slate-200 bg-slate-50 py-8 text-sm text-slate-600">
+                <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                    <div className="grid gap-6 md:grid-cols-2 md:gap-12">
+                        <div>
+                            <div className="flex items-center gap-2 text-slate-900">
+                                <GraduationCap aria-hidden="true" className="h-6 w-6 text-sky-700" />
+                                <span className="text-lg font-semibold">InternLink</span>
                             </div>
-                            <p className="text-xs text-slate-500 max-w-md leading-relaxed">
-                                Cổng thông tin quản lý thực tập và tuyển dụng doanh nghiệp trực thuộc Trường Công nghệ Thông tin & Truyền thông – Trường Đại học Cần Thơ. Chuẩn hóa quy trình tiếp nhận, theo dõi nhật ký thực tập và hoàn tất đánh giá học phần.
+                            <p className="mt-3 max-w-md text-sm leading-relaxed">
+                                Kết nối và quản lý thực tập tại Trường Công nghệ Thông tin & Truyền thông – Đại học Cần Thơ.
                             </p>
+                            <nav aria-label="Liên kết chân trang" className="mt-2 flex flex-wrap gap-x-5">
+                                <Link href="/jobs" className={footerLinkClassName}>Vị trí thực tập</Link>
+                                <Link href="/companies" className={footerLinkClassName}>Doanh nghiệp</Link>
+                                <Link href="/career-guide" className={footerLinkClassName}>Tin tức & Blog</Link>
+                                <Link href="/#about" className={footerLinkClassName}>Về trường</Link>
+                            </nav>
                         </div>
-
-                        {/* Quick access */}
                         <div>
-                            <h4 className="font-semibold text-slate-900 text-xs uppercase tracking-wider mb-3">
-                                Phân hệ Cổng thông tin
-                            </h4>
-                            <ul className="space-y-2 text-xs">
-                                <li><Link href="/login" className="hover:text-sky-700 transition">Cổng Sinh viên thực tập</Link></li>
-                                <li><Link href="/login" className="hover:text-sky-700 transition">Cổng Doanh nghiệp & Mentor</Link></li>
-                                <li><Link href="/login" className="hover:text-sky-700 transition">Cổng Giảng viên hướng dẫn</Link></li>
-                                <li><Link href="/login" className="hover:text-sky-700 transition">Ban Quản lý Thực tập CICT</Link></li>
-                            </ul>
-                        </div>
-
-                        {/* Contact */}
-                        <div>
-                            <h4 className="font-semibold text-slate-900 text-xs uppercase tracking-wider mb-3">
-                                Liên hệ Ban QLTT
-                            </h4>
-                            <div className="space-y-2 text-xs text-slate-500">
-                                <div className="flex items-start space-x-2">
-                                    <MapPin className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+                            <h2 className="font-semibold text-slate-900">Liên hệ Ban quản lý thực tập</h2>
+                            <address className="mt-3 space-y-2 text-sm not-italic">
+                                <p className="flex items-start gap-2 leading-relaxed">
+                                    <MapPin aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
                                     <span>Khu II, Đường 3/2, P. Xuân Khánh, Q. Ninh Kiều, TP. Cần Thơ</span>
+                                </p>
+                                <div className="flex flex-wrap gap-x-5">
+                                    <a href="tel:+842923831301" className={footerLinkClassName + " gap-2"}>
+                                        <Phone aria-hidden="true" className="h-4 w-4 shrink-0 text-slate-400" />
+                                        (0292) 3831 301
+                                    </a>
+                                    <a href="mailto:cict@ctu.edu.vn" className={footerLinkClassName + " gap-2"}>
+                                        <Mail aria-hidden="true" className="h-4 w-4 shrink-0 text-slate-400" />
+                                        cict@ctu.edu.vn
+                                    </a>
                                 </div>
-                                <div className="flex items-center space-x-2">
-                                    <Phone className="w-4 h-4 text-slate-400 shrink-0" />
-                                    <span>(0292) 3831 301</span>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                    <Mail className="w-4 h-4 text-slate-400 shrink-0" />
-                                    <span>cict@ctu.edu.vn</span>
-                                </div>
-                            </div>
+                            </address>
                         </div>
                     </div>
-
-                    <div className="pt-6 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-400">
-                        <p>© 2026 Trường Công nghệ Thông tin và Truyền thông – Đại học Cần Thơ.</p>
-                        <div className="flex space-x-6 mt-4 sm:mt-0">
-                            <Link href="/career-guide" className="hover:text-slate-600 transition">Quy chế học phần</Link>
-                            <Link href="/companies" className="hover:text-slate-600 transition">Mạng lưới đối tác</Link>
-                            <Link href="/jobs" className="hover:text-slate-600 transition">Vị trí tuyển dụng</Link>
-                        </div>
-                    </div>
+                    <p className="mt-6 border-t border-slate-200 pt-4 text-xs leading-relaxed text-slate-500">
+                        © 2026 Trường Công nghệ Thông tin và Truyền thông – Đại học Cần Thơ.
+                    </p>
                 </div>
             </footer>
         </div>

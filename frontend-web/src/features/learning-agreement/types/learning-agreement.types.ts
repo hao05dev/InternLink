@@ -22,7 +22,7 @@ export interface LearningAgreement {
     startDate: string;
     endDate: string;
     workingDays?: string;
-    learningObjectives?: string[];
+    learningObjectives?: string[] | string;
     status: AgreementStatus;
     studentSignedAt?: string;
     companySignedAt?: string;

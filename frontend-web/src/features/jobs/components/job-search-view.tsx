@@ -24,7 +24,7 @@ export default function JobSearchView() {
     useEffect(() => {
         let mounted = true;
         setLoading(true);
-        jobService.getAllJobs()
+        jobService.getPublicJobs()
             .then(data => {
                 if (mounted) {
                     setJobs(data);

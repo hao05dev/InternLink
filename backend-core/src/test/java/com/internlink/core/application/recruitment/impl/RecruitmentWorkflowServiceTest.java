@@ -1,33 +1,38 @@
 package com.internlink.core.application.recruitment.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
+import com.internlink.core.application.system.AuditLogService;
+import com.internlink.core.application.system.NotificationService;
 import com.internlink.core.domain.auth.User;
 import com.internlink.core.domain.company.Company;
+import com.internlink.core.domain.organization.AcademicProgram;
 import com.internlink.core.domain.organization.Department;
 import com.internlink.core.domain.organization.InternshipTerm;
-import com.internlink.core.domain.organization.AcademicProgram;
 import com.internlink.core.domain.organization.StudentRoster;
-import com.internlink.core.domain.student.StudentProfile;
 import com.internlink.core.domain.recruitment.JobApplication;
 import com.internlink.core.domain.recruitment.JobPosition;
 import com.internlink.core.domain.recruitment.PlacementOffer;
+import com.internlink.core.domain.student.StudentProfile;
 import com.internlink.core.domain.system.Document;
 import com.internlink.core.infrastructure.persistence.jpa.*;
+import com.internlink.core.infrastructure.persistence.jpa.JpaStudentProfileRepository;
+import com.internlink.core.infrastructure.persistence.jpa.JpaStudentRosterRepository;
 import com.internlink.core.infrastructure.security.CustomUserDetail;
 import com.internlink.core.presentation.recruitment.dto.request.JobApplicationRequest;
 import com.internlink.core.presentation.recruitment.dto.request.JobPositionRequest;
 import com.internlink.core.presentation.recruitment.dto.request.PlacementOfferRequest;
 import com.internlink.core.shared.enums.*;
-import com.internlink.core.shared.security.SecurityGuard;
-import com.internlink.core.application.system.AuditLogService;
-import com.internlink.core.application.system.NotificationService;
-import com.internlink.core.infrastructure.persistence.jpa.JpaStudentProfileRepository;
-import com.internlink.core.infrastructure.persistence.jpa.JpaStudentRosterRepository;
 import com.internlink.core.shared.exception.BadRequestException;
 import com.internlink.core.shared.exception.ForbiddenException;
+import com.internlink.core.shared.security.SecurityGuard;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -36,11 +41,6 @@ import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class RecruitmentWorkflowServiceTest {
@@ -68,17 +68,55 @@ class RecruitmentWorkflowServiceTest {
     @BeforeEach
     void setUp() {
         JobPositionMapper mapper = new JobPositionMapper(jobSkillRepository);
-        JobSkillAssignmentHandler skillHandler = new JobSkillAssignmentHandler(jobSkillRepository, taxonomyRepository);
-        JobPositionNotificationHelper notifHelper = new JobPositionNotificationHelper(notificationService, userRepository, studentRosterRepository);
-        jobService = new JobPositionServiceImpl(jobRepository, companyRepository, termRepository,
-            departmentRepository, userRepository, jobSkillRepository, auditLogService, securityGuard,
-            mapper, skillHandler, notifHelper);
-        applicationService = new JobApplicationServiceImpl(applicationRepository, jobRepository,
-            userRepository, documentRepository, studentProfileRepository, studentRosterRepository, offerRepository, securityGuard, notificationService);
-        offerService = new PlacementOfferServiceImpl(offerRepository, applicationRepository, userRepository, securityGuard, auditLogService, notificationService);
-        lenient().when(jobRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
-        lenient().when(applicationRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
-        lenient().when(offerRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        JobSkillAssignmentHandler skillHandler =
+                new JobSkillAssignmentHandler(jobSkillRepository, taxonomyRepository);
+        JobPositionNotificationHelper notifHelper =
+                new JobPositionNotificationHelper(
+                        notificationService, userRepository, studentRosterRepository);
+        jobService =
+                new JobPositionServiceImpl(
+                        jobRepository,
+                        companyRepository,
+                        termRepository,
+                        departmentRepository,
+                        userRepository,
+                        jobSkillRepository,
+                        auditLogService,
+                        securityGuard,
+                        mapper,
+                        skillHandler,
+                        notifHelper,
+                        mock(
+                                com.internlink.core.application.system.upload.MediaReferencePolicy
+                                        .class));
+        applicationService =
+                new JobApplicationServiceImpl(
+                        applicationRepository,
+                        jobRepository,
+                        userRepository,
+                        documentRepository,
+                        studentProfileRepository,
+                        studentRosterRepository,
+                        offerRepository,
+                        securityGuard,
+                        notificationService);
+        offerService =
+                new PlacementOfferServiceImpl(
+                        offerRepository,
+                        applicationRepository,
+                        userRepository,
+                        securityGuard,
+                        auditLogService,
+                        notificationService);
+        lenient()
+                .when(jobRepository.save(any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        lenient()
+                .when(applicationRepository.save(any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        lenient()
+                .when(offerRepository.save(any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
     }
 
     @Test
@@ -91,13 +129,15 @@ class RecruitmentWorkflowServiceTest {
         when(companyRepository.findById(company.getId())).thenReturn(Optional.of(company));
         when(termRepository.findById(term.getId())).thenReturn(Optional.of(term));
         when(departmentRepository.findById(department.getId())).thenReturn(Optional.of(department));
-        when(userRepository.findById(representative.getId())).thenReturn(Optional.of(representative));
+        when(userRepository.findById(representative.getId()))
+                .thenReturn(Optional.of(representative));
         when(securityGuard.currentUser()).thenReturn(CustomUserDetail.create(representative));
 
         JobPositionRequest request = jobRequest(company.getId(), term.getId(), department.getId());
         request.setStatus(JobStatus.APPROVED);
 
-        assertThat(jobService.createJob(request, representative.getId()).getStatus()).isEqualTo(JobStatus.DRAFT);
+        assertThat(jobService.createJob(request, representative.getId()).getStatus())
+                .isEqualTo(JobStatus.DRAFT);
     }
 
     @Test
@@ -108,10 +148,18 @@ class RecruitmentWorkflowServiceTest {
         Company company = company();
         when(companyRepository.findById(company.getId())).thenReturn(Optional.of(company));
         when(termRepository.findById(term.getId())).thenReturn(Optional.of(term));
-        when(departmentRepository.findById(otherDepartment.getId())).thenReturn(Optional.of(otherDepartment));
+        when(departmentRepository.findById(otherDepartment.getId()))
+                .thenReturn(Optional.of(otherDepartment));
 
-        assertThatThrownBy(() -> jobService.createJob(jobRequest(company.getId(), term.getId(), otherDepartment.getId()), UUID.randomUUID()))
-            .isInstanceOf(BadRequestException.class);
+        assertThatThrownBy(
+                        () ->
+                                jobService.createJob(
+                                        jobRequest(
+                                                company.getId(),
+                                                term.getId(),
+                                                otherDepartment.getId()),
+                                        UUID.randomUUID()))
+                .isInstanceOf(BadRequestException.class);
     }
 
     @Test
@@ -121,15 +169,23 @@ class RecruitmentWorkflowServiceTest {
         Company targetCompany = company();
         User representative = user(UserRole.COMPANY_REP);
         representative.setCompany(company());
-        when(companyRepository.findById(targetCompany.getId())).thenReturn(Optional.of(targetCompany));
+        when(companyRepository.findById(targetCompany.getId()))
+                .thenReturn(Optional.of(targetCompany));
         when(termRepository.findById(term.getId())).thenReturn(Optional.of(term));
         when(departmentRepository.findById(department.getId())).thenReturn(Optional.of(department));
-        when(userRepository.findById(representative.getId())).thenReturn(Optional.of(representative));
+        when(userRepository.findById(representative.getId()))
+                .thenReturn(Optional.of(representative));
         when(securityGuard.currentUser()).thenReturn(CustomUserDetail.create(representative));
 
-        assertThatThrownBy(() -> jobService.createJob(
-            jobRequest(targetCompany.getId(), term.getId(), department.getId()), representative.getId()))
-            .isInstanceOf(ForbiddenException.class);
+        assertThatThrownBy(
+                        () ->
+                                jobService.createJob(
+                                        jobRequest(
+                                                targetCompany.getId(),
+                                                term.getId(),
+                                                department.getId()),
+                                        representative.getId()))
+                .isInstanceOf(ForbiddenException.class);
         verify(jobRepository, never()).save(any());
     }
 
@@ -144,7 +200,7 @@ class RecruitmentWorkflowServiceTest {
         when(userRepository.findById(stranger.getId())).thenReturn(Optional.of(stranger));
 
         assertThatThrownBy(() -> offerService.getOfferById(offer.getId()))
-            .isInstanceOf(ForbiddenException.class);
+                .isInstanceOf(ForbiddenException.class);
     }
 
     @Test
@@ -155,23 +211,34 @@ class RecruitmentWorkflowServiceTest {
         job.getTerm().setApplicationDeadline(OffsetDateTime.now().plusDays(2));
         AcademicProgram program = AcademicProgram.builder().code("CNTT").name("CNTT").build();
         StudentProfile profile = StudentProfile.builder().user(student).program(program).build();
-        StudentRoster roster = StudentRoster.builder().eligibilityStatus(EligibilityStatus.ELIGIBLE).build();
-        Document foreignCv = Document.builder().owner(user(UserRole.STUDENT)).documentType(DocumentType.CV).build();
+        StudentRoster roster =
+                StudentRoster.builder().eligibilityStatus(EligibilityStatus.ELIGIBLE).build();
+        Document foreignCv =
+                Document.builder()
+                        .owner(user(UserRole.STUDENT))
+                        .documentType(DocumentType.CV)
+                        .build();
         foreignCv.setId(UUID.randomUUID());
         when(userRepository.findById(student.getId())).thenReturn(Optional.of(student));
         when(jobRepository.findById(job.getId())).thenReturn(Optional.of(job));
-        when(studentProfileRepository.findByUserId(student.getId())).thenReturn(Optional.of(profile));
-        when(studentRosterRepository.findByTermIdAndClaimedUserId(job.getTerm().getId(), student.getId()))
-            .thenReturn(Optional.of(roster));
+        when(studentProfileRepository.findByUserId(student.getId()))
+                .thenReturn(Optional.of(profile));
+        when(studentRosterRepository.findByTermIdAndClaimedUserId(
+                        job.getTerm().getId(), student.getId()))
+                .thenReturn(Optional.of(roster));
         when(securityGuard.currentUser()).thenReturn(CustomUserDetail.create(student));
-        when(applicationRepository.existsByJobIdAndStudentId(job.getId(), student.getId())).thenReturn(false);
+        when(applicationRepository.existsByJobIdAndStudentId(job.getId(), student.getId()))
+                .thenReturn(false);
         when(documentRepository.findById(foreignCv.getId())).thenReturn(Optional.of(foreignCv));
 
-        JobApplicationRequest request = JobApplicationRequest.builder()
-            .jobId(job.getId()).submittedCvDocumentId(foreignCv.getId()).build();
+        JobApplicationRequest request =
+                JobApplicationRequest.builder()
+                        .jobId(job.getId())
+                        .submittedCvDocumentId(foreignCv.getId())
+                        .build();
 
         assertThatThrownBy(() -> applicationService.applyJob(student.getId(), request))
-            .isInstanceOf(BadRequestException.class);
+                .isInstanceOf(BadRequestException.class);
         verify(applicationRepository, never()).save(any());
     }
 
@@ -180,13 +247,17 @@ class RecruitmentWorkflowServiceTest {
         JobApplication application = application(ApplicationStatus.SUBMITTED);
         User representative = user(UserRole.COMPANY_REP);
         representative.setCompany(application.getJob().getCompany());
-        when(applicationRepository.findById(application.getId())).thenReturn(Optional.of(application));
-        when(userRepository.findById(representative.getId())).thenReturn(Optional.of(representative));
+        when(applicationRepository.findById(application.getId()))
+                .thenReturn(Optional.of(application));
+        when(userRepository.findById(representative.getId()))
+                .thenReturn(Optional.of(representative));
         when(securityGuard.currentUser()).thenReturn(CustomUserDetail.create(representative));
 
-        assertThatThrownBy(() -> applicationService.updateApplicationStatus(
-            application.getId(), ApplicationStatus.OFFERED))
-            .isInstanceOf(BadRequestException.class);
+        assertThatThrownBy(
+                        () ->
+                                applicationService.updateApplicationStatus(
+                                        application.getId(), ApplicationStatus.OFFERED))
+                .isInstanceOf(BadRequestException.class);
     }
 
     @Test
@@ -194,83 +265,120 @@ class RecruitmentWorkflowServiceTest {
         JobApplication application = application(ApplicationStatus.SUBMITTED);
         User representative = user(UserRole.COMPANY_REP);
         representative.setCompany(application.getJob().getCompany());
-        when(applicationRepository.findById(application.getId())).thenReturn(Optional.of(application));
-        when(userRepository.findById(representative.getId())).thenReturn(Optional.of(representative));
+        when(applicationRepository.findById(application.getId()))
+                .thenReturn(Optional.of(application));
+        when(userRepository.findById(representative.getId()))
+                .thenReturn(Optional.of(representative));
         when(securityGuard.currentUser()).thenReturn(CustomUserDetail.create(representative));
         when(offerRepository.findByApplicationId(application.getId())).thenReturn(Optional.empty());
 
         PlacementOfferRequest request = offerRequest(application.getId());
-        assertThatThrownBy(() -> offerService.createOffer(request)).isInstanceOf(BadRequestException.class);
+        assertThatThrownBy(() -> offerService.createOffer(request))
+                .isInstanceOf(BadRequestException.class);
     }
 
     @Test
     void declinedOfferAlsoClosesApplication() {
         JobApplication application = application(ApplicationStatus.OFFERED);
-        PlacementOffer offer = PlacementOffer.builder()
-            .application(application)
-            .startDate(LocalDate.now().plusDays(1))
-            .endDate(LocalDate.now().plusMonths(3))
-            .expiresAt(OffsetDateTime.now().plusDays(1))
-            .status(OfferStatus.SENT)
-            .termsSnapshot(Map.of())
-            .build();
+        PlacementOffer offer =
+                PlacementOffer.builder()
+                        .application(application)
+                        .startDate(LocalDate.now().plusDays(1))
+                        .endDate(LocalDate.now().plusMonths(3))
+                        .expiresAt(OffsetDateTime.now().plusDays(1))
+                        .status(OfferStatus.SENT)
+                        .termsSnapshot(Map.of())
+                        .build();
         offer.setId(UUID.randomUUID());
         when(offerRepository.findById(offer.getId())).thenReturn(Optional.of(offer));
-        when(securityGuard.currentUser()).thenReturn(CustomUserDetail.create(application.getStudent()));
+        when(securityGuard.currentUser())
+                .thenReturn(CustomUserDetail.create(application.getStudent()));
 
         assertThat(offerService.respondToOffer(offer.getId(), OfferStatus.DECLINED).getStatus())
-            .isEqualTo(OfferStatus.DECLINED);
+                .isEqualTo(OfferStatus.DECLINED);
         assertThat(application.getStatus()).isEqualTo(ApplicationStatus.REJECTED);
         verify(applicationRepository).save(application);
     }
 
     @Test
     void studentCannotSetAdministrativeOfferStatus() {
-        PlacementOffer offer = PlacementOffer.builder()
-            .application(application(ApplicationStatus.OFFERED))
-            .expiresAt(OffsetDateTime.now().plusDays(1))
-            .status(OfferStatus.SENT)
-            .build();
+        PlacementOffer offer =
+                PlacementOffer.builder()
+                        .application(application(ApplicationStatus.OFFERED))
+                        .expiresAt(OffsetDateTime.now().plusDays(1))
+                        .status(OfferStatus.SENT)
+                        .build();
         offer.setId(UUID.randomUUID());
         when(offerRepository.findById(offer.getId())).thenReturn(Optional.of(offer));
-        when(securityGuard.currentUser()).thenReturn(CustomUserDetail.create(offer.getApplication().getStudent()));
+        when(securityGuard.currentUser())
+                .thenReturn(CustomUserDetail.create(offer.getApplication().getStudent()));
 
         assertThatThrownBy(() -> offerService.respondToOffer(offer.getId(), OfferStatus.WITHDRAWN))
-            .isInstanceOf(BadRequestException.class);
+                .isInstanceOf(BadRequestException.class);
     }
 
     private Department department() {
-        Department value = Department.builder().code(UUID.randomUUID().toString()).name("CNTT")
-            .contactEmail("it@example.com").build();
+        Department value =
+                Department.builder()
+                        .code(UUID.randomUUID().toString())
+                        .name("CNTT")
+                        .contactEmail("it@example.com")
+                        .build();
         value.setId(UUID.randomUUID());
         return value;
     }
 
     private InternshipTerm term(Department department) {
-        InternshipTerm value = InternshipTerm.builder().department(department).code("T1").termName("Term")
-            .academicYear("2026").semester("1").build();
+        InternshipTerm value =
+                InternshipTerm.builder()
+                        .department(department)
+                        .code("T1")
+                        .termName("Term")
+                        .academicYear("2026")
+                        .semester("1")
+                        .build();
         value.setId(UUID.randomUUID());
         return value;
     }
 
     private Company company() {
-        Company value = Company.builder().companyName("Acme").taxCode(UUID.randomUUID().toString())
-            .address(Map.of()).verificationStatus(VerificationStatus.VERIFIED).build();
+        Company value =
+                Company.builder()
+                        .companyName("Acme")
+                        .taxCode(UUID.randomUUID().toString())
+                        .address(Map.of())
+                        .verificationStatus(VerificationStatus.VERIFIED)
+                        .build();
         value.setId(UUID.randomUUID());
         return value;
     }
 
     private User user(UserRole role) {
-        User value = User.builder().email(UUID.randomUUID() + "@example.com").passwordHash("hash")
-            .fullName("User").role(role).build();
+        User value =
+                User.builder()
+                        .email(UUID.randomUUID() + "@example.com")
+                        .passwordHash("hash")
+                        .fullName("User")
+                        .role(role)
+                        .build();
         value.setId(UUID.randomUUID());
         return value;
     }
 
-    private JobPosition job(Company company, InternshipTerm term, Department department, JobStatus status) {
-        JobPosition value = JobPosition.builder().company(company).term(term).department(department)
-            .title("Java Intern").workFormat(WorkFormat.HYBRID).location("CT")
-            .description("Description").vacancies(2).status(status).build();
+    private JobPosition job(
+            Company company, InternshipTerm term, Department department, JobStatus status) {
+        JobPosition value =
+                JobPosition.builder()
+                        .company(company)
+                        .term(term)
+                        .department(department)
+                        .title("Java Intern")
+                        .workFormat(WorkFormat.HYBRID)
+                        .location("CT")
+                        .description("Description")
+                        .vacancies(2)
+                        .status(status)
+                        .build();
         value.setId(UUID.randomUUID());
         return value;
     }
@@ -281,21 +389,36 @@ class RecruitmentWorkflowServiceTest {
         JobPosition job = job(company(), term(department), department, JobStatus.APPROVED);
         Document cv = Document.builder().owner(student).documentType(DocumentType.CV).build();
         cv.setId(UUID.randomUUID());
-        JobApplication value = JobApplication.builder().job(job).student(student).submittedCvDocument(cv)
-            .status(status).build();
+        JobApplication value =
+                JobApplication.builder()
+                        .job(job)
+                        .student(student)
+                        .submittedCvDocument(cv)
+                        .status(status)
+                        .build();
         value.setId(UUID.randomUUID());
         return value;
     }
 
     private JobPositionRequest jobRequest(UUID companyId, UUID termId, UUID departmentId) {
-        return JobPositionRequest.builder().companyId(companyId).termId(termId).departmentId(departmentId)
-            .title("Java Intern").workFormat(WorkFormat.HYBRID).location("Can Tho")
-            .vacancies(2).description("Build services").build();
+        return JobPositionRequest.builder()
+                .companyId(companyId)
+                .termId(termId)
+                .departmentId(departmentId)
+                .title("Java Intern")
+                .workFormat(WorkFormat.HYBRID)
+                .location("Can Tho")
+                .vacancies(2)
+                .description("Build services")
+                .build();
     }
 
     private PlacementOfferRequest offerRequest(UUID applicationId) {
-        return PlacementOfferRequest.builder().applicationId(applicationId)
-            .startDate(LocalDate.now().plusDays(1)).endDate(LocalDate.now().plusMonths(3))
-            .expiresAt(OffsetDateTime.now().plusDays(1)).build();
+        return PlacementOfferRequest.builder()
+                .applicationId(applicationId)
+                .startDate(LocalDate.now().plusDays(1))
+                .endDate(LocalDate.now().plusMonths(3))
+                .expiresAt(OffsetDateTime.now().plusDays(1))
+                .build();
     }
 }

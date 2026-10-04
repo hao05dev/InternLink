@@ -133,14 +133,14 @@ export function Navbar() {
                         href="/career-guide"
                         className="px-4 py-2 rounded-full hover:bg-white hover:text-slate-900 transition-colors flex items-center gap-1.5 text-[13.5px] lg:text-[15px] font-semibold tracking-tight"
                     >
-                        <span>Cẩm nang</span>
+                        <span>Tin tức & Blog</span>
                         <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
                     </Link>
                     <Link
-                        href="/#portals"
+                        href="/#about"
                         className="px-4 py-2 rounded-full hover:bg-white hover:text-slate-900 transition-colors text-[13.5px] lg:text-[15px] font-semibold tracking-tight"
                     >
-                        <span>Liên hệ</span>
+                        <span>Về trường</span>
                     </Link>
                 </nav>
 
@@ -245,14 +245,7 @@ export function Navbar() {
                             </div>
                         </div>
                     ) : (
-                        <div className="flex items-center gap-5">
-                            <Link
-                                href="/#portals"
-                                className="text-xs lg:text-[13px] font-bold uppercase tracking-wider text-slate-700 hover:text-slate-900 transition-colors"
-                            >
-                                Cổng Truy Cập
-                            </Link>
-
+                        <div className="flex items-center">
                             <Link
                                 href="/login"
                                 className="inline-flex items-center gap-2.5 px-5.5 py-2.5 lg:px-6 lg:py-3 rounded-full bg-slate-950 hover:bg-slate-900 text-white text-xs lg:text-sm font-bold uppercase tracking-wider shadow-md transition-colors duration-200 group cursor-pointer"
@@ -324,15 +317,15 @@ export function Navbar() {
                             className="px-4 py-3 rounded-2xl hover:bg-slate-50 flex items-center gap-3"
                         >
                             <BookOpen className="w-5 h-5 text-slate-400" />
-                            <span>Cẩm nang & Quy chế</span>
+                            <span>Tin tức & Blog</span>
                         </Link>
                         <Link
-                            href="/#portals"
+                            href="/#about"
                             onClick={() => setMobileMenuOpen(false)}
                             className="px-4 py-3 rounded-2xl hover:bg-slate-50 flex items-center gap-3"
                         >
                             <HelpCircle className="w-5 h-5 text-slate-400" />
-                            <span>Cổng truy cập theo vai trò</span>
+                            <span>Về Trường (CICT • CTU)</span>
                         </Link>
                     </nav>
 

@@ -1,5 +1,12 @@
 package com.internlink.core.application.placement.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
+
+import com.internlink.core.application.system.AuditLogService;
+import com.internlink.core.application.system.NotificationService;
 import com.internlink.core.domain.auth.User;
 import com.internlink.core.domain.company.Company;
 import com.internlink.core.domain.organization.Department;
@@ -14,11 +21,10 @@ import com.internlink.core.infrastructure.security.CustomUserDetail;
 import com.internlink.core.presentation.placement.dto.request.AttendanceLogRequest;
 import com.internlink.core.presentation.placement.dto.request.WeeklyLogbookRequest;
 import com.internlink.core.shared.enums.*;
-import com.internlink.core.shared.security.SecurityGuard;
-import com.internlink.core.application.system.AuditLogService;
-import com.internlink.core.application.system.NotificationService;
 import com.internlink.core.shared.exception.BadRequestException;
 import com.internlink.core.shared.exception.ForbiddenException;
+import com.internlink.core.shared.security.SecurityGuard;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,11 +37,6 @@ import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class PlacementWorkflowServiceTest {
@@ -59,16 +60,48 @@ class PlacementWorkflowServiceTest {
 
     @BeforeEach
     void setUp() {
-        attendanceService = new AttendanceLogServiceImpl(attendanceRepository, placementRepository, userRepository);
-        taskService = new PlacementTaskServiceImpl(taskRepository, placementRepository, userRepository);
-        logbookService = new WeeklyLogbookServiceImpl(logbookRepository, placementRepository, userRepository, securityGuard, notificationService);
-        agreementService = new LearningAgreementServiceImpl(agreementRepository, offerRepository,
-            departmentRepository, userRepository, securityGuard, auditLogService, notificationService);
-        lenient().when(attendanceRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
-        lenient().when(placementRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
-        lenient().when(taskRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
-        lenient().when(logbookRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
-        lenient().when(agreementRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        attendanceService =
+                new AttendanceLogServiceImpl(
+                        attendanceRepository, placementRepository, userRepository);
+        taskService =
+                new PlacementTaskServiceImpl(
+                        taskRepository,
+                        placementRepository,
+                        userRepository,
+                        mock(
+                                com.internlink.core.application.system.notification
+                                        .PlacementWorkflowNotificationHelper.class));
+        logbookService =
+                new WeeklyLogbookServiceImpl(
+                        logbookRepository,
+                        placementRepository,
+                        userRepository,
+                        securityGuard,
+                        notificationService);
+        agreementService =
+                new LearningAgreementServiceImpl(
+                        agreementRepository,
+                        offerRepository,
+                        departmentRepository,
+                        userRepository,
+                        securityGuard,
+                        auditLogService,
+                        notificationService);
+        lenient()
+                .when(attendanceRepository.save(any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        lenient()
+                .when(placementRepository.save(any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        lenient()
+                .when(taskRepository.save(any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        lenient()
+                .when(logbookRepository.save(any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        lenient()
+                .when(agreementRepository.save(any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
     }
 
     @Test
@@ -78,80 +111,132 @@ class PlacementWorkflowServiceTest {
         AttendanceLogRequest request = attendanceRequest(placement.getId());
 
         assertThatThrownBy(() -> attendanceService.checkIn(UUID.randomUUID(), request))
-            .isInstanceOf(BadRequestException.class);
+                .isInstanceOf(BadRequestException.class);
     }
 
     @Test
     void confirmationAddsHoursExactlyOnce() {
         InternshipPlacement placement = placement();
         User mentor = placement.getMentor();
-        AttendanceLog log = AttendanceLog.builder().placement(placement).workDate(LocalDate.now())
-            .checkInAt(OffsetDateTime.now().minusHours(8)).checkOutAt(OffsetDateTime.now())
-            .durationHours(new BigDecimal("8.00")).workFormat(WorkFormat.ONSITE)
-            .status(AttendanceStatus.PENDING_CONFIRMATION).build();
+        AttendanceLog log =
+                AttendanceLog.builder()
+                        .placement(placement)
+                        .workDate(LocalDate.now())
+                        .checkInAt(OffsetDateTime.now().minusHours(8))
+                        .checkOutAt(OffsetDateTime.now())
+                        .durationHours(new BigDecimal("8.00"))
+                        .workFormat(WorkFormat.ONSITE)
+                        .status(AttendanceStatus.PENDING_CONFIRMATION)
+                        .build();
         log.setId(UUID.randomUUID());
         when(attendanceRepository.findById(log.getId())).thenReturn(Optional.of(log));
         when(userRepository.findById(mentor.getId())).thenReturn(Optional.of(mentor));
 
-        attendanceService.confirmAttendance(log.getId(), mentor.getId(), AttendanceStatus.CONFIRMED);
+        attendanceService.confirmAttendance(
+                log.getId(), mentor.getId(), AttendanceStatus.CONFIRMED);
 
         assertThat(placement.getTotalHoursWorked()).isEqualByComparingTo("8.00");
-        assertThatThrownBy(() -> attendanceService.confirmAttendance(
-            log.getId(), mentor.getId(), AttendanceStatus.CONFIRMED))
-            .isInstanceOf(BadRequestException.class);
+        assertThatThrownBy(
+                        () ->
+                                attendanceService.confirmAttendance(
+                                        log.getId(), mentor.getId(), AttendanceStatus.CONFIRMED))
+                .isInstanceOf(BadRequestException.class);
         verify(placementRepository, times(1)).save(placement);
     }
 
     @Test
     void taskCanOnlyBeSubmittedByPlacementStudent() {
         InternshipPlacement placement = placement();
-        PlacementTask task = PlacementTask.builder().placement(placement).assignedByMentor(placement.getMentor())
-            .title("Task").description("Description").status(TaskStatus.ASSIGNED).build();
+        PlacementTask task =
+                PlacementTask.builder()
+                        .placement(placement)
+                        .assignedByMentor(placement.getMentor())
+                        .title("Task")
+                        .description("Description")
+                        .status(TaskStatus.ASSIGNED)
+                        .build();
         task.setId(UUID.randomUUID());
         when(taskRepository.findById(task.getId())).thenReturn(Optional.of(task));
 
         assertThatThrownBy(() -> taskService.submitTask(task.getId(), UUID.randomUUID(), "Done"))
-            .isInstanceOf(BadRequestException.class);
+                .isInstanceOf(BadRequestException.class);
     }
 
     @Test
     void mentorReviewOnlyAcceptsSubmittedTaskAndTerminalReviewStatuses() {
         InternshipPlacement placement = placement();
-        PlacementTask task = PlacementTask.builder().placement(placement).assignedByMentor(placement.getMentor())
-            .title("Task").description("Description").status(TaskStatus.SUBMITTED).build();
+        PlacementTask task =
+                PlacementTask.builder()
+                        .placement(placement)
+                        .assignedByMentor(placement.getMentor())
+                        .title("Task")
+                        .description("Description")
+                        .status(TaskStatus.SUBMITTED)
+                        .build();
         task.setId(UUID.randomUUID());
         when(taskRepository.findById(task.getId())).thenReturn(Optional.of(task));
-        when(userRepository.findById(placement.getMentor().getId())).thenReturn(Optional.of(placement.getMentor()));
+        when(userRepository.findById(placement.getMentor().getId()))
+                .thenReturn(Optional.of(placement.getMentor()));
 
-        assertThat(taskService.reviewTask(task.getId(), placement.getMentor().getId(),
-            TaskStatus.COMPLETED, "Good", 100).getProgressPercent()).isEqualTo(100);
+        assertThat(
+                        taskService
+                                .reviewTask(
+                                        task.getId(),
+                                        placement.getMentor().getId(),
+                                        TaskStatus.COMPLETED,
+                                        "Good",
+                                        100)
+                                .getProgressPercent())
+                .isEqualTo(100);
     }
 
     @Test
     void logbookRejectsInvalidPeriod() {
         InternshipPlacement placement = placement();
         when(placementRepository.findById(placement.getId())).thenReturn(Optional.of(placement));
-        WeeklyLogbookRequest request = WeeklyLogbookRequest.builder().placementId(placement.getId())
-            .weekNumber(1).periodStart(LocalDate.now()).periodEnd(LocalDate.now().minusDays(1))
-            .tasksCompleted("Tasks").learningReflection("Learned").totalHours(BigDecimal.TEN).build();
+        WeeklyLogbookRequest request =
+                WeeklyLogbookRequest.builder()
+                        .placementId(placement.getId())
+                        .weekNumber(1)
+                        .periodStart(LocalDate.now())
+                        .periodEnd(LocalDate.now().minusDays(1))
+                        .tasksCompleted("Tasks")
+                        .learningReflection("Learned")
+                        .totalHours(BigDecimal.TEN)
+                        .build();
 
-        assertThatThrownBy(() -> logbookService.submitLogbook(placement.getStudent().getId(), request))
-            .isInstanceOf(BadRequestException.class);
+        assertThatThrownBy(
+                        () -> logbookService.submitLogbook(placement.getStudent().getId(), request))
+                .isInstanceOf(BadRequestException.class);
     }
 
     @Test
     void logbookReviewRejectsUnrelatedMentor() {
         InternshipPlacement placement = placement();
-        WeeklyLogbook logbook = WeeklyLogbook.builder().placement(placement).weekNumber(1)
-            .periodStart(LocalDate.now()).periodEnd(LocalDate.now()).tasksCompleted("Tasks")
-            .learningReflection("Learned").totalHours(BigDecimal.TEN).status(LogbookStatus.SUBMITTED).build();
+        WeeklyLogbook logbook =
+                WeeklyLogbook.builder()
+                        .placement(placement)
+                        .weekNumber(1)
+                        .periodStart(LocalDate.now())
+                        .periodEnd(LocalDate.now())
+                        .tasksCompleted("Tasks")
+                        .learningReflection("Learned")
+                        .totalHours(BigDecimal.TEN)
+                        .status(LogbookStatus.SUBMITTED)
+                        .build();
         logbook.setId(UUID.randomUUID());
         User outsider = user(UserRole.COMPANY_MENTOR);
         when(logbookRepository.findById(logbook.getId())).thenReturn(Optional.of(logbook));
         when(userRepository.findById(outsider.getId())).thenReturn(Optional.of(outsider));
 
-        assertThatThrownBy(() -> logbookService.reviewByMentor(logbook.getId(), outsider.getId(),
-            LogbookStatus.APPROVED_BY_MENTOR, null)).isInstanceOf(BadRequestException.class);
+        assertThatThrownBy(
+                        () ->
+                                logbookService.reviewByMentor(
+                                        logbook.getId(),
+                                        outsider.getId(),
+                                        LogbookStatus.APPROVED_BY_MENTOR,
+                                        null))
+                .isInstanceOf(BadRequestException.class);
     }
 
     @Test
@@ -163,7 +248,7 @@ class PlacementWorkflowServiceTest {
         when(userRepository.findById(outsider.getId())).thenReturn(Optional.of(outsider));
 
         assertThatThrownBy(() -> logbookService.getLogbooksByPlacement(placement.getId()))
-            .isInstanceOf(ForbiddenException.class);
+                .isInstanceOf(ForbiddenException.class);
         verify(logbookRepository, never()).findByPlacementIdOrderByWeekNumberAsc(any());
     }
 
@@ -171,36 +256,55 @@ class PlacementWorkflowServiceTest {
     void agreementCanOnlyBeCreatedByOfferOwner() {
         PlacementOffer offer = offer();
         when(offerRepository.findById(offer.getId())).thenReturn(Optional.of(offer));
-        var request = com.internlink.core.presentation.placement.dto.request.LearningAgreementRequest.builder()
-            .offerId(offer.getId()).departmentId(offer.getApplication().getJob().getDepartment().getId())
-            .targetCredits(10).learningObjectives("Objectives").build();
+        var request =
+                com.internlink.core.presentation.placement.dto.request.LearningAgreementRequest
+                        .builder()
+                        .offerId(offer.getId())
+                        .departmentId(offer.getApplication().getJob().getDepartment().getId())
+                        .targetCredits(10)
+                        .learningObjectives("Objectives")
+                        .build();
 
         assertThatThrownBy(() -> agreementService.createAgreement(UUID.randomUUID(), request))
-            .isInstanceOf(BadRequestException.class);
+                .isInstanceOf(BadRequestException.class);
     }
 
     @Test
     void thirdSignatureApprovesAgreement() {
         PlacementOffer offer = offer();
         Department department = offer.getApplication().getJob().getDepartment();
-        LearningAgreement agreement = LearningAgreement.builder().offer(offer)
-            .student(offer.getApplication().getStudent()).company(offer.getApplication().getJob().getCompany())
-            .department(department).targetCredits(10).learningObjectives("Objectives")
-            .status(AgreementStatus.PENDING_SIGNATURES).studentSignature(Map.of("signed", true))
-            .companySignature(Map.of("signed", true)).build();
+        LearningAgreement agreement =
+                LearningAgreement.builder()
+                        .offer(offer)
+                        .student(offer.getApplication().getStudent())
+                        .company(offer.getApplication().getJob().getCompany())
+                        .department(department)
+                        .targetCredits(10)
+                        .learningObjectives("Objectives")
+                        .status(AgreementStatus.PENDING_SIGNATURES)
+                        .studentSignature(Map.of("signed", true))
+                        .companySignature(Map.of("signed", true))
+                        .build();
         agreement.setId(UUID.randomUUID());
         when(agreementRepository.findById(agreement.getId())).thenReturn(Optional.of(agreement));
         User admin = user(UserRole.ADMIN);
         when(securityGuard.currentUser()).thenReturn(CustomUserDetail.create(admin));
         when(userRepository.findById(admin.getId())).thenReturn(Optional.of(admin));
 
-        assertThat(agreementService.signAgreement(agreement.getId(), "ADMIN", Map.of("signed", true)).getStatus())
-            .isEqualTo(AgreementStatus.APPROVED);
+        assertThat(
+                        agreementService
+                                .signAgreement(agreement.getId(), "ADMIN", Map.of("signed", true))
+                                .getStatus())
+                .isEqualTo(AgreementStatus.APPROVED);
     }
 
     private AttendanceLogRequest attendanceRequest(UUID placementId) {
-        return AttendanceLogRequest.builder().placementId(placementId).workDate(LocalDate.now())
-            .checkInAt(OffsetDateTime.now()).workFormat(WorkFormat.ONSITE).build();
+        return AttendanceLogRequest.builder()
+                .placementId(placementId)
+                .workDate(LocalDate.now())
+                .checkInAt(OffsetDateTime.now())
+                .workFormat(WorkFormat.ONSITE)
+                .build();
     }
 
     private InternshipPlacement placement() {
@@ -210,14 +314,30 @@ class PlacementWorkflowServiceTest {
         Company company = company();
         Department department = department();
         PlacementOffer offer = offer(student, mentor, company, department);
-        LearningAgreement agreement = LearningAgreement.builder().offer(offer).student(student)
-            .company(company).department(department).targetCredits(10).learningObjectives("Objectives")
-            .status(AgreementStatus.APPROVED).build();
+        LearningAgreement agreement =
+                LearningAgreement.builder()
+                        .offer(offer)
+                        .student(student)
+                        .company(company)
+                        .department(department)
+                        .targetCredits(10)
+                        .learningObjectives("Objectives")
+                        .status(AgreementStatus.APPROVED)
+                        .build();
         agreement.setId(UUID.randomUUID());
-        InternshipPlacement value = InternshipPlacement.builder().agreement(agreement).student(student)
-            .company(company).mentor(mentor).lecturer(lecturer).term(offer.getApplication().getJob().getTerm())
-            .startDate(LocalDate.now()).endDate(LocalDate.now().plusMonths(3))
-            .totalHoursWorked(BigDecimal.ZERO).status(PlacementStatus.ACTIVE).build();
+        InternshipPlacement value =
+                InternshipPlacement.builder()
+                        .agreement(agreement)
+                        .student(student)
+                        .company(company)
+                        .mentor(mentor)
+                        .lecturer(lecturer)
+                        .term(offer.getApplication().getJob().getTerm())
+                        .startDate(LocalDate.now())
+                        .endDate(LocalDate.now().plusMonths(3))
+                        .totalHoursWorked(BigDecimal.ZERO)
+                        .status(PlacementStatus.ACTIVE)
+                        .build();
         value.setId(UUID.randomUUID());
         return value;
     }
@@ -227,42 +347,77 @@ class PlacementWorkflowServiceTest {
         return offer(student, user(UserRole.COMPANY_MENTOR), company(), department());
     }
 
-    private PlacementOffer offer(User student, User mentor, Company company, Department department) {
-        InternshipTerm term = InternshipTerm.builder().department(department).code("T1").termName("Term").build();
+    private PlacementOffer offer(
+            User student, User mentor, Company company, Department department) {
+        InternshipTerm term =
+                InternshipTerm.builder().department(department).code("T1").termName("Term").build();
         term.setId(UUID.randomUUID());
-        JobPosition job = JobPosition.builder().company(company).department(department).term(term)
-            .title("Intern").workFormat(WorkFormat.ONSITE).location("CT").description("Description")
-            .status(JobStatus.APPROVED).build();
+        JobPosition job =
+                JobPosition.builder()
+                        .company(company)
+                        .department(department)
+                        .term(term)
+                        .title("Intern")
+                        .workFormat(WorkFormat.ONSITE)
+                        .location("CT")
+                        .description("Description")
+                        .status(JobStatus.APPROVED)
+                        .build();
         job.setId(UUID.randomUUID());
         Document cv = Document.builder().owner(student).documentType(DocumentType.CV).build();
         cv.setId(UUID.randomUUID());
-        JobApplication application = JobApplication.builder().job(job).student(student)
-            .submittedCvDocument(cv).status(ApplicationStatus.OFFERED).build();
+        JobApplication application =
+                JobApplication.builder()
+                        .job(job)
+                        .student(student)
+                        .submittedCvDocument(cv)
+                        .status(ApplicationStatus.OFFERED)
+                        .build();
         application.setId(UUID.randomUUID());
-        PlacementOffer value = PlacementOffer.builder().application(application).proposedMentor(mentor)
-            .startDate(LocalDate.now()).endDate(LocalDate.now().plusMonths(3))
-            .expiresAt(OffsetDateTime.now().plusDays(1)).status(OfferStatus.ACCEPTED).build();
+        PlacementOffer value =
+                PlacementOffer.builder()
+                        .application(application)
+                        .proposedMentor(mentor)
+                        .startDate(LocalDate.now())
+                        .endDate(LocalDate.now().plusMonths(3))
+                        .expiresAt(OffsetDateTime.now().plusDays(1))
+                        .status(OfferStatus.ACCEPTED)
+                        .build();
         value.setId(UUID.randomUUID());
         return value;
     }
 
     private User user(UserRole role) {
-        User value = User.builder().email(UUID.randomUUID() + "@example.com").passwordHash("hash")
-            .fullName("User").role(role).build();
+        User value =
+                User.builder()
+                        .email(UUID.randomUUID() + "@example.com")
+                        .passwordHash("hash")
+                        .fullName("User")
+                        .role(role)
+                        .build();
         value.setId(UUID.randomUUID());
         return value;
     }
 
     private Company company() {
-        Company value = Company.builder().companyName("Acme").taxCode(UUID.randomUUID().toString())
-            .address(Map.of()).verificationStatus(VerificationStatus.VERIFIED).build();
+        Company value =
+                Company.builder()
+                        .companyName("Acme")
+                        .taxCode(UUID.randomUUID().toString())
+                        .address(Map.of())
+                        .verificationStatus(VerificationStatus.VERIFIED)
+                        .build();
         value.setId(UUID.randomUUID());
         return value;
     }
 
     private Department department() {
-        Department value = Department.builder().code(UUID.randomUUID().toString()).name("CNTT")
-            .contactEmail("it@example.com").build();
+        Department value =
+                Department.builder()
+                        .code(UUID.randomUUID().toString())
+                        .name("CNTT")
+                        .contactEmail("it@example.com")
+                        .build();
         value.setId(UUID.randomUUID());
         return value;
     }

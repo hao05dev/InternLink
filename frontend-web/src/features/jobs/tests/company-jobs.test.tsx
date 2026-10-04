@@ -20,6 +20,7 @@ vi.mock('@/features/auth/hooks/use-auth', () => ({
     useAuth: () => ({
         user: {
             id: 'comp-user-1',
+            companyId: 'comp-1',
             email: 'contact@fpt.com',
             fullName: 'FPT Software Cần Thơ',
             role: 'COMPANY_REP',

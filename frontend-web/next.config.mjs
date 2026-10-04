@@ -2,6 +2,11 @@
 const nextConfig = {
   reactStrictMode: true,
 
+  devIndicators: {
+    buildActivity: true,
+    buildActivityPosition: 'bottom-left',
+  },
+
   images: {
     dangerouslyAllowSVG: true,
     contentDispositionType: 'attachment',

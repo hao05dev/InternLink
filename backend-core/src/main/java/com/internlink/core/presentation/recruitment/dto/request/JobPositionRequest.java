@@ -2,11 +2,13 @@ package com.internlink.core.presentation.recruitment.dto.request;
 
 import com.internlink.core.shared.enums.JobStatus;
 import com.internlink.core.shared.enums.WorkFormat;
+
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-import jakarta.validation.Valid;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -14,6 +16,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Data
@@ -48,29 +51,27 @@ public class JobPositionRequest {
     @NotBlank(message = "Mô tả công việc không được để trống")
     private String description;
 
-    @Builder.Default
-    private List<String> targetProgramCodes = List.of();
+    @Size(max = 2048)
+    private String bannerUrl;
 
-    @Builder.Default
-    private List<String> targetLearningOutcomes = List.of();
+    @Builder.Default private List<Map<String, Object>> attachmentUrls = List.of();
 
-    @Builder.Default
-    private List<String> benefits = List.of();
+    @Builder.Default private List<String> targetProgramCodes = List.of();
+
+    @Builder.Default private List<String> targetLearningOutcomes = List.of();
+
+    @Builder.Default private List<String> benefits = List.of();
 
     private BigDecimal stipendAmount;
 
-    @Builder.Default
-    private JobStatus status = JobStatus.DRAFT;
+    @Builder.Default private JobStatus status = JobStatus.DRAFT;
 
     /** Danh sách kỹ năng yêu cầu chi tiết (kèm trọng số và phân loại) */
-    @Builder.Default
-    private List<@Valid JobSkillRequest> skills = List.of();
+    @Builder.Default private List<@Valid JobSkillRequest> skills = List.of();
 
     /** Hỗ trợ truyền nhanh danh sách ID kỹ năng bắt buộc */
-    @Builder.Default
-    private List<String> mandatorySkillIds = List.of();
+    @Builder.Default private List<String> mandatorySkillIds = List.of();
 
     /** Hỗ trợ truyền nhanh danh sách ID kỹ năng mong muốn/tùy chọn */
-    @Builder.Default
-    private List<String> optionalSkillIds = List.of();
+    @Builder.Default private List<String> optionalSkillIds = List.of();
 }

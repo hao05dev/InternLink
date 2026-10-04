@@ -52,6 +52,18 @@ export const jobService = {
         return response.data || [];
     },
 
+    getPublicJobs: async (params?: JobSearchParams): Promise<JobPosition[]> => {
+        const queryParams = new URLSearchParams();
+        if (params?.keyword) queryParams.append("keyword", params.keyword.trim());
+        if (params?.termId) queryParams.append("termId", params.termId);
+        if (params?.companyId) queryParams.append("companyId", params.companyId);
+
+        const qs = queryParams.toString();
+        const endpoint = qs ? `/api/v1/jobs/public/all?${qs}` : "/api/v1/jobs/public/all";
+        const response = await apiClient.get<JobPosition[]>(endpoint);
+        return response.data || [];
+    },
+
     getApprovedJobsByTerm: async (termId: string, keyword?: string): Promise<JobPosition[]> => {
         const queryParams = new URLSearchParams();
         if (keyword) queryParams.append("keyword", keyword.trim());
@@ -64,10 +76,25 @@ export const jobService = {
         return response.data || [];
     },
 
-    getJobById: async (id: string): Promise<JobPosition> => {
-        const response = await apiClient.get<JobPosition>(`/api/v1/jobs/${id}`);
+    getPublicJobById: async (id: string): Promise<JobPosition> => {
+        const response = await apiClient.get<JobPosition>(`/api/v1/jobs/public/${id}`);
         if (response.data) {
             return response.data;
+        }
+        throw new Error("Không tìm thấy vị trí tuyển dụng");
+    },
+
+    getJobById: async (id: string): Promise<JobPosition> => {
+        try {
+            const response = await apiClient.get<JobPosition>(`/api/v1/jobs/public/${id}`);
+            if (response.data) {
+                return response.data;
+            }
+        } catch {
+            const response = await apiClient.get<JobPosition>(`/api/v1/jobs/${id}`);
+            if (response.data) {
+                return response.data;
+            }
         }
         throw new Error("Không tìm thấy vị trí tuyển dụng");
     },

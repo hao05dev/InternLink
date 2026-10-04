@@ -6,11 +6,9 @@ import { jobService } from "@/features/jobs/services/job.service";
 import { JobPosition } from "@/features/jobs/types/job.types";
 import { apiClient } from "@/lib/api-client";
 import { HeroManagedSection } from "./hero-managed-section";
-import { ValuePropEditorialSection } from "./value-prop-editorial-section";
-import { InteractiveWorkflowSection } from "./interactive-workflow-section";
-import { DarkBentoSection } from "./dark-bento-section";
+import { WorkflowSection } from "./workflow-section";
 import { LatestJobsSection } from "./latest-jobs-section";
-import { RolePortalsSection } from "./role-portals-section";
+import { AboutSchoolSection } from "./about-school-section";
 import { VerifiedCompaniesSection } from "./verified-companies-section";
 import { Company } from "@/features/companies/types/company.types";
 
@@ -24,10 +22,10 @@ export default function HomeView() {
     setIsLoadingJobs(true);
     setJobsError(null);
     try {
-      const jobList = await jobService.getAllJobs();
-      setJobs(jobList.slice(0, 6));
-    } catch (err: any) {
-      setJobsError(err?.message || "Không thể tải danh sách vị trí thực tập. Vui lòng thử lại.");
+      const jobList = await jobService.getPublicJobs();
+      setJobs(jobList.slice(0, 3));
+    } catch (err: unknown) {
+      setJobsError(err instanceof Error ? err.message : "Không thể tải danh sách vị trí thực tập. Vui lòng thử lại.");
     } finally {
       setIsLoadingJobs(false);
     }
@@ -38,7 +36,7 @@ export default function HomeView() {
         const verified = compRes.data.filter(
           (c) => c.verificationStatus === "VERIFIED" || c.status === "VERIFIED"
         );
-        setCompanies(verified);
+        setCompanies(verified.slice(0, 6));
       }
     } catch {
       // Bỏ qua nếu chưa tải được danh bạ doanh nghiệp
@@ -52,20 +50,8 @@ export default function HomeView() {
 
   return (
     <PublicShell>
-      <div className="space-y-0 pb-12">
-        {/* 1. HERO MANAGED SECTION (Airy Modern Header + Display Title) */}
+      <div className="bg-white">
         <HeroManagedSection />
-
-        {/* 2. VALUE PROPOSITION & EDITORIAL SOCIAL PROOF + METRICS */}
-        <ValuePropEditorialSection />
-
-        {/* 3. INTERACTIVE 4-STEP WORKFLOW ACCORDION */}
-        <InteractiveWorkflowSection />
-
-        {/* 4. HIGH-CONTRAST DARK BENTO GRID ECOSYSTEM */}
-        <DarkBentoSection />
-
-        {/* 5. LATEST JOB POSTINGS SHOWCASE */}
         <LatestJobsSection
           jobs={jobs}
           isLoading={isLoadingJobs}
@@ -73,10 +59,8 @@ export default function HomeView() {
           onRetry={fetchPublicData}
         />
 
-        {/* 6. ROLE PORTALS (Student, Company/Mentor, Lecturer, Faculty) */}
-        <RolePortalsSection />
-
-        {/* 7. VERIFIED COMPANIES NETWORK */}
+        <WorkflowSection />
+        <AboutSchoolSection />
         <VerifiedCompaniesSection companies={companies} />
       </div>
     </PublicShell>

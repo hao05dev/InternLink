@@ -50,7 +50,7 @@ export default function BlogPostDetailView({ slug }: BlogPostDetailViewProps) {
                 <div className="min-h-screen bg-slate-50/70 dark:bg-slate-950 flex flex-col items-center justify-center py-20">
                     <Loader2 className="w-8 h-8 text-sky-600 animate-spin" />
                     <p className="mt-3 text-xs text-slate-500 font-medium">
-                        Đang tải nội dung bài viết cẩm nang...
+                        Đang tải nội dung bài viết...
                     </p>
                 </div>
             </PublicShell>
@@ -73,7 +73,7 @@ export default function BlogPostDetailView({ slug }: BlogPostDetailViewProps) {
                     <Link href="/career-guide">
                         <Button variant="outline" size="sm" className="rounded-full text-xs gap-1.5 mt-2">
                             <ArrowLeft className="w-3.5 h-3.5" />
-                            Quay lại danh mục cẩm nang
+                            Quay lại danh mục tin tức & blog
                         </Button>
                     </Link>
                 </div>
@@ -92,7 +92,7 @@ export default function BlogPostDetailView({ slug }: BlogPostDetailViewProps) {
                             className="hover:text-sky-600 flex items-center gap-1 transition-colors shrink-0"
                         >
                             <ArrowLeft className="w-3.5 h-3.5" />
-                            Cẩm nang
+                            Tin tức & Blog
                         </Link>
                         <span>/</span>
                         <span className="text-slate-800 dark:text-slate-200 font-medium truncate">

@@ -56,6 +56,13 @@ internlink:
       secret-access-key: ${R2_SECRET_ACCESS_KEY:}
       prefix: ${R2_PREFIX:internlink}
       max-file-bytes: 20971520
+      direct-enabled: ${R2_DIRECT_UPLOAD_ENABLED:false}
+      presigned-seconds: ${R2_PRESIGNED_SECONDS:300}
+      cleanup-enabled: ${R2_CLEANUP_ENABLED:false}
+    scanner:
+      enabled: ${UPLOAD_SCAN_ENABLED:false}
+      host: ${CLAMAV_HOST:127.0.0.1}
+      port: ${CLAMAV_PORT:3310}
   email:
     enabled: ${EMAIL_ENABLED:false}
     provider: ${EMAIL_PROVIDER:DISABLED}
@@ -65,3 +72,8 @@ internlink:
     public-base-url: ${APP_PUBLIC_URL:http://localhost:3000}
     max-attempts: 5
     poll-interval-ms: 15000
+
+notifications:
+  realtime-enabled: ${NOTIFICATION_REALTIME_ENABLED:true}
+  reminders-enabled: ${NOTIFICATION_REMINDERS_ENABLED:false}
+  campaigns-enabled: ${NOTIFICATION_CAMPAIGNS_ENABLED:false}

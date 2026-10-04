@@ -28,7 +28,8 @@ describe("Navbar Component", () => {
 
         expect(screen.getByText("Vị trí tuyển dụng")).toBeInTheDocument();
         expect(screen.getByText("Doanh nghiệp")).toBeInTheDocument();
-        expect(screen.getByText("Cẩm nang")).toBeInTheDocument();
+        expect(screen.getByText("Tin tức & Blog")).toBeInTheDocument();
+        expect(screen.getAllByText("Về trường").length).toBeGreaterThan(0);
         expect(screen.getAllByText("Đăng nhập").length).toBeGreaterThan(0);
     });
 

@@ -49,7 +49,7 @@ export function SmartJobSearch({ termId, onSelectJob, className }: SmartJobSearc
 
         const fetchJobs = async () => {
             try {
-                const results = await jobService.getAllJobs({
+                const results = await jobService.getPublicJobs({
                     keyword: debouncedKeyword,
                     termId: termId,
                 });

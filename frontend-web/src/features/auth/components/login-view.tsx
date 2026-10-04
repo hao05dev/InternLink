@@ -426,7 +426,7 @@ export default function LoginView() {
                                 <p>
                                     Cần hỗ trợ về quy trình hoặc tài khoản sinh viên/giảng viên?{" "}
                                     <Link href="/career-guide" className="text-sky-700 font-semibold hover:underline">
-                                        Xem Cẩm nang hướng dẫn
+                                        Xem Tin tức & Hướng dẫn
                                     </Link>
                                 </p>
                             ) : (
