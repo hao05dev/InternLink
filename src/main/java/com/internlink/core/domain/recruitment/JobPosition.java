@@ -1,21 +1,24 @@
 package com.internlink.core.domain.recruitment;
 
-import com.internlink.core.shared.domain.BaseEntity;
-import com.internlink.core.shared.enums.JobStatus;
-import com.internlink.core.shared.enums.WorkFormat;
 import com.internlink.core.domain.auth.User;
 import com.internlink.core.domain.company.Company;
 import com.internlink.core.domain.organization.Department;
 import com.internlink.core.domain.organization.InternshipTerm;
+import com.internlink.core.shared.domain.BaseEntity;
+import com.internlink.core.shared.enums.JobStatus;
+import com.internlink.core.shared.enums.WorkFormat;
+
 import jakarta.persistence.*;
+
 import lombok.*;
+
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
-
-
+import java.util.Map;
 
 @Entity
 @Table(name = "job_positions")
@@ -51,6 +54,14 @@ public class JobPosition extends BaseEntity {
     @Builder.Default
     @Column(name = "vacancies", nullable = false)
     private Integer vacancies = 1;
+
+    @Column(name = "banner_url", columnDefinition = "text")
+    private String bannerUrl;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Builder.Default
+    @Column(name = "attachment_urls", columnDefinition = "jsonb", nullable = false)
+    private List<Map<String, Object>> attachmentUrls = List.of();
 
     @Column(name = "description", columnDefinition = "text", nullable = false)
     private String description;
@@ -93,4 +104,3 @@ public class JobPosition extends BaseEntity {
     @JoinColumn(name = "created_by_user_id")
     private User createdBy;
 }
-

@@ -41,5 +41,13 @@ public class InternshipPlacementResponse {
     private LocalDate endDate;
     private BigDecimal totalHoursWorked;
     private PlacementStatus status;
+    private UUID jobId;
+    private String jobTitle;
+    private String workFormat;
+    private String mentorEmail;
+    private String mentorPhone;
+    private String studentEmail;
+    private String studentPhone;
+    private String academicYear;
     private OffsetDateTime createdAt;
 }

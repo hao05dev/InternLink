@@ -6,13 +6,30 @@ import java.util.List;
 import java.util.UUID;
 
 public interface NotificationService {
-    List<NotificationResponse> getMyNotifications(UUID recipientId);
-    long countUnreadNotifications(UUID recipientId);
-    NotificationResponse markAsRead(UUID id, UUID recipientId);
-    void markAllAsRead(UUID recipientId);
-    void sendNotification(UUID recipientId, String type, String title, String message, String actionUrl);
+    UUID publishNotification(
+            UUID recipientId,
+            String type,
+            String title,
+            String message,
+            String actionUrl,
+            boolean email);
 
-    default void sendInAppNotification(UUID recipientId, String type, String title, String message, String actionUrl) {
+    com.internlink.core.presentation.system.dto.response.NotificationPageResponse getPage(
+            UUID recipientId, int page, int size, boolean unread);
+
+    List<NotificationResponse> getMyNotifications(UUID recipientId);
+
+    long countUnreadNotifications(UUID recipientId);
+
+    NotificationResponse markAsRead(UUID id, UUID recipientId);
+
+    void markAllAsRead(UUID recipientId);
+
+    void sendNotification(
+            UUID recipientId, String type, String title, String message, String actionUrl);
+
+    default void sendInAppNotification(
+            UUID recipientId, String type, String title, String message, String actionUrl) {
         sendNotification(recipientId, type, title, message, actionUrl);
     }
 }

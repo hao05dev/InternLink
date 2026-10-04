@@ -2,6 +2,7 @@ package com.internlink.core.presentation.recruitment.dto.response;
 
 import com.internlink.core.shared.enums.JobStatus;
 import com.internlink.core.shared.enums.WorkFormat;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -10,6 +11,7 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Data
@@ -31,6 +33,8 @@ public class JobPositionResponse {
     private String location;
     private Integer vacancies;
     private String description;
+    private String bannerUrl;
+    private List<Map<String, Object>> attachmentUrls;
     private List<String> targetProgramCodes;
     private List<String> targetLearningOutcomes;
     private List<String> benefits;
@@ -42,14 +46,11 @@ public class JobPositionResponse {
     private OffsetDateTime createdAt;
 
     /** Danh sách kỹ năng yêu cầu chi tiết */
-    @Builder.Default
-    private List<JobSkillResponse> skills = List.of();
+    @Builder.Default private List<JobSkillResponse> skills = List.of();
 
     /** Danh sách mã kỹ năng bắt buộc */
-    @Builder.Default
-    private List<String> mandatorySkillIds = List.of();
+    @Builder.Default private List<String> mandatorySkillIds = List.of();
 
     /** Danh sách mã kỹ năng mong muốn */
-    @Builder.Default
-    private List<String> optionalSkillIds = List.of();
+    @Builder.Default private List<String> optionalSkillIds = List.of();
 }

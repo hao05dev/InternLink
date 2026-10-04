@@ -1,0 +1,127 @@
+package com.internlink.core.infrastructure.persistence.jdbc;
+
+import com.internlink.core.application.system.upload.MediaPurpose;
+import com.internlink.core.shared.exception.ResourceNotFoundException;
+
+import lombok.RequiredArgsConstructor;
+
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Repository;
+
+import java.util.UUID;
+
+@Repository
+@RequiredArgsConstructor
+public class MediaAssetRepository {
+    private final JdbcTemplate jdbc;
+
+    public record Asset(
+            UUID id,
+            UUID owner,
+            MediaPurpose purpose,
+            UUID context,
+            String scope,
+            String key,
+            String name,
+            String mime,
+            long size,
+            String checksum) {
+        public String url() {
+            return (purpose.privateImage() ? "/api/v1/media/" : "/api/v1/public/media/") + id;
+        }
+    }
+
+    public void insert(Asset a) {
+        jdbc.update(
+                "INSERT INTO"
+                    + " media_assets(id,owner_user_id,purpose,context_id,scope,provider_file_id,file_name,mime_type,size_bytes,checksum)"
+                    + " VALUES(?,?,?,?,?,?,?,?,?,?)",
+                a.id(),
+                a.owner(),
+                a.purpose().name(),
+                a.context(),
+                a.scope(),
+                a.key(),
+                a.name(),
+                a.mime(),
+                a.size(),
+                a.checksum());
+    }
+
+    public Asset get(UUID id) {
+        return jdbc
+                .query(
+                        "SELECT * FROM media_assets WHERE id=?",
+                        (r, i) ->
+                                new Asset(
+                                        r.getObject("id", UUID.class),
+                                        r.getObject("owner_user_id", UUID.class),
+                                        MediaPurpose.valueOf(r.getString("purpose")),
+                                        r.getObject("context_id", UUID.class),
+                                        r.getString("scope"),
+                                        r.getString("provider_file_id"),
+                                        r.getString("file_name"),
+                                        r.getString("mime_type"),
+                                        r.getLong("size_bytes"),
+                                        r.getString("checksum")),
+                        id)
+                .stream()
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("MediaAsset", "id", id));
+    }
+
+    public boolean publicReference(Asset a) {
+        if (a.purpose().privateImage()) return false;
+        String table = a.purpose().job() ? "job_positions" : "career_guide_posts";
+        String image = a.purpose().job() ? "banner_url" : "cover_image_url";
+        String state =
+                a.purpose().job()
+                        ? "status='APPROVED'"
+                        : "status='PUBLISHED' AND visibility='PUBLIC'";
+        String content = a.purpose().job() ? "description" : "content";
+        String contextColumn = a.purpose().job() ? "company_id" : "author_user_id";
+        return Boolean.TRUE.equals(
+                jdbc.queryForObject(
+                        "SELECT EXISTS(SELECT 1 FROM "
+                                + table
+                                + " WHERE "
+                                + state
+                                + " AND "
+                                + contextColumn
+                                + "=?"
+                                + " AND ("
+                                + image
+                                + "=? OR attachment_urls @> CAST(? AS jsonb) OR position(? in "
+                                + content
+                                + ")>0))",
+                        Boolean.class,
+                        a.context(),
+                        a.url(),
+                        "[{\"fileUrl\":\"" + a.url() + "\"}]",
+                        a.url()));
+    }
+
+    public boolean departmentReference(Asset a, UUID department) {
+        String table = a.purpose().job() ? "job_positions" : "career_guide_posts";
+        String image = a.purpose().job() ? "banner_url" : "cover_image_url";
+        String content = a.purpose().job() ? "description" : "content";
+        String contextColumn = a.purpose().job() ? "company_id" : "author_user_id";
+        return Boolean.TRUE.equals(
+                jdbc.queryForObject(
+                        "SELECT EXISTS(SELECT 1 FROM "
+                                + table
+                                + " WHERE department_id=? AND "
+                                + contextColumn
+                                + "=? AND ("
+                                + image
+                                + "=? OR attachment_urls @> CAST(? AS jsonb) OR position(? in "
+                                + content
+                                + ")>0))",
+                        Boolean.class,
+                        department,
+                        a.context(),
+                        a.url(),
+                        "[{\"fileUrl\":\"" + a.url() + "\"}]",
+                        a.url()));
+    }
+}
