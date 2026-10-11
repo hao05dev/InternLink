@@ -52,14 +52,22 @@ public class JobPositionServiceImpl implements JobPositionService {
     @Override
     @Transactional(readOnly = true)
     public List<JobPositionResponse> getAllJobs() {
-        return getAllJobs(null, null, null);
+        return getAllJobs(null, null, null, null, null, null);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<JobPositionResponse> getAllJobs(String keyword, UUID termId, UUID companyId) {
+        return getAllJobs(keyword, termId, companyId, null, null, null);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<JobPositionResponse> getAllJobs(
+            String keyword, UUID termId, UUID companyId, com.internlink.core.shared.enums.JobStatus status, String location, com.internlink.core.shared.enums.WorkFormat workFormat
+    ) {
         User actor = currentActor();
-        return jobPositionRepository.searchJobs(keyword, termId, companyId, null).stream()
+        return jobPositionRepository.searchJobs(keyword, termId, companyId, status, location, workFormat).stream()
                 .filter(job -> canReadJob(actor, job))
                 .map(jobPositionMapper::toResponse)
                 .toList();
@@ -102,8 +110,16 @@ public class JobPositionServiceImpl implements JobPositionService {
     @Override
     @Transactional(readOnly = true)
     public List<JobPositionResponse> getPublicJobs(String keyword, UUID termId, UUID companyId) {
+        return getPublicJobs(keyword, termId, companyId, null, null);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<JobPositionResponse> getPublicJobs(
+            String keyword, UUID termId, UUID companyId, String location, com.internlink.core.shared.enums.WorkFormat workFormat
+    ) {
         return jobPositionRepository
-                .searchJobs(keyword, termId, companyId, JobStatus.APPROVED)
+                .searchActivePublicJobs(keyword, termId, companyId, location, workFormat, OffsetDateTime.now())
                 .stream()
                 .map(jobPositionMapper::toResponse)
                 .toList();
@@ -186,6 +202,10 @@ public class JobPositionServiceImpl implements JobPositionService {
                 request.getBannerUrl(),
                 request.getAttachmentUrls(),
                 request.getDescription());
+        OffsetDateTime deadline = request.getApplicationDeadline() != null
+                ? request.getApplicationDeadline()
+                : term.getApplicationDeadline();
+
         JobPosition job =
                 JobPosition.builder()
                         .company(company)
@@ -194,6 +214,7 @@ public class JobPositionServiceImpl implements JobPositionService {
                         .title(request.getTitle().trim())
                         .workFormat(request.getWorkFormat())
                         .location(request.getLocation().trim())
+                        .applicationDeadline(deadline)
                         .vacancies(request.getVacancies())
                         .description(request.getDescription().trim())
                         .bannerUrl(request.getBannerUrl())
@@ -257,6 +278,9 @@ public class JobPositionServiceImpl implements JobPositionService {
         job.setTitle(request.getTitle().trim());
         job.setWorkFormat(request.getWorkFormat());
         job.setLocation(request.getLocation().trim());
+        if (request.getApplicationDeadline() != null) {
+            job.setApplicationDeadline(request.getApplicationDeadline());
+        }
         job.setVacancies(request.getVacancies());
         job.setDescription(request.getDescription().trim());
         job.setTargetProgramCodes(
@@ -304,6 +328,40 @@ public class JobPositionServiceImpl implements JobPositionService {
         JobPosition submitted = jobPositionRepository.save(job);
         notificationHelper.notifySubmitted(submitted);
         return jobPositionMapper.toResponse(submitted);
+    }
+
+    @Override
+    @Transactional
+    public JobPositionResponse closeJobEarly(UUID id) {
+        JobPosition job =
+                jobPositionRepository
+                        .findById(id)
+                        .orElseThrow(() -> new ResourceNotFoundException("JobPosition", "id", id));
+        TermGuard.requireNotClosed(job.getTerm());
+        User actor = currentActor();
+        ResourceAuthorization.require(
+                ResourceAuthorization.isAdmin(actor)
+                        || ResourceAuthorization.representsCompany(
+                                actor, job.getCompany().getId()));
+
+        if (job.getStatus() == JobStatus.CLOSED) {
+            throw new BadRequestException("Vị trí tuyển dụng này đã đóng trước đó");
+        }
+
+        job.setStatus(JobStatus.CLOSED);
+        job.setClosedEarlyAt(OffsetDateTime.now());
+        JobPosition closed = jobPositionRepository.save(job);
+
+        auditLogService.logAction(
+                actor.getId(),
+                "CLOSE_JOB_POSITION_EARLY",
+                "JobPosition",
+                closed.getId(),
+                "SUCCESS",
+                Map.of("status", JobStatus.CLOSED.name(), "closedEarlyAt", closed.getClosedEarlyAt().toString()),
+                null);
+
+        return jobPositionMapper.toResponse(closed);
     }
 
     @Override

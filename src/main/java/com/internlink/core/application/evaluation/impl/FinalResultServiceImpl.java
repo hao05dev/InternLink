@@ -387,25 +387,20 @@ public class FinalResultServiceImpl implements FinalResultService {
                 isPublished = (fr.getPublishedAt() != null);
                 publishedAt = fr.getPublishedAt();
                 finalizedAt = fr.getFinalizedAt();
-            } else if (mentorScore != null || lecturerScore != null) {
-                if (mentorScore != null && lecturerScore != null) {
-                    finalScore = mentorScore.multiply(new BigDecimal("0.5")).add(lecturerScore.multiply(new BigDecimal("0.5"))).setScale(1, RoundingMode.HALF_UP);
-                } else if (lecturerScore != null) {
-                    finalScore = lecturerScore;
-                } else {
-                    finalScore = mentorScore;
-                }
-                resultStatus = ResultStatus.PENDING_REVIEW;
-            }
 
-            if (finalScore != null) {
-                CtuGradingHelper.CtuGrade ctuGrade = CtuGradingHelper.convertFromScale10(finalScore);
-                scoreScale4 = ctuGrade.getScoreScale4();
-                letterGrade = ctuGrade.getLetterGrade();
-                classification = ctuGrade.getClassification();
-                if (resultStatus == null || resultStatus == ResultStatus.PENDING_REVIEW) {
-                    resultStatus = ctuGrade.getResultStatus();
+                if (finalScore != null) {
+                    CtuGradingHelper.CtuGrade ctuGrade = CtuGradingHelper.convertFromScale10(finalScore);
+                    scoreScale4 = ctuGrade.getScoreScale4();
+                    letterGrade = ctuGrade.getLetterGrade();
+                    classification = ctuGrade.getClassification();
+                    if (resultStatus == null) {
+                        resultStatus = ctuGrade.getResultStatus();
+                    }
                 }
+            } else {
+                resultStatus = (mentorScore != null || lecturerScore != null)
+                    ? ResultStatus.PENDING_REVIEW
+                    : ResultStatus.NOT_COMPLETED;
             }
 
             summaryList.add(FacultyEvaluationSummaryResponse.builder()

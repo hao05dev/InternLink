@@ -14,6 +14,7 @@ public final class PortfolioAccess {
     public static boolean faculty(User a, InternshipPlacement p) { return a.getRole()==UserRole.FACULTY_ADMIN && a.getDepartment()!=null && a.getDepartment().getId().equals(p.getTerm().getDepartment().getId()); }
     public static boolean read(User a, InternshipPlacement p) { return student(a,p)||mentor(a,p)||lecturer(a,p)||faculty(a,p); }
     public static boolean confirmDaily(User a, InternshipPlacement p) { return mentor(a,p)||(p.getMentor()==null && lecturer(a,p)); }
+    public static boolean proxyUpload(User a, InternshipPlacement p, String kind) { return student(a, p) && p.getMentor() == null && Set.of("M01", "M02", "M03").contains(kind); }
     public static boolean edit(User a, PortfolioForm f) {
         return switch(f.getKind()) {
             case "M01","M02","M03" -> mentor(a,f.getPlacement());

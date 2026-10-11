@@ -68,6 +68,22 @@ public class AiServiceClient {
             Map.of("filename", name, "content_base64", base64, "allow_cloud", allowCloud));
     }
 
+    public Map<String, Object> parseSearchQuery(String query) {
+        if (query == null || query.isBlank()) {
+            return Map.of("parsed", false, "raw_query", "", "cleaned_keywords", "", "summary_message", "");
+        }
+        Map<String, Object> result = infer("/api/v1/assistance/parse-query", Map.of("query", query));
+        if ("FAILED".equals(result.get("status"))) {
+            return Map.of(
+                "parsed", false,
+                "raw_query", query,
+                "cleaned_keywords", query,
+                "summary_message", "Tìm kiếm tự do: " + query
+            );
+        }
+        return result;
+    }
+
     public List<Map<String, Object>> rankJobs(Map<String, Object> student, List<Map<String, Object>> jobs) {
         if (jobs.isEmpty()) return List.of();
         Map<String, Object> response = infer("/api/v1/matching/rank-jobs", Map.of("student", student, "jobs", jobs));

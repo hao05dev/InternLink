@@ -44,6 +44,10 @@ public class JobPositionResponse {
     private UUID approvedByUserId;
     private OffsetDateTime approvedAt;
     private OffsetDateTime createdAt;
+    private OffsetDateTime applicationDeadline;
+    private OffsetDateTime closedEarlyAt;
+    private Boolean isExpired;
+    private Boolean isAcceptingApplications;
 
     /** Danh sách kỹ năng yêu cầu chi tiết */
     @Builder.Default private List<JobSkillResponse> skills = List.of();

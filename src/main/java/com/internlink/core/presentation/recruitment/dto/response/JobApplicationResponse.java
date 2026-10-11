@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -26,6 +27,7 @@ public class JobApplicationResponse {
     private UUID submittedCvDocumentId;
     private String coverLetter;
     private Map<String, Object> aiMatchDetail;
+    private List<InterviewRoundDto> interviewRounds;
     private ApplicationStatus status;
     private OffsetDateTime submittedAt;
     private OffsetDateTime updatedAt;

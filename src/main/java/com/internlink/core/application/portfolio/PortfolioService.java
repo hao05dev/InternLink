@@ -204,15 +204,25 @@ public class PortfolioService {
             f.setPublishedAt(OffsetDateTime.now());
             snapshot(f, a, action, input.note(), null);
         } else if (Set.of("APPROVE", "REVISION_REQUIRED").contains(action)) {
-            ResourceAuthorization.require("M05".equals(kind) && PortfolioAccess.lecturer(a, p));
-            if (!"SUBMITTED".equals(current) || f.getReport() == null) {
-                throw new BadRequestException("Báo cáo chưa được gửi");
+            boolean isM05Lecturer = "M05".equals(kind) && PortfolioAccess.lecturer(a, p);
+            boolean isProxyReview = Set.of("M01", "M02", "M03").contains(kind) && PortfolioAccess.lecturer(a, p) && "SUBMITTED".equals(current);
+            ResourceAuthorization.require(isM05Lecturer || isProxyReview);
+
+            if ("M05".equals(kind)) {
+                if (!"SUBMITTED".equals(current) || f.getReport() == null) {
+                    throw new BadRequestException("Báo cáo chưa được gửi");
+                }
+                String decision = "APPROVE".equals(action) ? "APPROVED" : "REVISION_REQUIRED";
+                reportService.review(f.getReport().getId(), decision, input.note());
+                f.setStatus(decision);
+                f.setFeedback(input.note());
+                snapshot(f, a, action, input.note(), null);
+            } else {
+                String decision = "APPROVE".equals(action) ? "COMPLETED" : "REVISION_REQUIRED";
+                f.setStatus(decision);
+                f.setFeedback(input.note());
+                snapshot(f, a, "PROXY_" + action, input.note(), null);
             }
-            String decision = "APPROVE".equals(action) ? "APPROVED" : "REVISION_REQUIRED";
-            reportService.review(f.getReport().getId(), decision, input.note());
-            f.setStatus(decision);
-            f.setFeedback(input.note());
-            snapshot(f, a, action, input.note(), null);
         } else if ("REOPEN".equals(action)) {
             ResourceAuthorization.require(PortfolioAccess.edit(a, f));
             DailyJournalService.active(p);
@@ -329,7 +339,8 @@ public class PortfolioService {
                 p.getMentor() == null
                         && PortfolioAccess.lecturer(a, p)
                         && Set.of("M01", "M02", "M03").contains(kind);
-        ResourceAuthorization.require(PortfolioAccess.edit(a, f) || offline);
+        boolean isProxy = PortfolioAccess.proxyUpload(a, p, kind);
+        ResourceAuthorization.require(PortfolioAccess.edit(a, f) || offline || isProxy);
 
         if (f.isPublished())
             throw new BadRequestException("Cần thu hồi công bố trước khi bổ sung bản ký");
@@ -341,7 +352,18 @@ public class PortfolioService {
         if (mime == null) throw new BadRequestException("Bản ký chỉ nhận PDF, PNG hoặc JPEG");
 
         PortfolioRevision revision;
-        if (offline && f.getId() == null) {
+        if (isProxy && f.getId() == null) {
+            f.setStatus("SUBMITTED");
+            f.setUpdatedBy(a);
+            f = forms.saveAndFlush(f);
+            revision =
+                    snapshot(
+                            f,
+                            a,
+                            "PROXY_SUBMISSION",
+                            "Sinh viên nộp thay bản scan do đơn vị ký duyệt, chờ GVHD thẩm định",
+                            null);
+        } else if (offline && f.getId() == null) {
             f.setStatus("COMPLETED");
             f.setUpdatedBy(a);
             f = forms.saveAndFlush(f);
@@ -365,10 +387,10 @@ public class PortfolioService {
                                             f.getId())
                                     .orElse(null)
                             : revisions.findById(revisionId).orElse(null);
-            if (revision == null && offline) {
+            if (revision == null && (offline || isProxy)) {
                 revision =
                         revisions.findByFormIdOrderByCreatedAtDesc(f.getId()).stream()
-                                .filter(r -> "OFFLINE_ORIGINAL".equals(r.getAction()))
+                                .filter(r -> "OFFLINE_ORIGINAL".equals(r.getAction()) || "PROXY_SUBMISSION".equals(r.getAction()))
                                 .findFirst()
                                 .orElse(null);
             }

@@ -5,6 +5,7 @@ import com.internlink.core.domain.recruitment.JobSkill;
 import com.internlink.core.infrastructure.persistence.jpa.JpaJobSkillRepository;
 import com.internlink.core.presentation.recruitment.dto.response.JobPositionResponse;
 import com.internlink.core.presentation.recruitment.dto.response.JobSkillResponse;
+import com.internlink.core.shared.enums.JobStatus;
 import com.internlink.core.shared.enums.RequirementType;
 
 import lombok.RequiredArgsConstructor;
@@ -46,6 +47,11 @@ public class JobPositionMapper {
                         .map(js -> js.getSkill().getId())
                         .toList();
 
+        boolean isExpired = entity.getApplicationDeadline() != null && java.time.OffsetDateTime.now().isAfter(entity.getApplicationDeadline());
+        boolean isAccepting = entity.getStatus() == JobStatus.APPROVED 
+                && entity.getClosedEarlyAt() == null 
+                && !isExpired;
+
         return JobPositionResponse.builder()
                 .id(entity.getId())
                 .companyId(entity.getCompany().getId())
@@ -75,6 +81,10 @@ public class JobPositionMapper {
                         entity.getApprovedBy() != null ? entity.getApprovedBy().getId() : null)
                 .approvedAt(entity.getApprovedAt())
                 .createdAt(entity.getCreatedAt())
+                .applicationDeadline(entity.getApplicationDeadline())
+                .closedEarlyAt(entity.getClosedEarlyAt())
+                .isExpired(isExpired)
+                .isAcceptingApplications(isAccepting)
                 .skills(skillResponses)
                 .mandatorySkillIds(mandatory)
                 .optionalSkillIds(optional)

@@ -15,10 +15,15 @@ import com.internlink.core.infrastructure.persistence.jpa.JpaStudentProfileRepos
 import com.internlink.core.infrastructure.persistence.jpa.JpaStudentRosterRepository;
 import com.internlink.core.infrastructure.persistence.jpa.JpaUserRepository;
 import com.internlink.core.presentation.recruitment.dto.request.JobApplicationRequest;
+import com.internlink.core.presentation.recruitment.dto.request.RecordInterviewResultRequest;
+import com.internlink.core.presentation.recruitment.dto.request.ScheduleInterviewRequest;
+import com.internlink.core.presentation.recruitment.dto.response.InterviewRoundDto;
 import com.internlink.core.presentation.recruitment.dto.response.JobApplicationResponse;
 import com.internlink.core.shared.enums.ApplicationStatus;
 import com.internlink.core.shared.enums.DocumentType;
 import com.internlink.core.shared.enums.EligibilityStatus;
+import com.internlink.core.shared.enums.InterviewFormat;
+import com.internlink.core.shared.enums.InterviewRoundResult;
 import com.internlink.core.shared.enums.JobStatus;
 import com.internlink.core.shared.enums.TermStatus;
 import com.internlink.core.shared.enums.UserRole;
@@ -32,7 +37,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -94,63 +104,42 @@ public class JobApplicationServiceImpl implements JobApplicationService {
         return mapToResponse(app);
     }
 
-    /**
-     * Nộp hồ sơ ứng tuyển vị trí thực tập với đầy đủ kiểm tra điều kiện.
-     *
-     * <p>Các guard theo thứ tự kiểm tra:
-     * <ol>
-     *   <li>Người dùng phải là STUDENT</li>
-     *   <li>Vị trí phải ở trạng thái APPROVED</li>
-     *   <li>Kỳ thực tập phải đang ở trạng thái APPLICATION_OPEN</li>
-     *   <li>Thời điểm hiện tại phải trong hạn nộp hồ sơ (applicationDeadline)</li>
-     *   <li>Sinh viên phải có trong danh sách Roster với trạng thái ELIGIBLE</li>
-     *   <li>Ngành đào tạo sinh viên phải khớp với targetProgramCodes của vị trí</li>
-     *   <li>Chỉ tiêu tuyển dụng còn chỗ (vacancies chưa đầy)</li>
-     *   <li>Sinh viên chưa nộp đơn vào vị trí này</li>
-     *   <li>Sinh viên chưa vượt quá giới hạn đơn đồng thời trong kỳ</li>
-     *   <li>CV phải thuộc sở hữu của sinh viên</li>
-     * </ol>
-     * </p>
-     */
     @Override
     @Transactional
     public JobApplicationResponse applyJob(UUID studentId, JobApplicationRequest request) {
-        // ── Guard 1: Xác minh người dùng là STUDENT ─────────────────────────
         User student = userRepository.findById(studentId)
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", studentId));
-        ResourceAuthorization.require(studentId.equals(securityGuard.currentUser().getId()));
-
         if (student.getRole() != UserRole.STUDENT) {
-            throw new BadRequestException("Chỉ sinh viên mới có thể nộp hồ sơ ứng tuyển");
+            throw new BadRequestException("Chỉ sinh viên mới được nộp hồ sơ ứng tuyển");
         }
 
-        // ── Guard 2: Vị trí phải đã được phê duyệt ──────────────────────────
         JobPosition job = jobPositionRepository.findById(request.getJobId())
             .orElseThrow(() -> new ResourceNotFoundException("JobPosition", "id", request.getJobId()));
 
-        if (job.getStatus() != JobStatus.APPROVED) {
-            throw new BadRequestException("Vị trí thực tập chưa được phê duyệt hoặc đã đóng");
+        if (job.getStatus() != JobStatus.APPROVED || job.getClosedEarlyAt() != null) {
+            throw new BadRequestException("Vị trí tuyển dụng chưa được Khoa phê duyệt hoặc đã đóng nhận hồ sơ");
         }
 
-        // ── Guard 3: Kỳ thực tập phải đang APPLICATION_OPEN ─────────────────
-        var term = job.getTerm();
-        if (term.getStatus() != TermStatus.APPLICATION_OPEN) {
+        OffsetDateTime now = OffsetDateTime.now();
+
+        if (job.getApplicationDeadline() != null && now.isAfter(job.getApplicationDeadline())) {
             throw new BadRequestException(String.format(
-                "Kỳ thực tập '%s' hiện ở trạng thái %s, không nhận hồ sơ ứng tuyển",
+                "Vị trí tuyển dụng '%s' đã hết hạn nộp hồ sơ vào lúc %s",
+                job.getTitle(), job.getApplicationDeadline()
+            ));
+        }
+
+        var term = job.getTerm();
+        TermGuard.requireNotClosed(term);
+        if (term.getStatus() != TermStatus.REGISTRATION_OPEN
+            && term.getStatus() != TermStatus.APPLICATION_OPEN
+            && term.getStatus() != TermStatus.ACTIVE) {
+            throw new BadRequestException(String.format(
+                "Kỳ thực tập '%s' hiện không tiếp nhận hồ sơ ứng tuyển (trạng thái: %s)",
                 term.getCode(), term.getStatus()
             ));
         }
 
-        // ── Guard 4: Hạn nộp hồ sơ chưa qua ────────────────────────────────
-        OffsetDateTime now = OffsetDateTime.now();
-        if (now.isAfter(term.getApplicationDeadline())) {
-            throw new BadRequestException(String.format(
-                "Đã qua hạn nộp hồ sơ kỳ '%s' (%s)",
-                term.getCode(), term.getApplicationDeadline()
-            ));
-        }
-
-        // ── Guard 5: Sinh viên phải có trong Roster với trạng thái ELIGIBLE ─
         StudentProfile studentProfile = studentProfileRepository.findByUserId(studentId)
             .orElseThrow(() -> new BadRequestException("Chưa có hồ sơ sinh viên. Vui lòng hoàn thiện hồ sơ trước khi ứng tuyển"));
 
@@ -170,7 +159,6 @@ public class JobApplicationServiceImpl implements JobApplicationService {
             ));
         }
 
-        // ── Guard 6: Ngành đào tạo phải khớp với vị trí ────────────────────
         List<String> targetProgramCodes = job.getTargetProgramCodes();
         if (targetProgramCodes != null && !targetProgramCodes.isEmpty()) {
             String studentProgramCode = studentProfile.getProgram().getCode();
@@ -182,7 +170,6 @@ public class JobApplicationServiceImpl implements JobApplicationService {
             }
         }
 
-        // ── Guard 7: Chỉ tiêu còn chỗ ────────────────────────────────────────
         long activeCount = offerRepository.countReservedPlaces(job.getId(), now);
         if (activeCount >= job.getVacancies()) {
             throw new BadRequestException(String.format(
@@ -191,12 +178,10 @@ public class JobApplicationServiceImpl implements JobApplicationService {
             ));
         }
 
-        // ── Guard 8: Chưa nộp đơn vào vị trí này ────────────────────────────
         if (applicationRepository.existsByJobIdAndStudentId(request.getJobId(), studentId)) {
             throw new BadRequestException("Bạn đã nộp hồ sơ ứng tuyển vào vị trí này rồi");
         }
 
-        // ── Guard 9: Chưa vượt quá giới hạn đơn đồng thời trong kỳ ──────────
         long activeAppsInTerm = applicationRepository
             .countActiveApplicationsByStudentInTerm(studentId, term.getId());
         if (activeAppsInTerm >= MAX_ACTIVE_APPLICATIONS_PER_TERM) {
@@ -206,7 +191,6 @@ public class JobApplicationServiceImpl implements JobApplicationService {
             ));
         }
 
-        // ── Guard 10: CV phải là của sinh viên ───────────────────────────────
         Document cvDoc = documentRepository.findById(request.getSubmittedCvDocumentId())
             .orElseThrow(() -> new ResourceNotFoundException("Document", "id", request.getSubmittedCvDocumentId()));
 
@@ -247,6 +231,118 @@ public class JobApplicationServiceImpl implements JobApplicationService {
         JobApplication saved = applicationRepository.save(app);
         notifications.sendNotification(saved.getStudent().getId(), "APPLICATION_STATUS_CHANGED", "Cập nhật hồ sơ ứng tuyển",
             "Hồ sơ vị trí " + saved.getJob().getTitle() + " chuyển sang " + status.name() + ".", "/student/applications");
+        return mapToResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public JobApplicationResponse scheduleInterview(UUID id, ScheduleInterviewRequest request) {
+        JobApplication app = applicationRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("JobApplication", "id", id));
+        TermGuard.requireNotClosed(app.getJob().getTerm());
+        User actor = currentActor();
+        ResourceAuthorization.require(ResourceAuthorization.isAdmin(actor)
+            || ResourceAuthorization.representsCompany(actor, app.getJob().getCompany().getId()));
+
+        if (app.getStatus() == ApplicationStatus.OFFERED
+            || app.getStatus() == ApplicationStatus.REJECTED
+            || app.getStatus() == ApplicationStatus.WITHDRAWN) {
+            throw new BadRequestException("Không thể lên lịch phỏng vấn cho hồ sơ ở trạng thái " + app.getStatus());
+        }
+
+        if (request.getFormat() == InterviewFormat.ONLINE) {
+            if (request.getMeetingUrl() == null || request.getMeetingUrl().isBlank()) {
+                throw new BadRequestException("Phỏng vấn trực tuyến (Online) bắt buộc phải có liên kết phòng họp (Google Meet, MS Teams, Zoom)");
+            }
+        } else if (request.getFormat() == InterviewFormat.OFFLINE) {
+            if (request.getLocation() == null || request.getLocation().isBlank()) {
+                throw new BadRequestException("Phỏng vấn trực tiếp (Offline) bắt buộc phải có địa điểm");
+            }
+        }
+
+        List<Map<String, Object>> rounds = new ArrayList<>(app.getInterviewRounds() != null ? app.getInterviewRounds() : List.of());
+        int roundNum = request.getRoundNumber() != null ? request.getRoundNumber() : rounds.size() + 1;
+
+        Map<String, Object> roundMap = new LinkedHashMap<>();
+        roundMap.put("roundNumber", roundNum);
+        roundMap.put("format", request.getFormat().name());
+        roundMap.put("scheduledAt", request.getScheduledAt().toString());
+        roundMap.put("meetingUrl", request.getMeetingUrl());
+        roundMap.put("location", request.getLocation());
+        roundMap.put("interviewer", request.getInterviewer());
+        roundMap.put("notes", request.getNotes());
+        roundMap.put("result", InterviewRoundResult.PENDING.name());
+        roundMap.put("feedback", null);
+        roundMap.put("scheduledBy", actor.getId().toString());
+        roundMap.put("createdAt", OffsetDateTime.now().toString());
+
+        rounds.add(roundMap);
+        app.setInterviewRounds(rounds);
+        app.setStatus(ApplicationStatus.INTERVIEWING);
+
+        JobApplication saved = applicationRepository.save(app);
+
+        String companyName = app.getJob().getCompany().getCompanyName();
+        String jobTitle = app.getJob().getTitle();
+        String timeStr = request.getScheduledAt().format(DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy"));
+        String notifMsg = request.getFormat() == InterviewFormat.ONLINE
+            ? String.format("Công ty %s mời bạn phỏng vấn Online vị trí '%s' vào lúc %s. Link phòng họp: %s", companyName, jobTitle, timeStr, request.getMeetingUrl())
+            : String.format("Công ty %s mời bạn phỏng vấn vị trí '%s' vào lúc %s tại %s", companyName, jobTitle, timeStr, request.getLocation());
+
+        notifications.sendNotification(
+            saved.getStudent().getId(),
+            "INTERVIEW_SCHEDULED",
+            "Mời phỏng vấn: " + jobTitle,
+            notifMsg,
+            "/student/applications"
+        );
+
+        return mapToResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public JobApplicationResponse recordInterviewResult(UUID id, int roundNumber, RecordInterviewResultRequest request) {
+        JobApplication app = applicationRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("JobApplication", "id", id));
+        TermGuard.requireNotClosed(app.getJob().getTerm());
+        User actor = currentActor();
+        ResourceAuthorization.require(ResourceAuthorization.isAdmin(actor)
+            || ResourceAuthorization.representsCompany(actor, app.getJob().getCompany().getId()));
+
+        List<Map<String, Object>> rounds = new ArrayList<>(app.getInterviewRounds() != null ? app.getInterviewRounds() : List.of());
+        boolean found = false;
+        for (Map<String, Object> round : rounds) {
+            Object numObj = round.get("roundNumber");
+            if (numObj != null && Integer.parseInt(numObj.toString()) == roundNumber) {
+                round.put("result", request.getResult().name());
+                round.put("feedback", request.getFeedback());
+                round.put("recordedAt", OffsetDateTime.now().toString());
+                found = true;
+                break;
+            }
+        }
+
+        if (!found) {
+            throw new ResourceNotFoundException("InterviewRound", "roundNumber", roundNumber);
+        }
+
+        app.setInterviewRounds(rounds);
+        if (request.getResult() == InterviewRoundResult.FAILED) {
+            app.setStatus(ApplicationStatus.REJECTED);
+        }
+
+        JobApplication saved = applicationRepository.save(app);
+
+        String resultText = request.getResult() == InterviewRoundResult.PASSED ? "ĐẠT" : "CHƯA PHÙ HỢP";
+        notifications.sendNotification(
+            saved.getStudent().getId(),
+            "INTERVIEW_RESULT",
+            "Kết quả phỏng vấn: " + saved.getJob().getTitle(),
+            String.format("Kết quả vòng %d vị trí '%s': %s.", roundNumber, saved.getJob().getTitle(), resultText),
+            "/student/applications"
+        );
+
         return mapToResponse(saved);
     }
 
@@ -293,6 +389,38 @@ public class JobApplicationServiceImpl implements JobApplicationService {
     }
 
     private JobApplicationResponse mapToResponse(JobApplication entity) {
+        List<InterviewRoundDto> roundDtos = new ArrayList<>();
+        if (entity.getInterviewRounds() != null) {
+            for (Map<String, Object> roundMap : entity.getInterviewRounds()) {
+                try {
+                    Integer roundNumber = roundMap.get("roundNumber") != null ? Integer.parseInt(roundMap.get("roundNumber").toString()) : null;
+                    InterviewFormat format = roundMap.get("format") != null ? InterviewFormat.valueOf(roundMap.get("format").toString()) : null;
+                    OffsetDateTime scheduledAt = roundMap.get("scheduledAt") != null ? OffsetDateTime.parse(roundMap.get("scheduledAt").toString()) : null;
+                    String meetingUrl = Objects.toString(roundMap.get("meetingUrl"), null);
+                    String location = Objects.toString(roundMap.get("location"), null);
+                    String interviewer = Objects.toString(roundMap.get("interviewer"), null);
+                    String notes = Objects.toString(roundMap.get("notes"), null);
+                    InterviewRoundResult result = roundMap.get("result") != null ? InterviewRoundResult.valueOf(roundMap.get("result").toString()) : null;
+                    String feedback = Objects.toString(roundMap.get("feedback"), null);
+                    OffsetDateTime recordedAt = roundMap.get("recordedAt") != null ? OffsetDateTime.parse(roundMap.get("recordedAt").toString()) : null;
+
+                    roundDtos.add(InterviewRoundDto.builder()
+                        .roundNumber(roundNumber)
+                        .format(format)
+                        .scheduledAt(scheduledAt)
+                        .meetingUrl(meetingUrl)
+                        .location(location)
+                        .interviewer(interviewer)
+                        .notes(notes)
+                        .result(result)
+                        .feedback(feedback)
+                        .recordedAt(recordedAt)
+                        .build());
+                } catch (Exception ignored) {
+                }
+            }
+        }
+
         return JobApplicationResponse.builder()
             .id(entity.getId())
             .jobId(entity.getJob().getId())
@@ -304,6 +432,7 @@ public class JobApplicationServiceImpl implements JobApplicationService {
             .submittedCvDocumentId(entity.getSubmittedCvDocument().getId())
             .coverLetter(entity.getCoverLetter())
             .aiMatchDetail(entity.getAiMatchDetail())
+            .interviewRounds(roundDtos)
             .status(entity.getStatus())
             .submittedAt(entity.getSubmittedAt())
             .updatedAt(entity.getUpdatedAt())
