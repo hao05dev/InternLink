@@ -50,6 +50,30 @@ public class CareerGuidePostController {
     }
 
     /**
+     * Ghi nhận lượt xem hợp lệ (mỗi người thật tối đa 1 view trong 24 giờ).
+     */
+    @PostMapping("/public/by-slug/{slug}/view")
+    public ResponseEntity<ApiResponse<PostResponse>> recordPostView(
+        @PathVariable String slug,
+        @RequestHeader(value = "X-Visitor-Id", required = false) String visitorId,
+        jakarta.servlet.http.HttpServletRequest request
+    ) {
+        String clientIp = request.getHeader("X-Forwarded-For");
+        if (clientIp == null || clientIp.isBlank()) {
+            clientIp = request.getRemoteAddr();
+        } else {
+            clientIp = clientIp.split(",")[0].trim();
+        }
+
+        String identityKey = (visitorId != null && !visitorId.isBlank())
+            ? visitorId.trim() + "_" + clientIp
+            : "ip_" + clientIp;
+
+        PostResponse post = postService.recordView(slug, identityKey);
+        return ResponseEntity.ok(ApiResponse.success(post));
+    }
+
+    /**
      * Lấy chi tiết bài viết công khai theo ID.
      */
     @GetMapping("/public/{id}")
@@ -64,7 +88,7 @@ public class CareerGuidePostController {
      * Lấy danh sách tất cả bài viết cho quản lý Khoa / Admin.
      */
     @GetMapping("/management")
-    @PreAuthorize("hasAnyRole('FACULTY_ADMIN', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('FACULTY_ADMIN', 'ADMIN', 'BLOG_MANAGER')")
     public ResponseEntity<ApiResponse<List<PostResponse>>> getAllPostsForManagement(
         @RequestParam(required = false) PostCategory category,
         @RequestParam(required = false) String status,
@@ -78,7 +102,7 @@ public class CareerGuidePostController {
      * Xem chi tiết bài viết quản lý theo ID.
      */
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('FACULTY_ADMIN', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('FACULTY_ADMIN', 'ADMIN', 'BLOG_MANAGER')")
     public ResponseEntity<ApiResponse<PostResponse>> getPostById(
         @PathVariable UUID id
     ) {
@@ -90,7 +114,7 @@ public class CareerGuidePostController {
      * Tạo mới bài viết cẩm nang / sự kiện / ngày hội việc làm.
      */
     @PostMapping
-    @PreAuthorize("hasAnyRole('FACULTY_ADMIN', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('FACULTY_ADMIN', 'ADMIN', 'BLOG_MANAGER')")
     public ResponseEntity<ApiResponse<PostResponse>> createPost(
         @AuthenticationPrincipal CustomUserDetail userDetail,
         @Valid @RequestBody CreatePostRequest request
@@ -104,7 +128,7 @@ public class CareerGuidePostController {
      * Cập nhật bài viết cẩm nang / sự kiện.
      */
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('FACULTY_ADMIN', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('FACULTY_ADMIN', 'ADMIN', 'BLOG_MANAGER')")
     public ResponseEntity<ApiResponse<PostResponse>> updatePost(
         @PathVariable UUID id,
         @Valid @RequestBody UpdatePostRequest request
@@ -117,7 +141,7 @@ public class CareerGuidePostController {
      * Xóa bài viết.
      */
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('FACULTY_ADMIN', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('FACULTY_ADMIN', 'ADMIN', 'BLOG_MANAGER')")
     public ResponseEntity<ApiResponse<Void>> deletePost(
         @PathVariable UUID id
     ) {
@@ -129,7 +153,7 @@ public class CareerGuidePostController {
      * Ghim / Bỏ ghim bài viết lên đầu trang.
      */
     @PatchMapping("/{id}/toggle-pin")
-    @PreAuthorize("hasAnyRole('FACULTY_ADMIN', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('FACULTY_ADMIN', 'ADMIN', 'BLOG_MANAGER')")
     public ResponseEntity<ApiResponse<PostResponse>> togglePinPost(
         @PathVariable UUID id
     ) {
@@ -141,7 +165,7 @@ public class CareerGuidePostController {
      * Cập nhật trạng thái bài viết (PUBLISHED, DRAFT, ARCHIVED).
      */
     @PatchMapping("/{id}/status")
-    @PreAuthorize("hasAnyRole('FACULTY_ADMIN', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('FACULTY_ADMIN', 'ADMIN', 'BLOG_MANAGER')")
     public ResponseEntity<ApiResponse<PostResponse>> updatePostStatus(
         @PathVariable UUID id,
         @RequestParam String status

@@ -42,6 +42,11 @@ class MediaAccessPolicyTest {
                 .isInstanceOf(com.internlink.core.shared.exception.ForbiddenException.class);
         assertThat(policy.requireUpload(faculty, MediaPurpose.POST_COVER, null, null))
                 .isEqualTo(faculty.getId());
+
+        var blogManager = User.builder().role(UserRole.BLOG_MANAGER).build();
+        blogManager.setId(UUID.randomUUID());
+        assertThat(policy.requireUpload(blogManager, MediaPurpose.POST_COVER, null, null))
+                .isEqualTo(blogManager.getId());
     }
 
     @Test

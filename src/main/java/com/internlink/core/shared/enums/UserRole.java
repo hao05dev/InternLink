@@ -6,5 +6,6 @@ public enum UserRole {
     COMPANY_MENTOR,
     LECTURER,
     FACULTY_ADMIN,
-    ADMIN
+    ADMIN,
+    BLOG_MANAGER
 }

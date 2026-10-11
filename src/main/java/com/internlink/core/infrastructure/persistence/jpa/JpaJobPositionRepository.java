@@ -70,7 +70,6 @@ public interface JpaJobPositionRepository extends JpaRepository<JobPosition, UUI
         SELECT j FROM JobPosition j
         WHERE j.status = com.internlink.core.shared.enums.JobStatus.APPROVED
           AND j.closedEarlyAt IS NULL
-          AND (j.applicationDeadline IS NULL OR j.applicationDeadline >= :now)
           AND (:termId IS NULL OR j.term.id = :termId)
           AND (:companyId IS NULL OR j.company.id = :companyId)
           AND (:workFormat IS NULL OR j.workFormat = :workFormat)
@@ -85,7 +84,9 @@ public interface JpaJobPositionRepository extends JpaRepository<JobPosition, UUI
               OR LOWER(j.location) LIKE LOWER(CONCAT('%', :keyword, '%'))
               OR LOWER(j.company.companyName) LIKE LOWER(CONCAT('%', :keyword, '%'))
           )
-        ORDER BY j.createdAt DESC
+        ORDER BY 
+          CASE WHEN (j.applicationDeadline IS NULL OR j.applicationDeadline >= :now) THEN 0 ELSE 1 END ASC,
+          j.createdAt DESC
     """)
     List<JobPosition> searchActivePublicJobs(
         @Param("keyword") String keyword,
@@ -131,7 +132,6 @@ public interface JpaJobPositionRepository extends JpaRepository<JobPosition, UUI
         SELECT j FROM JobPosition j
         WHERE j.status = com.internlink.core.shared.enums.JobStatus.APPROVED
           AND j.closedEarlyAt IS NULL
-          AND (j.applicationDeadline IS NULL OR j.applicationDeadline >= :now)
           AND (:termId IS NULL OR j.term.id = :termId)
           AND (:companyId IS NULL OR j.company.id = :companyId)
           AND (:workFormat IS NULL OR j.workFormat = :workFormat)
@@ -146,7 +146,9 @@ public interface JpaJobPositionRepository extends JpaRepository<JobPosition, UUI
               OR LOWER(j.location) LIKE LOWER(CONCAT('%', :keyword, '%'))
               OR LOWER(j.company.companyName) LIKE LOWER(CONCAT('%', :keyword, '%'))
           )
-        ORDER BY j.createdAt DESC
+        ORDER BY 
+          CASE WHEN (j.applicationDeadline IS NULL OR j.applicationDeadline >= :now) THEN 0 ELSE 1 END ASC,
+          j.createdAt DESC
     """)
     Page<JobPosition> searchActivePublicJobsPage(
         @Param("keyword") String keyword,

@@ -50,7 +50,9 @@ public class MediaAccessPolicy {
         }
         if (purpose.post()) {
             ResourceAuthorization.require(
-                    user.getRole() == UserRole.ADMIN || user.getRole() == UserRole.FACULTY_ADMIN);
+                    user.getRole() == UserRole.ADMIN 
+                            || user.getRole() == UserRole.FACULTY_ADMIN
+                            || user.getRole() == UserRole.BLOG_MANAGER);
             if (context == null || context.equals(user.getId())) return user.getId();
             var author =
                     users.findById(context)
@@ -58,6 +60,7 @@ public class MediaAccessPolicy {
                                     () -> new ResourceNotFoundException("Author", "id", context));
             ResourceAuthorization.require(
                     ResourceAuthorization.isAdmin(user)
+                            || user.getId().equals(author.getId())
                             || (user.getDepartment() != null
                                     && author.getDepartment() != null
                                     && user.getDepartment()
@@ -110,7 +113,7 @@ public class MediaAccessPolicy {
         if (user.getId().equals(asset.owner()) || ResourceAuthorization.isAdmin(user)) return true;
         if (asset.purpose().job() && ResourceAuthorization.representsCompany(user, asset.context()))
             return true;
-        return user.getRole() == UserRole.FACULTY_ADMIN
+        return (user.getRole() == UserRole.FACULTY_ADMIN || user.getRole() == UserRole.BLOG_MANAGER)
                 && user.getDepartment() != null
                 && assets.departmentReference(asset, user.getDepartment().getId());
     }

@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.UUID;
 
 public interface InternshipTermService {
+    List<InternshipTermResponse> getAllTerms();
     List<InternshipTermResponse> getTermsByDepartment(UUID departmentId);
     InternshipTermResponse getTermById(UUID id);
     InternshipTermResponse createTerm(InternshipTermRequest request);

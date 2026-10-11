@@ -108,6 +108,7 @@ public class PlacementWorkflowNotificationHelper {
                     case FACULTY_ADMIN -> "/faculty/evaluations";
                     case COMPANY_REP -> "/company/interns";
                     case ADMIN -> "/admin/notifications";
+                    case BLOG_MANAGER -> "/blog-manager/notifications";
                 };
         notifications.sendNotification(user.getId(), type, title, body, path);
     }

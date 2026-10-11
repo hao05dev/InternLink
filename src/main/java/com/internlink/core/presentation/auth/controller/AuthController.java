@@ -14,6 +14,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import com.internlink.core.presentation.auth.dto.request.RegisterCompanyRequest;
+import org.springframework.http.HttpStatus;
+
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
@@ -27,6 +30,15 @@ public class AuthController {
             HttpServletResponse response) {
         AuthResponse authResponse = authService.login(request, response);
         return ResponseEntity.ok(ApiResponse.success("Đăng nhập thành công", authResponse));
+    }
+
+    @PostMapping("/register/company")
+    public ResponseEntity<ApiResponse<AuthResponse>> registerCompany(
+            @Valid @RequestBody RegisterCompanyRequest request,
+            HttpServletResponse response) {
+        AuthResponse authResponse = authService.registerCompany(request, response);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Đăng ký tài khoản doanh nghiệp thành công", authResponse));
     }
 
     @PostMapping("/logout")
