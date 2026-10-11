@@ -5,6 +5,8 @@ import com.internlink.core.infrastructure.security.CustomUserDetail;
 import com.internlink.core.presentation.recruitment.dto.request.JobPositionRequest;
 import com.internlink.core.presentation.recruitment.dto.response.JobPositionResponse;
 import com.internlink.core.shared.api.ApiResponse;
+import com.internlink.core.shared.api.PageParam;
+import com.internlink.core.shared.api.PageResponse;
 import com.internlink.core.shared.enums.JobStatus;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -57,6 +59,20 @@ public class JobPositionController {
         @RequestParam(required = false) com.internlink.core.shared.enums.WorkFormat workFormat
     ) {
         return ResponseEntity.ok(ApiResponse.success(jobPositionService.getPublicJobs(keyword, termId, companyId, location, workFormat)));
+    }
+
+    @GetMapping("/public/page")
+    public ResponseEntity<ApiResponse<PageResponse<JobPositionResponse>>> getPublicJobsPage(
+        @RequestParam(required = false) String keyword,
+        @RequestParam(required = false) UUID termId,
+        @RequestParam(required = false) UUID companyId,
+        @RequestParam(required = false) String location,
+        @RequestParam(required = false) com.internlink.core.shared.enums.WorkFormat workFormat,
+        @ModelAttribute PageParam pageParam
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(
+            jobPositionService.getPublicJobsPage(keyword, termId, companyId, location, workFormat, pageParam)
+        ));
     }
 
     @GetMapping("/public/parse-query")

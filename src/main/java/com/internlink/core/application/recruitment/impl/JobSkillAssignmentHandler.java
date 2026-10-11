@@ -9,6 +9,7 @@ import com.internlink.core.infrastructure.persistence.jpa.JpaSkillTaxonomyReposi
 import com.internlink.core.presentation.recruitment.dto.request.JobPositionRequest;
 import com.internlink.core.presentation.recruitment.dto.request.JobSkillRequest;
 import com.internlink.core.shared.enums.RequirementType;
+import com.internlink.core.shared.enums.SkillCategory;
 import com.internlink.core.shared.exception.BadRequestException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -16,6 +17,8 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
@@ -49,8 +52,8 @@ public class JobSkillAssignmentHandler {
         // 2. Lưu từ mandatorySkillIds nếu có
         if (request.getMandatorySkillIds() != null && !request.getMandatorySkillIds().isEmpty()) {
             for (String skillId : request.getMandatorySkillIds()) {
-                if (skillsToSave.stream().noneMatch(s -> s.getId().getSkillId().equals(skillId))) {
-                    SkillTaxonomy taxonomy = requireSkill(skillId);
+                SkillTaxonomy taxonomy = requireSkill(skillId);
+                if (skillsToSave.stream().noneMatch(s -> s.getId().getSkillId().equals(taxonomy.getId()))) {
                     JobSkill jobSkill = JobSkill.builder()
                         .id(new JobSkillId(job.getId(), taxonomy.getId()))
                         .job(job)
@@ -66,8 +69,8 @@ public class JobSkillAssignmentHandler {
         // 3. Lưu từ optionalSkillIds nếu có
         if (request.getOptionalSkillIds() != null && !request.getOptionalSkillIds().isEmpty()) {
             for (String skillId : request.getOptionalSkillIds()) {
-                if (skillsToSave.stream().noneMatch(s -> s.getId().getSkillId().equals(skillId))) {
-                    SkillTaxonomy taxonomy = requireSkill(skillId);
+                SkillTaxonomy taxonomy = requireSkill(skillId);
+                if (skillsToSave.stream().noneMatch(s -> s.getId().getSkillId().equals(taxonomy.getId()))) {
                     JobSkill jobSkill = JobSkill.builder()
                         .id(new JobSkillId(job.getId(), taxonomy.getId()))
                         .job(job)
@@ -85,11 +88,61 @@ public class JobSkillAssignmentHandler {
         }
     }
 
-    public SkillTaxonomy requireSkill(String skillId) {
-        if (skillId == null || skillId.isBlank()) {
+    public SkillTaxonomy requireSkill(String skillIdentifier) {
+        if (skillIdentifier == null || skillIdentifier.isBlank()) {
             throw new BadRequestException("Mã kỹ năng không được để trống");
         }
-        return taxonomyRepository.findById(skillId)
-            .orElseThrow(() -> new BadRequestException("Kỹ năng không tồn tại trong từ điển: " + skillId));
+        String trimmed = skillIdentifier.trim();
+
+        // 1. Direct ID match
+        Optional<SkillTaxonomy> match = taxonomyRepository.findById(trimmed);
+        if (match.isPresent()) return match.get();
+
+        // 2. Case-insensitive ID match
+        match = taxonomyRepository.findByIdIgnoreCase(trimmed);
+        if (match.isPresent()) return match.get();
+
+        // 3. Exact skill name case-insensitive
+        match = taxonomyRepository.findBySkillNameIgnoreCase(trimmed);
+        if (match.isPresent()) return match.get();
+
+        // 4. Match against aliases in active taxonomy
+        List<SkillTaxonomy> activeSkills = taxonomyRepository.findByIsActiveTrue();
+        if (activeSkills != null) {
+            for (SkillTaxonomy taxonomy : activeSkills) {
+                if (taxonomy.getAliases() != null && taxonomy.getAliases().stream().anyMatch(a -> a.equalsIgnoreCase(trimmed))) {
+                    return taxonomy;
+                }
+            }
+        }
+
+        // 5. Tự động khởi tạo taxonomy cho kỹ năng mới nếu chưa có trong từ điển
+        String slug = "SK-" + trimmed.replaceAll("[^a-zA-Z0-9]+", "-").toUpperCase();
+        while (slug.endsWith("-")) {
+            slug = slug.substring(0, slug.length() - 1);
+        }
+        while (slug.startsWith("-")) {
+            slug = slug.substring(1);
+        }
+        if (slug.length() > 50) {
+            slug = slug.substring(0, 50);
+        }
+        if (slug.equals("SK") || slug.equals("SK-") || slug.isEmpty()) {
+            slug = "SK-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        }
+
+        final String finalId = slug;
+        return taxonomyRepository.findById(finalId).orElseGet(() -> {
+            SkillTaxonomy customSkill = SkillTaxonomy.builder()
+                .id(finalId)
+                .skillName(trimmed)
+                .category(SkillCategory.TECHNICAL)
+                .framework("CUSTOM")
+                .taxonomyVersion("v1.0")
+                .isActive(true)
+                .aliases(List.of(trimmed.toLowerCase()))
+                .build();
+            return taxonomyRepository.save(customSkill);
+        });
     }
 }

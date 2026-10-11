@@ -1,6 +1,8 @@
 package com.internlink.core.application.placement;
 
 import com.internlink.core.presentation.placement.dto.response.InternshipPlacementResponse;
+import com.internlink.core.shared.api.PageParam;
+import com.internlink.core.shared.api.PageResponse;
 import com.internlink.core.shared.enums.PlacementStatus;
 
 import java.util.List;
@@ -8,6 +10,7 @@ import java.util.UUID;
 
 public interface InternshipPlacementService {
     List<InternshipPlacementResponse> getPlacementsByTerm(UUID termId);
+    PageResponse<InternshipPlacementResponse> getPlacementsByTermPage(UUID termId, PageParam pageParam);
     List<InternshipPlacementResponse> getPlacementsByStudent(UUID studentId);
     List<InternshipPlacementResponse> getPlacementsForMyCompany();
     List<InternshipPlacementResponse> getPlacementsByMentor(UUID mentorId);

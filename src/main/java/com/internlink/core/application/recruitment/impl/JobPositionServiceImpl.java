@@ -10,6 +10,8 @@ import com.internlink.core.domain.recruitment.JobPosition;
 import com.internlink.core.infrastructure.persistence.jpa.*;
 import com.internlink.core.presentation.recruitment.dto.request.JobPositionRequest;
 import com.internlink.core.presentation.recruitment.dto.response.JobPositionResponse;
+import com.internlink.core.shared.api.PageParam;
+import com.internlink.core.shared.api.PageResponse;
 import com.internlink.core.shared.enums.JobStatus;
 import com.internlink.core.shared.enums.RequirementType;
 import com.internlink.core.shared.enums.UserRole;
@@ -48,6 +50,7 @@ public class JobPositionServiceImpl implements JobPositionService {
     private final JobSkillAssignmentHandler jobSkillAssignmentHandler;
     private final JobPositionNotificationHelper notificationHelper;
     private final com.internlink.core.application.system.upload.MediaReferencePolicy media;
+    private final com.internlink.core.shared.api.PaginatedResponseMapper paginatedResponseMapper;
 
     @Override
     @Transactional(readOnly = true)
@@ -123,6 +126,16 @@ public class JobPositionServiceImpl implements JobPositionService {
                 .stream()
                 .map(jobPositionMapper::toResponse)
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<JobPositionResponse> getPublicJobsPage(
+            String keyword, UUID termId, UUID companyId, String location, com.internlink.core.shared.enums.WorkFormat workFormat, PageParam pageParam
+    ) {
+        org.springframework.data.domain.Page<JobPosition> page = jobPositionRepository
+                .searchActivePublicJobsPage(keyword, termId, companyId, location, workFormat, OffsetDateTime.now(), pageParam.toPageable());
+        return paginatedResponseMapper.toPageResponse(page, jobPositionMapper::toResponse);
     }
 
     @Override

@@ -28,6 +28,10 @@ public class JobApplicationResponse {
     private String coverLetter;
     private Map<String, Object> aiMatchDetail;
     private List<InterviewRoundDto> interviewRounds;
+    private UUID termId;
+    private String termName;
+    private String academicYear;
+    private String semester;
     private ApplicationStatus status;
     private OffsetDateTime submittedAt;
     private OffsetDateTime updatedAt;

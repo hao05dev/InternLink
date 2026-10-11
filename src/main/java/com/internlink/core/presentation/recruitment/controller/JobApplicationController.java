@@ -7,6 +7,8 @@ import com.internlink.core.presentation.recruitment.dto.request.RecordInterviewR
 import com.internlink.core.presentation.recruitment.dto.request.ScheduleInterviewRequest;
 import com.internlink.core.presentation.recruitment.dto.response.JobApplicationResponse;
 import com.internlink.core.shared.api.ApiResponse;
+import com.internlink.core.shared.api.PageParam;
+import com.internlink.core.shared.api.PageResponse;
 import com.internlink.core.shared.enums.ApplicationStatus;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +37,16 @@ public class JobApplicationController {
         return ResponseEntity.ok(ApiResponse.success(applications));
     }
 
+    @GetMapping("/my-applications/page")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ResponseEntity<ApiResponse<PageResponse<JobApplicationResponse>>> getMyApplicationsPage(
+        @AuthenticationPrincipal CustomUserDetail userDetail,
+        @ModelAttribute PageParam pageParam
+    ) {
+        PageResponse<JobApplicationResponse> response = applicationService.getApplicationsByStudentPage(userDetail.getId(), pageParam);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
     @GetMapping("/job/{jobId}")
     @PreAuthorize("hasAnyRole('COMPANY_REP', 'ADMIN', 'FACULTY_ADMIN')")
     public ResponseEntity<ApiResponse<List<JobApplicationResponse>>> getApplicationsByJob(
@@ -42,6 +54,16 @@ public class JobApplicationController {
     ) {
         List<JobApplicationResponse> applications = applicationService.getApplicationsByJob(jobId);
         return ResponseEntity.ok(ApiResponse.success(applications));
+    }
+
+    @GetMapping("/job/{jobId}/page")
+    @PreAuthorize("hasAnyRole('COMPANY_REP', 'ADMIN', 'FACULTY_ADMIN')")
+    public ResponseEntity<ApiResponse<PageResponse<JobApplicationResponse>>> getApplicationsByJobPage(
+        @PathVariable UUID jobId,
+        @ModelAttribute PageParam pageParam
+    ) {
+        PageResponse<JobApplicationResponse> response = applicationService.getApplicationsByJobPage(jobId, pageParam);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @GetMapping("/company/mine")

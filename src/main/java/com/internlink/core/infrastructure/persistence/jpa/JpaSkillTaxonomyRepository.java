@@ -12,6 +12,8 @@ import java.util.Optional;
 @Repository
 public interface JpaSkillTaxonomyRepository extends JpaRepository<SkillTaxonomy, String> {
     Optional<SkillTaxonomy> findBySkillName(String skillName);
+    Optional<SkillTaxonomy> findBySkillNameIgnoreCase(String skillName);
+    Optional<SkillTaxonomy> findByIdIgnoreCase(String id);
     List<SkillTaxonomy> findByCategory(SkillCategory category);
     List<SkillTaxonomy> findByIsActiveTrue();
 }

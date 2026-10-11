@@ -39,6 +39,7 @@ public class InternshipPlacementServiceImpl implements InternshipPlacementServic
     private final InternshipPlacementMapper placementMapper;
     private final PlacementTransitionValidator transitionValidator;
     private final PlacementNotificationHelper notificationHelper;
+    private final com.internlink.core.shared.api.PaginatedResponseMapper paginatedResponseMapper;
 
     @Override
     @Transactional(readOnly = true)
@@ -50,6 +51,19 @@ public class InternshipPlacementServiceImpl implements InternshipPlacementServic
         return placementRepository.findByTermId(termId).stream()
             .map(placementMapper::toResponse)
             .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public com.internlink.core.shared.api.PageResponse<InternshipPlacementResponse> getPlacementsByTermPage(
+            UUID termId, com.internlink.core.shared.api.PageParam pageParam
+    ) {
+        var term = termRepository.findById(termId)
+            .orElseThrow(() -> new ResourceNotFoundException("InternshipTerm", "id", termId));
+        ResourceAuthorization.require(ResourceAuthorization.managesDepartment(
+            currentActor(), term.getDepartment().getId()));
+        org.springframework.data.domain.Page<InternshipPlacement> page = placementRepository.findByTermId(termId, pageParam.toPageable());
+        return paginatedResponseMapper.toPageResponse(page, placementMapper::toResponse);
     }
 
     @Override

@@ -25,6 +25,7 @@ spring:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
+        default_batch_fetch_size: 30
   flyway:
     enabled: true
     baseline-on-migrate: true
@@ -37,6 +38,16 @@ internlink:
   jwt:
     secret: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
     expiration-ms: 86400000 # 24 hours
+  cookie:
+    secure: ${COOKIE_SECURE:false}
+    same-site: ${COOKIE_SAME_SITE:Lax}
+    path: /
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:true}
+    login-capacity: ${RATE_LIMIT_LOGIN_CAPACITY:5}
+    upload-capacity: ${RATE_LIMIT_UPLOAD_CAPACITY:15}
+    ai-capacity: ${RATE_LIMIT_AI_CAPACITY:20}
+    default-capacity: ${RATE_LIMIT_DEFAULT_CAPACITY:120}
   ai-service:
     base-url: ${AI_SERVICE_URL:http://localhost:8001}
     api-key: ${AI_SERVICE_API_KEY:}

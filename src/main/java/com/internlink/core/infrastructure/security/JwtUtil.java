@@ -32,8 +32,10 @@ public class JwtUtil {
     public String generateToken(CustomUserDetail principal) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + expirationMs);
+        String jti = UUID.randomUUID().toString();
 
         return Jwts.builder()
+                .id(jti)
                 .subject(principal.getId().toString())
                 .claim("email", principal.getEmail())
                 .claim("role", principal.getRole().name())
@@ -44,14 +46,28 @@ public class JwtUtil {
                 .compact();
     }
 
-    public UUID getUserIdFromToken(String token) {
-        Claims claims = Jwts.parser()
+    public Claims getClaimsFromToken(String token) {
+        return Jwts.parser()
                 .verifyWith(key)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
+    }
 
-        return UUID.fromString(claims.getSubject());
+    public UUID getUserIdFromToken(String token) {
+        return UUID.fromString(getClaimsFromToken(token).getSubject());
+    }
+
+    public String getJtiFromToken(String token) {
+        return getClaimsFromToken(token).getId();
+    }
+
+    public Date getIssuedAtFromToken(String token) {
+        return getClaimsFromToken(token).getIssuedAt();
+    }
+
+    public Date getExpirationDateFromToken(String token) {
+        return getClaimsFromToken(token).getExpiration();
     }
 
     public boolean validateToken(String token) {
