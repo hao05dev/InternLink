@@ -56,9 +56,17 @@ export default function CompanyCandidatesView() {
 
     // Interview Modal state
     const [interviewModalCand, setInterviewModalCand] = useState<CandidateApplication | null>(null);
-    const [interviewDate, setInterviewDate] = useState('2026-09-30T10:00');
-    const [interviewLocation, setInterviewLocation] = useState('Tòa nhà FPT Cần Thơ, KDC Nam Long / Online MS Teams');
-    const [interviewNote, setInterviewNote] = useState('Ứng viên chuẩn bị đồ án môn học hoặc GitHub cá nhân');
+    const [interviewFormat, setInterviewFormat] = useState<'ONLINE' | 'OFFLINE'>('ONLINE');
+    const [interviewDate, setInterviewDate] = useState(() => {
+        const d = new Date();
+        d.setDate(d.getDate() + 2);
+        d.setHours(9, 30, 0, 0);
+        return d.toISOString().slice(0, 16);
+    });
+    const [interviewMeetingUrl, setInterviewMeetingUrl] = useState('https://meet.google.com/abc-defg-hij');
+    const [interviewLocation, setInterviewLocation] = useState('Tòa nhà FPT Cần Thơ, Đường số 1, KDC Nam Long, P. Hưng Thạnh, Q. Cái Răng, TP. Cần Thơ');
+    const [interviewInterviewer, setInterviewInterviewer] = useState('Hội đồng chuyên môn & HR');
+    const [interviewNote, setInterviewNote] = useState('Ứng viên chuẩn bị demo đồ án cá nhân hoặc tài khoản GitHub/Portfolio');
     const [isScheduling, setIsScheduling] = useState(false);
 
     // Offer Modal state
@@ -137,26 +145,36 @@ export default function CompanyCandidatesView() {
 
         setIsScheduling(true);
         try {
-            if (interviewModalCand.status === 'PENDING') {
-                await apiClient.patch(`/api/v1/applications/${interviewModalCand.id}/status?status=REVIEWING`);
-            }
-            await apiClient.patch(`/api/v1/applications/${interviewModalCand.id}/status?status=INTERVIEWING`);
+            const scheduledIso = new Date(interviewDate).toISOString();
+            await apiClient.post(`/api/v1/applications/${interviewModalCand.id}/interview`, {
+                format: interviewFormat,
+                scheduledAt: scheduledIso,
+                meetingUrl: interviewFormat === 'ONLINE' ? interviewMeetingUrl.trim() : undefined,
+                location: interviewFormat === 'OFFLINE' ? interviewLocation.trim() : undefined,
+                interviewer: interviewInterviewer.trim(),
+                notes: interviewNote.trim(),
+            });
+
             setCandidates(prev =>
                 prev.map(c =>
                     c.id === interviewModalCand.id
                         ? {
                               ...c,
                               status: 'INTERVIEW_SCHEDULED' as ApplicationStatus,
-                              interviewScheduledAt: interviewDate,
-                              interviewLocation,
+                              interviewScheduledAt: scheduledIso,
+                              interviewLocation: interviewFormat === 'ONLINE' ? interviewMeetingUrl : interviewLocation,
+                              interviewNote,
                           }
                         : c
                 )
             );
-            setMessage({ type: 'success', text: `Đã chuyển hồ sơ ${interviewModalCand.studentName} sang bước phỏng vấn. API chưa lưu ngày giờ hẹn; vui lòng thông báo riêng cho ứng viên.` });
+            setMessage({
+                type: 'success',
+                text: `Đã lên lịch phỏng vấn ${interviewFormat === 'ONLINE' ? 'trực tuyến (Google Meet/Teams)' : 'trực tiếp'} cho ứng viên ${interviewModalCand.studentName}. Hệ thống đã tự động gửi email và thông báo chuông tới sinh viên.`
+            });
             setInterviewModalCand(null);
         } catch (error) {
-            setMessage({ type: 'error', text: error instanceof Error ? error.message : 'Không cập nhật được trạng thái ứng viên.' });
+            setMessage({ type: 'error', text: error instanceof Error ? error.message : 'Không thể lên lịch phỏng vấn.' });
         } finally {
             setIsScheduling(false);
         }
@@ -608,6 +626,34 @@ export default function CompanyCandidatesView() {
                     maxWidth="md"
                 >
                     <form onSubmit={handleScheduleInterview} className="space-y-3.5 text-xs">
+                        <div className="space-y-1">
+                            <label className="font-semibold text-slate-700">Hình thức phỏng vấn</label>
+                            <div className="grid grid-cols-2 gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setInterviewFormat('ONLINE')}
+                                    className={`py-2 px-3 rounded-lg border text-center font-medium transition-all ${
+                                        interviewFormat === 'ONLINE'
+                                            ? 'bg-indigo-50 border-indigo-500 text-indigo-700 ring-1 ring-indigo-500'
+                                            : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                                    }`}
+                                >
+                                    🌐 Trực tuyến (Online)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setInterviewFormat('OFFLINE')}
+                                    className={`py-2 px-3 rounded-lg border text-center font-medium transition-all ${
+                                        interviewFormat === 'OFFLINE'
+                                            ? 'bg-indigo-50 border-indigo-500 text-indigo-700 ring-1 ring-indigo-500'
+                                            : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                                    }`}
+                                >
+                                    🏢 Trực tiếp (Offline)
+                                </button>
+                            </div>
+                        </div>
+
                         <Input
                             label="Thời gian phỏng vấn"
                             type="datetime-local"
@@ -615,24 +661,46 @@ export default function CompanyCandidatesView() {
                             onChange={(e) => setInterviewDate(e.target.value)}
                             required
                         />
+
+                        {interviewFormat === 'ONLINE' ? (
+                            <Input
+                                label="Liên kết phòng họp trực tuyến (Google Meet / Teams / Zoom)"
+                                placeholder="https://meet.google.com/abc-defg-hij"
+                                value={interviewMeetingUrl}
+                                onChange={(e) => setInterviewMeetingUrl(e.target.value)}
+                                required
+                            />
+                        ) : (
+                            <Input
+                                label="Địa điểm phỏng vấn"
+                                placeholder="Địa chỉ văn phòng công ty..."
+                                value={interviewLocation}
+                                onChange={(e) => setInterviewLocation(e.target.value)}
+                                required
+                            />
+                        )}
+
                         <Input
-                            label="Địa điểm / Link phòng họp"
-                            value={interviewLocation}
-                            onChange={(e) => setInterviewLocation(e.target.value)}
-                            required
+                            label="Người phỏng vấn / Hội đồng chuyên môn"
+                            placeholder="Ví dụ: Nguyễn Văn A (Tech Lead)"
+                            value={interviewInterviewer}
+                            onChange={(e) => setInterviewInterviewer(e.target.value)}
                         />
+
                         <Textarea
-                            label="Ghi chú cho ứng viên"
+                            label="Ghi chú & Hướng dẫn chuẩn bị cho ứng viên"
+                            placeholder="Ví dụ: Chuẩn bị slide đồ án, bài tập lớn, hoặc tài khoản GitHub cá nhân..."
                             value={interviewNote}
                             onChange={(e) => setInterviewNote(e.target.value)}
                             rows={3}
                         />
+
                         <div className="flex justify-end gap-2 pt-2">
                             <Button type="button" variant="outline" onClick={() => setInterviewModalCand(null)}>
                                 Hủy
                             </Button>
                             <Button type="submit" isLoading={isScheduling}>
-                                Xác nhận phỏng vấn
+                                Xác nhận lên lịch & Gửi thông báo
                             </Button>
                         </div>
                     </form>

@@ -24,6 +24,7 @@ import {
     UserCheck,
     Briefcase
 } from 'lucide-react';
+import { IntroductionLetterSection } from './introduction-letter-section';
 import { InternshipPlacement, SelfPlacementSubmitPayload, TransferPlacementPayload } from '../types/placement.types';
 
 export function SelfPlacementRegistrationView() {
@@ -200,6 +201,9 @@ export function SelfPlacementRegistrationView() {
                     </button>
                 </div>
             )}
+
+            {/* Introduction Letter Flow Step 1 */}
+            <IntroductionLetterSection termId={selectedTermId} />
 
             {/* Current Placement Status Card if Exists */}
             {placement && (

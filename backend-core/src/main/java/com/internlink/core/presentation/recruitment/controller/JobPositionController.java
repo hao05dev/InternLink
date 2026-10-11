@@ -23,15 +23,19 @@ import java.util.UUID;
 public class JobPositionController {
 
     private final JobPositionService jobPositionService;
+    private final com.internlink.core.infrastructure.integration.ai.AiServiceClient aiServiceClient;
 
     @GetMapping
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<List<JobPositionResponse>>> getAllJobs(
         @RequestParam(required = false) String keyword,
         @RequestParam(required = false) UUID termId,
-        @RequestParam(required = false) UUID companyId
+        @RequestParam(required = false) UUID companyId,
+        @RequestParam(required = false) JobStatus status,
+        @RequestParam(required = false) String location,
+        @RequestParam(required = false) com.internlink.core.shared.enums.WorkFormat workFormat
     ) {
-        List<JobPositionResponse> jobs = jobPositionService.getAllJobs(keyword, termId, companyId);
+        List<JobPositionResponse> jobs = jobPositionService.getAllJobs(keyword, termId, companyId, status, location, workFormat);
         return ResponseEntity.ok(ApiResponse.success(jobs));
     }
 
@@ -48,9 +52,18 @@ public class JobPositionController {
     public ResponseEntity<ApiResponse<List<JobPositionResponse>>> getPublicJobs(
         @RequestParam(required = false) String keyword,
         @RequestParam(required = false) UUID termId,
-        @RequestParam(required = false) UUID companyId
+        @RequestParam(required = false) UUID companyId,
+        @RequestParam(required = false) String location,
+        @RequestParam(required = false) com.internlink.core.shared.enums.WorkFormat workFormat
     ) {
-        return ResponseEntity.ok(ApiResponse.success(jobPositionService.getPublicJobs(keyword, termId, companyId)));
+        return ResponseEntity.ok(ApiResponse.success(jobPositionService.getPublicJobs(keyword, termId, companyId, location, workFormat)));
+    }
+
+    @GetMapping("/public/parse-query")
+    public ResponseEntity<ApiResponse<java.util.Map<String, Object>>> parseSearchQuery(
+        @RequestParam String query
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(aiServiceClient.parseSearchQuery(query)));
     }
 
     @GetMapping("/public/{id}")
@@ -89,6 +102,12 @@ public class JobPositionController {
     @PreAuthorize("hasRole('COMPANY_REP')")
     public ResponseEntity<ApiResponse<JobPositionResponse>> submitJob(@PathVariable UUID id) {
         return ResponseEntity.ok(ApiResponse.success(jobPositionService.submitJob(id)));
+    }
+
+    @PatchMapping("/{id}/close")
+    @PreAuthorize("hasAnyRole('COMPANY_REP', 'SYSTEM_ADMIN')")
+    public ResponseEntity<ApiResponse<JobPositionResponse>> closeJobEarly(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.success("Đóng nhận hồ sơ vị trí thực tập thành công", jobPositionService.closeJobEarly(id)));
     }
 
     @PatchMapping("/{id}/review")

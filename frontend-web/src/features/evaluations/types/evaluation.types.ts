@@ -39,6 +39,7 @@ export interface RubricEvaluation {
     studentCode?: string;
     evaluatorId: string;
     evaluatorName?: string;
+    evaluatorRole?: 'COMPANY_MENTOR' | 'LECTURER';
     evaluationStage: 'MIDTERM' | 'FINAL';
     rubricVersion: string;
     criteriaScores: RubricCriteriaScore[];

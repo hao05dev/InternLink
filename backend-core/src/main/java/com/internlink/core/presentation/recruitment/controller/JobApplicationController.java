@@ -3,6 +3,8 @@ package com.internlink.core.presentation.recruitment.controller;
 import com.internlink.core.application.recruitment.JobApplicationService;
 import com.internlink.core.infrastructure.security.CustomUserDetail;
 import com.internlink.core.presentation.recruitment.dto.request.JobApplicationRequest;
+import com.internlink.core.presentation.recruitment.dto.request.RecordInterviewResultRequest;
+import com.internlink.core.presentation.recruitment.dto.request.ScheduleInterviewRequest;
 import com.internlink.core.presentation.recruitment.dto.response.JobApplicationResponse;
 import com.internlink.core.shared.api.ApiResponse;
 import com.internlink.core.shared.enums.ApplicationStatus;
@@ -76,6 +78,27 @@ public class JobApplicationController {
     ) {
         JobApplicationResponse response = applicationService.updateApplicationStatus(id, status);
         return ResponseEntity.ok(ApiResponse.success("Cập nhật trạng thái đơn ứng tuyển thành công", response));
+    }
+
+    @PostMapping("/{id}/interview")
+    @PreAuthorize("hasAnyRole('COMPANY_REP', 'ADMIN')")
+    public ResponseEntity<ApiResponse<JobApplicationResponse>> scheduleInterview(
+        @PathVariable UUID id,
+        @Valid @RequestBody ScheduleInterviewRequest request
+    ) {
+        JobApplicationResponse response = applicationService.scheduleInterview(id, request);
+        return ResponseEntity.ok(ApiResponse.success("Lên lịch phỏng vấn thành công", response));
+    }
+
+    @PatchMapping("/{id}/interview/{roundNumber}/result")
+    @PreAuthorize("hasAnyRole('COMPANY_REP', 'ADMIN')")
+    public ResponseEntity<ApiResponse<JobApplicationResponse>> recordInterviewResult(
+        @PathVariable UUID id,
+        @PathVariable int roundNumber,
+        @Valid @RequestBody RecordInterviewResultRequest request
+    ) {
+        JobApplicationResponse response = applicationService.recordInterviewResult(id, roundNumber, request);
+        return ResponseEntity.ok(ApiResponse.success("Ghi nhận kết quả phỏng vấn thành công", response));
     }
 
     @PatchMapping("/{id}/withdraw")

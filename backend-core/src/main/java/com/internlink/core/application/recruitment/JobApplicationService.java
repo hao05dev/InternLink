@@ -1,6 +1,8 @@
 package com.internlink.core.application.recruitment;
 
 import com.internlink.core.presentation.recruitment.dto.request.JobApplicationRequest;
+import com.internlink.core.presentation.recruitment.dto.request.RecordInterviewResultRequest;
+import com.internlink.core.presentation.recruitment.dto.request.ScheduleInterviewRequest;
 import com.internlink.core.presentation.recruitment.dto.response.JobApplicationResponse;
 import com.internlink.core.shared.enums.ApplicationStatus;
 
@@ -14,5 +16,7 @@ public interface JobApplicationService {
     JobApplicationResponse getApplicationById(UUID id);
     JobApplicationResponse applyJob(UUID studentId, JobApplicationRequest request);
     JobApplicationResponse updateApplicationStatus(UUID id, ApplicationStatus status);
+    JobApplicationResponse scheduleInterview(UUID id, ScheduleInterviewRequest request);
+    JobApplicationResponse recordInterviewResult(UUID id, int roundNumber, RecordInterviewResultRequest request);
     JobApplicationResponse withdrawApplication(UUID id);
 }

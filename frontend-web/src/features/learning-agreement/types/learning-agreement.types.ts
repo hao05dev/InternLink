@@ -1,10 +1,9 @@
 export type AgreementStatus =
     | 'DRAFT'
-    | 'PENDING_STUDENT'
-    | 'PENDING_COMPANY'
-    | 'PENDING_FACULTY'
+    | 'PENDING_SIGNATURES'
     | 'APPROVED'
-    | 'REJECTED';
+    | 'REVISION_REQUESTED'
+    | 'CANCELLED';
 
 export interface LearningAgreement {
     id: string;

@@ -8,10 +8,24 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
     Calendar, Users, ClipboardCheck, Building2, CheckSquare, Layers,
-    GraduationCap, TrendingUp, ArrowRight, BookOpen
+    GraduationCap, TrendingUp, ArrowRight, BookOpen, BarChart3, Award
 } from 'lucide-react';
+import { CtuGradeChart, CloAchievementChart, type CloMetricItem } from '@/components/ui/charts';
 
 type Term = { id: string; code: string; termName: string; academicYear: string; status: string };
+
+interface CloReportData {
+    termId: string;
+    termCode: string;
+    termName: string;
+    totalPlacements: number;
+    evaluatedPlacements: number;
+    passedPlacements: number;
+    overallPassRate: number;
+    averageFinalScore: number;
+    letterGradeDistribution: Record<string, number>;
+    cloMetrics: CloMetricItem[];
+}
 
 const NAV_ITEMS = [
     {
@@ -77,12 +91,23 @@ const TERM_STATUS_MAP: Record<string, { label: string; variant: 'success' | 'war
 export default function FacultyDashboardView() {
     const { user } = useAuth();
     const [terms, setTerms] = useState<Term[]>([]);
+    const [cloReport, setCloReport] = useState<CloReportData | null>(null);
     const [error, setError] = useState('');
 
     useEffect(() => {
         if (!user?.departmentId) return;
         apiClient.get<Term[]>(`/api/v1/terms/by-department/${user.departmentId}`)
-            .then(result => setTerms(result.data ?? []))
+            .then(result => {
+                const termsData = result.data ?? [];
+                setTerms(termsData);
+
+                const active = termsData.find(t => t.status === 'ACTIVE' || t.status === 'EVALUATING' || t.status === 'REGISTRATION_OPEN' || t.status === 'APPLICATION_OPEN') || termsData[0];
+                if (active) {
+                    apiClient.get<CloReportData>(`/api/v1/evaluations/clo-report/term/${active.id}`)
+                        .then(reportRes => setCloReport(reportRes.data ?? null))
+                        .catch(() => setCloReport(null));
+                }
+            })
             .catch(reason => setError(reason instanceof Error ? reason.message : 'Không tải được kỳ thực tập.'));
     }, [user?.departmentId]);
 
@@ -113,6 +138,55 @@ export default function FacultyDashboardView() {
 
             {/* Error */}
             {error && <p role="alert" className="text-rose-700 text-sm">{error}</p>}
+
+            {/* Analytics & Charts Section */}
+            {cloReport && (
+                <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                            <BarChart3 className="w-4 h-4 text-sky-600" />
+                            Phân tích kết quả & Chuẩn đầu ra ({cloReport.termName || cloReport.termCode})
+                        </h2>
+                        <Link href="/faculty/evaluations" className="text-xs font-semibold text-sky-600 hover:underline flex items-center gap-1">
+                            Xem chi tiết bảng điểm <ArrowRight className="w-3.5 h-3.5" />
+                        </Link>
+                    </div>
+
+                    {/* Summary KPI Cards */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+                            <p className="text-xs text-slate-500 font-medium">Tổng thực tập sinh</p>
+                            <p className="text-xl font-bold text-slate-900 mt-1">{cloReport.totalPlacements}</p>
+                        </div>
+                        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+                            <p className="text-xs text-slate-500 font-medium">Đã tổng kết điểm</p>
+                            <p className="text-xl font-bold text-indigo-600 mt-1">{cloReport.evaluatedPlacements}</p>
+                        </div>
+                        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+                            <p className="text-xs text-slate-500 font-medium">Tỷ lệ hoàn thành (Đạt)</p>
+                            <p className="text-xl font-bold text-emerald-600 mt-1">{cloReport.overallPassRate}%</p>
+                        </div>
+                        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+                            <p className="text-xs text-slate-500 font-medium">Điểm TB toàn kỳ</p>
+                            <p className="text-xl font-bold text-amber-600 mt-1">{cloReport.averageFinalScore?.toFixed(2) ?? '—'} / 10</p>
+                        </div>
+                    </div>
+
+                    {/* 2 Charts Grid */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <CtuGradeChart
+                            data={cloReport.letterGradeDistribution || {}}
+                            totalEvaluated={cloReport.evaluatedPlacements}
+                            title="Phổ điểm chữ chuẩn CTU (A, B+, B, C+, C, D+, D, F)"
+                        />
+                        <CloAchievementChart
+                            metrics={cloReport.cloMetrics || []}
+                            targetThreshold={70.0}
+                            title="Tỷ lệ đạt Chuẩn đầu ra (CLO Attainment Rate)"
+                        />
+                    </div>
+                </div>
+            )}
 
             {/* Quick Action Cards */}
             <div>

@@ -21,6 +21,7 @@ export function SmartJobSearch({ termId, onSelectJob, className }: SmartJobSearc
     const [isLoading, setIsLoading] = useState(false);
     const [isOpen, setIsOpen] = useState(false);
     const [activeTag, setActiveTag] = useState<string | null>(null);
+    const [parsedIntent, setParsedIntent] = useState<any>(null);
 
     const debouncedKeyword = useDebounce(keyword, 350);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -40,6 +41,7 @@ export function SmartJobSearch({ termId, onSelectJob, className }: SmartJobSearc
     useEffect(() => {
         if (!debouncedKeyword.trim()) {
             setJobs([]);
+            setParsedIntent(null);
             setIsLoading(false);
             return;
         }
@@ -49,12 +51,45 @@ export function SmartJobSearch({ termId, onSelectJob, className }: SmartJobSearc
 
         const fetchJobs = async () => {
             try {
+                // Nếu câu dài (> 12 ký tự hoặc có nhiều từ), thử phân tích ý định tìm kiếm
+                let searchKw = debouncedKeyword;
+                let searchLoc: string | undefined = undefined;
+                let searchFmt: string | undefined = undefined;
+
+                if (debouncedKeyword.trim().length > 12 || debouncedKeyword.trim().includes(" ")) {
+                    try {
+                        const parsed = await jobService.parseSearchQuery(debouncedKeyword);
+                        if (isMounted && parsed && parsed.parsed) {
+                            setParsedIntent(parsed);
+                            if (parsed.cleaned_keywords) searchKw = parsed.cleaned_keywords;
+                            if (parsed.suggested_location) searchLoc = parsed.suggested_location;
+                            if (parsed.suggested_work_format) searchFmt = parsed.suggested_work_format;
+                        }
+                    } catch {
+                        // ignore and fallback
+                    }
+                } else {
+                    if (isMounted) setParsedIntent(null);
+                }
+
                 const results = await jobService.getPublicJobs({
-                    keyword: debouncedKeyword,
+                    keyword: searchKw,
+                    location: searchLoc,
+                    workFormat: searchFmt,
                     termId: termId,
                 });
+
                 if (isMounted) {
-                    setJobs(results);
+                    // Nếu search theo intent không có kết quả, thử search bằng keyword gốc
+                    if (results.length === 0 && searchKw !== debouncedKeyword) {
+                        const fallbackResults = await jobService.getPublicJobs({
+                            keyword: debouncedKeyword,
+                            termId: termId,
+                        });
+                        setJobs(fallbackResults);
+                    } else {
+                        setJobs(results);
+                    }
                     setIsOpen(true);
                 }
             } catch (err) {
@@ -150,11 +185,20 @@ export function SmartJobSearch({ termId, onSelectJob, className }: SmartJobSearc
             {/* Dropdown kết quả tìm kiếm trực tiếp (Live Results Dropdown) */}
             {isOpen && debouncedKeyword.trim() && (
                 <div className="absolute left-0 right-0 top-full mt-2 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden divide-y divide-slate-100">
-                    <div className="p-3 bg-slate-50/70 flex items-center justify-between text-xs text-slate-500 font-medium">
-                        <span>
-                            Kết quả tìm kiếm cho: <strong className="text-blue-600">{'"'}{debouncedKeyword}{'"'}</strong>
-                        </span>
-                        <span>{jobs.length} vị trí phù hợp</span>
+                    <div className="p-3 bg-slate-50/70 space-y-2">
+                        <div className="flex items-center justify-between text-xs text-slate-500 font-medium">
+                            <span>
+                                Kết quả tìm kiếm cho: <strong className="text-blue-600">{'"'}{debouncedKeyword}{'"'}</strong>
+                            </span>
+                            <span>{jobs.length} vị trí phù hợp</span>
+                        </div>
+                        {parsedIntent && parsedIntent.summary_message && (
+                            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-50 border border-sky-200/80 text-[11px] text-sky-800 font-medium shadow-2xs">
+                                <Sparkles className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                                <span className="font-semibold text-sky-900">Ý định tìm kiếm (AI):</span>
+                                <span className="truncate">{parsedIntent.summary_message}</span>
+                            </div>
+                        )}
                     </div>
 
                     <div className="max-h-80 overflow-y-auto divide-y divide-slate-100">

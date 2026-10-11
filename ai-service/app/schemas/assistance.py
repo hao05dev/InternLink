@@ -72,3 +72,21 @@ class LearningPlanResponse(BaseModel):
     requires_review: bool = True
     tasks: list[LearningTask]
     notice: str = "Bản nháp để trao đổi với người hướng dẫn; thời lượng cần điều chỉnh theo năng lực thực tế."
+
+
+class QueryParseRequest(BaseModel):
+    query: str = Field(min_length=1, max_length=500)
+
+
+class QueryParseResponse(BaseModel):
+    parsed: bool = True
+    raw_query: str
+    extracted_skills: list[str] = Field(default_factory=list)
+    suggested_role_level: str | None = None
+    suggested_location: str | None = None
+    suggested_industry: str | None = None
+    suggested_work_format: str | None = None
+    requires_stipend: bool | None = None
+    cleaned_keywords: str
+    summary_message: str
+

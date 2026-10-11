@@ -161,3 +161,21 @@ def test_runner_does_not_invent_dense_results():
     dataset["queries"][0]["judgments"].pop("4")
     with pytest.raises(ValueError, match="must be judged"):
         evaluate(dataset)
+
+
+def test_parse_query_natural_language_intent(client):
+    response = client.post("/api/v1/assistance/parse-query", json={
+        "query": "intern python tại các ngân hàng Cần Thơ có hỗ trợ lương"
+    })
+    assert response.status_code == 200
+    data = response.json()
+    assert data["parsed"] is True
+    assert "Python" in data["extracted_skills"]
+    assert data["suggested_role_level"] == "INTERN"
+    assert data["suggested_location"] == "Cần Thơ"
+    assert data["suggested_industry"] == "Ngân hàng"
+    assert data["requires_stipend"] is True
+    assert "Python" in data["cleaned_keywords"]
+    assert "Cần Thơ" in data["summary_message"]
+    assert "Ngân hàng" in data["summary_message"]
+

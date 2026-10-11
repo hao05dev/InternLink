@@ -6,6 +6,9 @@ export interface JobSearchParams {
     keyword?: string;
     termId?: string;
     companyId?: string;
+    status?: string;
+    location?: string;
+    workFormat?: string;
 }
 
 export interface ApplyJobPayload {
@@ -23,6 +26,7 @@ export interface JobFormPayload {
     location: string;
     vacancies: number;
     description: string;
+    applicationDeadline?: string;
     stipendAmount?: number;
     bannerUrl?: string;
     attachmentUrls?: Array<{
@@ -45,6 +49,9 @@ export const jobService = {
         if (params?.keyword) queryParams.append("keyword", params.keyword.trim());
         if (params?.termId) queryParams.append("termId", params.termId);
         if (params?.companyId) queryParams.append("companyId", params.companyId);
+        if (params?.status) queryParams.append("status", params.status);
+        if (params?.location) queryParams.append("location", params.location.trim());
+        if (params?.workFormat) queryParams.append("workFormat", params.workFormat);
 
         const qs = queryParams.toString();
         const endpoint = qs ? `/api/v1/jobs?${qs}` : "/api/v1/jobs";
@@ -57,6 +64,8 @@ export const jobService = {
         if (params?.keyword) queryParams.append("keyword", params.keyword.trim());
         if (params?.termId) queryParams.append("termId", params.termId);
         if (params?.companyId) queryParams.append("companyId", params.companyId);
+        if (params?.location) queryParams.append("location", params.location.trim());
+        if (params?.workFormat) queryParams.append("workFormat", params.workFormat);
 
         const qs = queryParams.toString();
         const endpoint = qs ? `/api/v1/jobs/public/all?${qs}` : "/api/v1/jobs/public/all";
@@ -114,12 +123,33 @@ export const jobService = {
         return response.data;
     },
 
+    closeJobEarly: async (id: string): Promise<JobPosition> => {
+        const response = await apiClient.patch<JobPosition>(`/api/v1/jobs/${id}/close`);
+        return response.data;
+    },
+
     applyJob: async (payload: ApplyJobPayload): Promise<JobApplication> => {
         const response = await apiClient.post<JobApplication>("/api/v1/applications", {
             jobId: payload.jobId,
             submittedCvDocumentId: payload.submittedCvDocumentId,
             coverLetter: payload.coverLetter,
         });
+        return response.data;
+    },
+
+    parseSearchQuery: async (query: string): Promise<{
+        parsed: boolean;
+        raw_query: string;
+        extracted_skills?: string[];
+        suggested_role_level?: string;
+        suggested_location?: string;
+        suggested_industry?: string;
+        suggested_work_format?: string;
+        requires_stipend?: boolean;
+        cleaned_keywords?: string;
+        summary_message?: string;
+    }> => {
+        const response = await apiClient.get<any>(`/api/v1/jobs/public/parse-query?query=${encodeURIComponent(query)}`);
         return response.data;
     },
 };

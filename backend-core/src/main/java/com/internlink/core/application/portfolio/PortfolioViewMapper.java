@@ -60,8 +60,10 @@ public class PortfolioViewMapper {
 
     public FormView toFormView(PortfolioForm f, User a, BiFunction<PortfolioForm, Map<String, Object>, Map<String, Object>> followingContentFn) {
         boolean read = PortfolioAccess.content(a, f);
-        boolean edit = PortfolioAccess.edit(a, f);
-        boolean review = "M05".equals(f.getKind()) && PortfolioAccess.lecturer(a, f.getPlacement());
+        boolean proxy = PortfolioAccess.proxyUpload(a, f.getPlacement(), f.getKind());
+        boolean edit = PortfolioAccess.edit(a, f) || proxy;
+        boolean review = ("M05".equals(f.getKind()) || (Set.of("M01", "M02", "M03").contains(f.getKind()) && "SUBMITTED".equals(formStatus(f))))
+                && PortfolioAccess.lecturer(a, f.getPlacement());
         boolean restricted = isPublishedReader(a, f);
 
         UUID visibleRevision = restricted ? findCurrentRevision(f).map(PortfolioRevision::getId).orElse(null) : null;

@@ -51,6 +51,12 @@ public class JobPosition extends BaseEntity {
     @Column(name = "location", nullable = false)
     private String location;
 
+    @Column(name = "application_deadline")
+    private OffsetDateTime applicationDeadline;
+
+    @Column(name = "closed_early_at")
+    private OffsetDateTime closedEarlyAt;
+
     @Builder.Default
     @Column(name = "vacancies", nullable = false)
     private Integer vacancies = 1;

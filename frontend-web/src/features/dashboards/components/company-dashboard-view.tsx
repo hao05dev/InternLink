@@ -3,31 +3,45 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/features/auth/hooks/use-auth";
-import { Briefcase, Users, UserCheck, Plus, CheckCircle2, ChevronRight, Clock } from "lucide-react";
+import { Briefcase, Users, UserCheck, Plus, CheckCircle2, ChevronRight, Clock, BarChart2 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/features/workflow/components/status-badge";
 import { apiClient } from "@/lib/api-client";
+import { RecruitmentFunnelChart, type FunnelStageData } from "@/components/ui/charts";
 
 export default function CompanyDashboardView() {
     const { user } = useAuth();
     const [jobs, setJobs] = useState<any[]>([]);
+    const [applications, setApplications] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         let mounted = true;
-        apiClient.get<any[]>("/api/v1/jobs")
-            .then(res => {
-                if (mounted && Array.isArray(res.data)) {
-                    setJobs(res.data);
-                }
-            })
-            .catch(() => {})
-            .finally(() => {
-                if (mounted) setLoading(false);
-            });
+        Promise.allSettled([
+            apiClient.get<any[]>("/api/v1/jobs/company/mine"),
+            apiClient.get<any[]>("/api/v1/applications/company/mine")
+        ]).then(([jobsRes, appsRes]) => {
+            if (!mounted) return;
+            if (jobsRes.status === 'fulfilled' && Array.isArray(jobsRes.value.data)) {
+                setJobs(jobsRes.value.data);
+            }
+            if (appsRes.status === 'fulfilled' && Array.isArray(appsRes.value.data)) {
+                setApplications(appsRes.value.data);
+            }
+        }).finally(() => {
+            if (mounted) setLoading(false);
+        });
+
         return () => { mounted = false; };
     }, []);
+
+    const funnelData: FunnelStageData = {
+        submitted: applications.length,
+        interviewing: applications.filter(a => a.status === 'INTERVIEWING' || a.status === 'INTERVIEW_SCHEDULED').length,
+        offered: applications.filter(a => a.status === 'OFFERED' || a.status === 'ACCEPTED').length,
+        accepted: applications.filter(a => a.status === 'ACCEPTED').length,
+    };
 
     return (
         <div className="space-y-6">
@@ -67,28 +81,26 @@ export default function CompanyDashboardView() {
 
                 <Card>
                     <CardContent className="p-5 flex items-center gap-3.5">
-                        <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
-                            <CheckCircle2 className="w-5 h-5" />
+                        <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center shrink-0">
+                            <UserCheck className="w-5 h-5" />
                         </div>
                         <div>
-                            <div className="text-xl font-bold text-slate-900">
-                                {jobs.filter(j => j.status === 'APPROVED' || j.status === 'ACTIVE' || j.status === 'PUBLISHED').length}
-                            </div>
-                            <div className="text-xs text-slate-500">Vị trí đang mở nhận hồ sơ</div>
+                            <div className="text-xl font-bold text-indigo-700">{funnelData.interviewing}</div>
+                            <div className="text-xs text-slate-500">Ứng viên đang phỏng vấn</div>
                         </div>
                     </CardContent>
                 </Card>
 
                 <Card>
                     <CardContent className="p-5 flex items-center gap-3.5">
-                        <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center shrink-0">
-                            <Clock className="w-5 h-5" />
+                        <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
+                            <CheckCircle2 className="w-5 h-5" />
                         </div>
                         <div>
-                            <div className="text-xl font-bold text-slate-900">
-                                {jobs.filter(j => j.status === 'PENDING').length}
+                            <div className="text-xl font-bold text-emerald-700">
+                                {funnelData.offered}
                             </div>
-                            <div className="text-xs text-slate-500">Vị trí chờ Khoa duyệt</div>
+                            <div className="text-xs text-slate-500">Offer đã phát hành</div>
                         </div>
                     </CardContent>
                 </Card>
@@ -107,6 +119,14 @@ export default function CompanyDashboardView() {
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Funnel Chart Section */}
+            {applications.length > 0 && (
+                <RecruitmentFunnelChart
+                    data={funnelData}
+                    title="Tiến trình tuyển dụng & Phỏng vấn ứng viên"
+                />
+            )}
 
             {/* Recruitment Positions Table */}
             <Card>

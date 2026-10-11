@@ -39,6 +39,10 @@ export interface JobPosition {
     mandatorySkillIds?: string[];
     optionalSkillIds?: string[];
     deadline?: string;
+    applicationDeadline?: string;
+    closedEarlyAt?: string;
+    isExpired?: boolean;
+    isAcceptingApplications?: boolean;
     applicantCount?: number;
     experienceLevel?: string;
     bannerUrl?: string;

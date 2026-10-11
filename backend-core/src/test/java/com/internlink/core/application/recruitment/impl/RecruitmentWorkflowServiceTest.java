@@ -226,7 +226,6 @@ class RecruitmentWorkflowServiceTest {
         when(studentRosterRepository.findByTermIdAndClaimedUserId(
                         job.getTerm().getId(), student.getId()))
                 .thenReturn(Optional.of(roster));
-        when(securityGuard.currentUser()).thenReturn(CustomUserDetail.create(student));
         when(applicationRepository.existsByJobIdAndStudentId(job.getId(), student.getId()))
                 .thenReturn(false);
         when(documentRepository.findById(foreignCv.getId())).thenReturn(Optional.of(foreignCv));

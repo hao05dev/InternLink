@@ -65,7 +65,7 @@ export default function LearningAgreementView() {
 
             setAgreement(prev => prev ? {
                 ...prev,
-                status: 'PENDING_COMPANY',
+                status: 'PENDING_SIGNATURES',
                 studentSignedAt: new Date().toISOString(),
             } : null);
 

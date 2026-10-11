@@ -175,6 +175,11 @@ const PORTAL_NAV_MAP: Record<
         href: "/faculty/job-approvals",
         icon: CheckSquare,
       },
+      {
+        label: "Giấy giới thiệu TT",
+        href: "/faculty/introduction-letters",
+        icon: FileText,
+      },
       { label: "Phân công GVHD", href: "/faculty/assignments", icon: Layers },
       {
         label: "Tin tức & Blog",

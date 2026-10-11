@@ -43,7 +43,7 @@ describe('StudentLearningAgreementPage Component', () => {
                     startDate: '2026-10-01',
                     endDate: '2026-12-25',
                     workingDays: 'Thứ 2 - Thứ 6',
-                    status: 'PENDING_STUDENT',
+                    status: 'PENDING_SIGNATURES',
                     createdAt: '2026-09-20T00:00:00Z',
                 },
             ],

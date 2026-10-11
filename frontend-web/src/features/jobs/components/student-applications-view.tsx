@@ -19,7 +19,9 @@ import {
     CheckCircle2,
     XCircle,
     ArrowRight,
-    MapPin
+    MapPin,
+    Video,
+    ExternalLink
 } from 'lucide-react';
 import type { JobApplication, ApplicationStatus } from '@/features/jobs/types/application.types';
 
@@ -171,15 +173,29 @@ export default function StudentApplicationsView() {
 
                                         {/* Status specific alerts */}
                                         {app.status === 'INTERVIEW_SCHEDULED' && (
-                                            <div className="mt-3 p-3 bg-indigo-50 border border-indigo-200 rounded-lg text-xs text-indigo-900 flex items-start gap-2">
-                                                <Clock className="w-4 h-4 text-indigo-600 flex-shrink-0 mt-0.5" />
-                                                <div>
-                                                    <span className="font-semibold">Lịch phỏng vấn: </span>
-                                                    {app.interviewScheduledAt
-                                                        ? new Date(app.interviewScheduledAt).toLocaleString('vi-VN')
-                                                        : 'Đang sắp xếp'}
-                                                    {app.interviewLocation && ` — ${app.interviewLocation}`}
+                                            <div className="mt-3 p-3 bg-indigo-50 border border-indigo-200 rounded-lg text-xs text-indigo-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                                <div className="flex items-start gap-2">
+                                                    <Clock className="w-4 h-4 text-indigo-600 flex-shrink-0 mt-0.5" />
+                                                    <div>
+                                                        <span className="font-semibold">Lịch phỏng vấn: </span>
+                                                        {app.interviewScheduledAt
+                                                            ? new Date(app.interviewScheduledAt).toLocaleString('vi-VN')
+                                                            : 'Đang sắp xếp'}
+                                                        {app.interviewLocation && !app.interviewLocation.startsWith('http') && ` — ${app.interviewLocation}`}
+                                                    </div>
                                                 </div>
+                                                {(app.interviewLocation?.startsWith('http') || app.interviewRounds?.[0]?.meetingUrl) && (
+                                                    <a
+                                                        href={app.interviewRounds?.[0]?.meetingUrl || app.interviewLocation}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition-colors shadow-sm shrink-0 self-start sm:self-auto"
+                                                    >
+                                                        <Video className="w-3.5 h-3.5" />
+                                                        <span>Vào phòng họp</span>
+                                                        <ExternalLink className="w-3 h-3" />
+                                                    </a>
+                                                )}
                                             </div>
                                         )}
 
@@ -253,12 +269,26 @@ export default function StudentApplicationsView() {
 
                         {/* Interview info if scheduled */}
                         {selectedApp.status === 'INTERVIEW_SCHEDULED' && (
-                            <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-xl space-y-2">
-                                <h4 className="text-sm font-bold text-indigo-900 flex items-center gap-2">
-                                    <Clock className="w-4 h-4 text-indigo-600" />
-                                    Thông tin buổi phỏng vấn
-                                </h4>
-                                <div className="text-xs text-indigo-800 space-y-1">
+                            <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-xl space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <h4 className="text-sm font-bold text-indigo-900 flex items-center gap-2">
+                                        <Clock className="w-4 h-4 text-indigo-600" />
+                                        Thông tin buổi phỏng vấn
+                                    </h4>
+                                    {(selectedApp.interviewLocation?.startsWith('http') || selectedApp.interviewRounds?.[0]?.meetingUrl) && (
+                                        <a
+                                            href={selectedApp.interviewRounds?.[0]?.meetingUrl || selectedApp.interviewLocation}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition-colors shadow-sm text-xs"
+                                        >
+                                            <Video className="w-3.5 h-3.5" />
+                                            <span>Tham gia phòng họp</span>
+                                            <ExternalLink className="w-3 h-3" />
+                                        </a>
+                                    )}
+                                </div>
+                                <div className="text-xs text-indigo-800 space-y-1.5">
                                     <p>
                                         <strong>Thời gian:</strong>{' '}
                                         {selectedApp.interviewScheduledAt
@@ -267,11 +297,21 @@ export default function StudentApplicationsView() {
                                     </p>
                                     {selectedApp.interviewLocation && (
                                         <p>
-                                            <strong>Địa điểm:</strong> {selectedApp.interviewLocation}
+                                            <strong>{selectedApp.interviewLocation.startsWith('http') ? 'Liên kết phòng họp:' : 'Địa điểm:'}</strong>{' '}
+                                            {selectedApp.interviewLocation.startsWith('http') ? (
+                                                <a href={selectedApp.interviewLocation} target="_blank" rel="noopener noreferrer" className="underline text-indigo-700 font-medium break-all">
+                                                    {selectedApp.interviewLocation}
+                                                </a>
+                                            ) : selectedApp.interviewLocation}
+                                        </p>
+                                    )}
+                                    {selectedApp.interviewRounds?.[0]?.interviewer && (
+                                        <p>
+                                            <strong>Hội đồng / Người phỏng vấn:</strong> {selectedApp.interviewRounds[0].interviewer}
                                         </p>
                                     )}
                                     {selectedApp.interviewNote && (
-                                        <p>
+                                        <p className="p-2.5 bg-white/70 rounded-lg border border-indigo-100 mt-1">
                                             <strong>Lưu ý từ doanh nghiệp:</strong> {selectedApp.interviewNote}
                                         </p>
                                     )}

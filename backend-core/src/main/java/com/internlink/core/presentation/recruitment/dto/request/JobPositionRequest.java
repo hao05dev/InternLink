@@ -15,6 +15,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -43,6 +44,8 @@ public class JobPositionRequest {
 
     @NotBlank(message = "Địa điểm làm việc không được để trống")
     private String location;
+
+    private OffsetDateTime applicationDeadline;
 
     @NotNull(message = "Chỉ tiêu tuyển dụng không được để trống")
     @Min(value = 1, message = "Chỉ tiêu tuyển dụng tối thiểu là 1")

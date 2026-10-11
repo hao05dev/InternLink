@@ -4,6 +4,7 @@ from app.api.dependencies import ServicesDep
 from app.schemas.assistance import (
     JobReviewRequest, JobReviewResponse, JournalSummaryRequest,
     JournalSummaryResponse, LearningPlanRequest, LearningPlanResponse,
+    QueryParseRequest, QueryParseResponse,
 )
 from app.services.assistance_service import AssistanceService
 
@@ -28,3 +29,9 @@ def plan(request: LearningPlanRequest, services: ServicesDep):
         return AssistanceService(services.taxonomy).learning_plan(request)
     except ValueError:
         raise HTTPException(422, "unknown_skill") from None
+
+
+@router.post("/parse-query", response_model=QueryParseResponse)
+def parse_search_query(request: QueryParseRequest, services: ServicesDep):
+    return AssistanceService(services.taxonomy).parse_query(request)
+

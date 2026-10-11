@@ -31,13 +31,9 @@ const STATUS_MAP: Record<string, StatusConfig> = {
 
     // AgreementStatus
     DRAFT: { label: "Bản nháp", className: "bg-slate-100 text-slate-600 border-slate-200" },
+    PENDING_SIGNATURES: { label: "Chờ các bên ký", className: "bg-indigo-50 text-indigo-700 border-indigo-200" },
     PENDING_CONFIRMATION: { label: "Chờ xác nhận", className: "bg-amber-50 text-amber-700 border-amber-200" },
-    PENDING_STUDENT: { label: "Chờ SV ký", className: "bg-amber-50 text-amber-700 border-amber-200" },
-    PENDING_COMPANY: { label: "Chờ DN ký", className: "bg-indigo-50 text-indigo-700 border-indigo-200" },
-    PENDING_FACULTY: { label: "Chờ Khoa duyệt", className: "bg-teal-50 text-teal-700 border-teal-200" },
-    STUDENT_CONFIRMED: { label: "SV đã ký", className: "bg-sky-50 text-sky-700 border-sky-200" },
-    COMPANY_CONFIRMED: { label: "DN đã ký", className: "bg-indigo-50 text-indigo-700 border-indigo-200" },
-    FACULTY_CONFIRMED: { label: "Khoa đã ký", className: "bg-teal-50 text-teal-700 border-teal-200" },
+    REVISION_REQUESTED: { label: "Yêu cầu sửa đổi", className: "bg-amber-50 text-amber-700 border-amber-200" },
     APPROVED: { label: "Đã phê duyệt", className: "bg-emerald-50 text-emerald-700 border-emerald-200" },
 
     // LogbookStatus
