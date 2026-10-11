@@ -59,7 +59,7 @@ export default function JobSearchView() {
     }, [jobs, keyword, selectedLocation, selectedFormat, selectedMajor, onlyWithStipend]);
 
     const formatCurrency = (amount?: number) => {
-        if (!amount || amount === 0) return "Thương lượng / Phụ cấp dự án";
+        if (!amount || amount === 0) return "Thỏa thuận";
         return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(amount) + " / tháng";
     };
 
@@ -436,7 +436,7 @@ export default function JobSearchView() {
 
                                         {/* Job Brief Description */}
                                         <p className="mt-3.5 text-xs text-slate-600 line-clamp-2 leading-relaxed">
-                                            {job.description}
+                                            {job.description ? job.description.replace(/<[^>]*>/g, ' ').replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim() : ''}
                                         </p>
 
                                         {/* Skill tags */}

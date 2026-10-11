@@ -5,30 +5,20 @@ import { apiClient } from '@/lib/api-client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { StatusBadge } from '@/features/workflow/components/status-badge';
-import { Modal } from '@/components/ui/modal';
 import { EmptyState } from '@/components/ui/empty-state';
 import {
-    GraduationCap,
     UserCheck,
-    Calendar,
     CheckCircle2,
-    Users,
-    Search,
-    Filter,
-    Briefcase,
-    Building2,
-    UserX,
-    Clock,
     RotateCcw,
-    Layers,
-    Mail,
-    Phone,
     LayoutGrid,
-    ListFilter
+    Users,
 } from 'lucide-react';
 import type { InternshipPlacement } from '@/features/placements/types/placement.types';
+
+import { CompanyInternMetrics } from './company/company-intern-metrics';
+import { CompanyInternFilterBar } from './company/company-intern-filter-bar';
+import { CompanyInternCard } from './company/company-intern-card';
 
 export default function CompanyInternsView() {
     const [interns, setInterns] = useState<InternshipPlacement[]>([]);
@@ -37,6 +27,7 @@ export default function CompanyInternsView() {
 
     // Filters state
     const [searchQuery, setSearchQuery] = useState('');
+    const [selectedAcademicYear, setSelectedAcademicYear] = useState('ALL');
     const [selectedTermId, setSelectedTermId] = useState('ALL');
     const [selectedMentorId, setSelectedMentorId] = useState('ALL');
     const [selectedJobTitle, setSelectedJobTitle] = useState('ALL');
@@ -53,7 +44,7 @@ export default function CompanyInternsView() {
                 setInterns([]);
                 setMessage({
                     type: 'error',
-                    text: error instanceof Error ? error.message : 'Không tải được danh sách thực tập sinh.'
+                    text: error instanceof Error ? error.message : 'Không tải được danh sách thực tập sinh.',
                 });
             } finally {
                 setIsLoading(false);
@@ -63,27 +54,39 @@ export default function CompanyInternsView() {
         fetchInterns();
     }, []);
 
-    // Extract unique filter options from real data
-    const termsList = useMemo(() => {
-        const map = new Map<string, string>();
+    const academicYearsList = useMemo(() => {
+        const years = new Set<string>();
+        interns.forEach((item) => {
+            if (item.academicYear) years.add(item.academicYear.trim());
+        });
+        return Array.from(years).sort().reverse();
+    }, [interns]);
+
+    const availableTermsList = useMemo(() => {
+        const map = new Map<string, { id: string; name: string; academicYear?: string }>();
         interns.forEach((item) => {
             if (item.termId && item.termName) {
-                const label = item.academicYear ? `${item.termName} (${item.academicYear})` : item.termName;
-                map.set(item.termId, label);
+                if (selectedAcademicYear === 'ALL' || item.academicYear === selectedAcademicYear) {
+                    map.set(item.termId, { id: item.termId, name: item.termName, academicYear: item.academicYear });
+                }
             }
         });
-        return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
-    }, [interns]);
+        return Array.from(map.values());
+    }, [interns, selectedAcademicYear]);
+
+    const handleAcademicYearChange = (year: string) => {
+        setSelectedAcademicYear(year);
+        if (year !== 'ALL' && selectedTermId !== 'ALL') {
+            const belongs = interns.some((i) => i.termId === selectedTermId && i.academicYear === year);
+            if (!belongs) setSelectedTermId('ALL');
+        }
+    };
 
     const mentorsList = useMemo(() => {
         const map = new Map<string, { id: string; name: string; email?: string }>();
         interns.forEach((item) => {
             if (item.mentorId && item.mentorName) {
-                map.set(item.mentorId, {
-                    id: item.mentorId,
-                    name: item.mentorName,
-                    email: item.mentorEmail
-                });
+                map.set(item.mentorId, { id: item.mentorId, name: item.mentorName, email: item.mentorEmail });
             }
         });
         return Array.from(map.values());
@@ -92,14 +95,11 @@ export default function CompanyInternsView() {
     const jobsList = useMemo(() => {
         const set = new Set<string>();
         interns.forEach((item) => {
-            if (item.jobTitle) {
-                set.add(item.jobTitle.trim());
-            }
+            if (item.jobTitle) set.add(item.jobTitle.trim());
         });
         return Array.from(set).sort();
     }, [interns]);
 
-    // KPI Summary Metrics
     const metrics = useMemo(() => {
         const total = interns.length;
         const inProgress = interns.filter((i) => i.status === 'IN_PROGRESS' || i.status === 'ACTIVE').length;
@@ -108,84 +108,55 @@ export default function CompanyInternsView() {
         return { total, inProgress, unassignedMentor, completed };
     }, [interns]);
 
-    // Filter Logic
     const filteredInterns = useMemo(() => {
         const query = searchQuery.trim().toLowerCase();
         const now = new Date();
 
         return interns.filter((intern) => {
-            // Search Match
             if (query) {
                 const nameMatch = intern.studentName?.toLowerCase().includes(query);
                 const codeMatch = intern.studentCode?.toLowerCase().includes(query);
                 const emailMatch = intern.studentEmail?.toLowerCase().includes(query);
                 const jobMatch = intern.jobTitle?.toLowerCase().includes(query);
                 const mentorMatch = intern.mentorName?.toLowerCase().includes(query);
-                if (!nameMatch && !codeMatch && !emailMatch && !jobMatch && !mentorMatch) {
-                    return false;
-                }
+                if (!nameMatch && !codeMatch && !emailMatch && !jobMatch && !mentorMatch) return false;
             }
 
-            // Term Match
-            if (selectedTermId !== 'ALL' && intern.termId !== selectedTermId) {
-                return false;
-            }
+            if (selectedAcademicYear !== 'ALL' && intern.academicYear !== selectedAcademicYear) return false;
+            if (selectedTermId !== 'ALL' && intern.termId !== selectedTermId) return false;
 
-            // Mentor Match
             if (selectedMentorId === 'UNASSIGNED') {
                 if (intern.mentorId || intern.mentorName) return false;
             } else if (selectedMentorId !== 'ALL' && intern.mentorId !== selectedMentorId) {
                 return false;
             }
 
-            // Job Title Match
-            if (selectedJobTitle !== 'ALL' && intern.jobTitle !== selectedJobTitle) {
-                return false;
-            }
+            if (selectedJobTitle !== 'ALL' && intern.jobTitle !== selectedJobTitle) return false;
+            if (selectedStatus !== 'ALL' && intern.status !== selectedStatus) return false;
 
-            // Status Match
-            if (selectedStatus !== 'ALL' && intern.status !== selectedStatus) {
-                return false;
-            }
-
-            // Timeline Phase Match
             if (selectedTimeline !== 'ALL') {
                 if (!intern.startDate || !intern.endDate) return false;
                 const start = new Date(intern.startDate);
                 const end = new Date(intern.endDate);
-
-                if (selectedTimeline === 'ONGOING') {
-                    if (now < start || now > end) return false;
-                } else if (selectedTimeline === 'ENDING_SOON') {
+                if (selectedTimeline === 'ONGOING' && (now < start || now > end)) return false;
+                if (selectedTimeline === 'ENDING_SOON') {
                     const daysLeft = Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
                     if (daysLeft < 0 || daysLeft > 14) return false;
-                } else if (selectedTimeline === 'FINISHED') {
-                    if (now <= end) return false;
-                } else if (selectedTimeline === 'UPCOMING') {
-                    if (now >= start) return false;
                 }
+                if (selectedTimeline === 'FINISHED' && now <= end) return false;
+                if (selectedTimeline === 'UPCOMING' && now >= start) return false;
             }
 
             return true;
         });
-    }, [interns, searchQuery, selectedTermId, selectedMentorId, selectedJobTitle, selectedStatus, selectedTimeline]);
+    }, [interns, searchQuery, selectedAcademicYear, selectedTermId, selectedMentorId, selectedJobTitle, selectedStatus, selectedTimeline]);
 
-    // Grouping by Mentor for Group View
     const groupedByMentor = useMemo(() => {
-        const groups: { [key: string]: { mentorName: string; mentorEmail?: string; mentorPhone?: string; items: InternshipPlacement[] } } = {};
-
-        // Special bucket for unassigned
-        groups['unassigned'] = {
-            mentorName: 'Chưa phân công Mentor',
-            items: []
-        };
+        const groups: { [key: string]: { mentorName: string; mentorEmail?: string; items: InternshipPlacement[] } } = {};
+        groups['unassigned'] = { mentorName: 'Chưa phân công Mentor', items: [] };
 
         mentorsList.forEach((m) => {
-            groups[m.id] = {
-                mentorName: m.name,
-                mentorEmail: m.email,
-                items: []
-            };
+            groups[m.id] = { mentorName: m.name, mentorEmail: m.email, items: [] };
         });
 
         filteredInterns.forEach((intern) => {
@@ -195,9 +166,7 @@ export default function CompanyInternsView() {
                 groups[intern.mentorId].items.push(intern);
             } else {
                 const key = intern.mentorName || 'other';
-                if (!groups[key]) {
-                    groups[key] = { mentorName: intern.mentorName || 'Khác', items: [] };
-                }
+                if (!groups[key]) groups[key] = { mentorName: intern.mentorName || 'Khác', items: [] };
                 groups[key].items.push(intern);
             }
         });
@@ -207,6 +176,7 @@ export default function CompanyInternsView() {
 
     const resetFilters = () => {
         setSearchQuery('');
+        setSelectedAcademicYear('ALL');
         setSelectedTermId('ALL');
         setSelectedMentorId('ALL');
         setSelectedJobTitle('ALL');
@@ -215,7 +185,8 @@ export default function CompanyInternsView() {
     };
 
     const hasActiveFilters =
-        searchQuery ||
+        Boolean(searchQuery) ||
+        selectedAcademicYear !== 'ALL' ||
         selectedTermId !== 'ALL' ||
         selectedMentorId !== 'ALL' ||
         selectedJobTitle !== 'ALL' ||
@@ -238,7 +209,7 @@ export default function CompanyInternsView() {
 
     return (
         <div className="space-y-6 max-w-7xl">
-            {/* Page Header */}
+            {/* Header & View Mode Switcher */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight text-slate-900">
@@ -249,15 +220,12 @@ export default function CompanyInternsView() {
                     </p>
                 </div>
 
-                {/* View Switcher */}
                 <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200 self-start md:self-auto">
                     <button
                         type="button"
                         onClick={() => setViewMode('cards')}
                         className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                            viewMode === 'cards'
-                                ? 'bg-white text-slate-900 shadow-2xs'
-                                : 'text-slate-600 hover:text-slate-900'
+                            viewMode === 'cards' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                         }`}
                     >
                         <LayoutGrid className="w-3.5 h-3.5" />
@@ -267,9 +235,7 @@ export default function CompanyInternsView() {
                         type="button"
                         onClick={() => setViewMode('by-mentor')}
                         className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                            viewMode === 'by-mentor'
-                                ? 'bg-white text-slate-900 shadow-2xs'
-                                : 'text-slate-600 hover:text-slate-900'
+                            viewMode === 'by-mentor' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                         }`}
                     >
                         <Users className="w-3.5 h-3.5" />
@@ -284,219 +250,62 @@ export default function CompanyInternsView() {
                     role="alert"
                     aria-live="polite"
                     className={`p-4 rounded-xl flex items-center justify-between text-sm font-medium ${
-                        message.type === 'success'
-                            ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                            : 'bg-rose-50 text-rose-800 border border-rose-200'
+                        message.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'
                     }`}
                 >
                     <div className="flex items-center gap-3">
-                        <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+                        <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
                         <span>{message.text}</span>
                     </div>
-                    <button
-                        onClick={() => setMessage(null)}
-                        className="text-slate-400 hover:text-slate-600"
-                        aria-label="Đóng thông báo"
-                    >
+                    <button onClick={() => setMessage(null)} className="text-slate-400 hover:text-slate-600" aria-label="Đóng thông báo">
                         &times;
                     </button>
                 </div>
             )}
 
-            {/* KPI Summary Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-                <Card className="border-slate-200 bg-white">
-                    <CardContent className="p-4 flex items-center gap-3">
-                        <div className="p-2.5 rounded-xl bg-blue-50 text-blue-600">
-                            <Users className="w-5 h-5" />
-                        </div>
-                        <div>
-                            <p className="text-xs font-medium text-slate-500">Tổng thực tập sinh</p>
-                            <p className="text-xl font-bold text-slate-900">{metrics.total}</p>
-                        </div>
-                    </CardContent>
-                </Card>
+            {/* KPI Summary Metrics Component */}
+            <CompanyInternMetrics
+                total={metrics.total}
+                inProgress={metrics.inProgress}
+                unassignedMentor={metrics.unassignedMentor}
+                completed={metrics.completed}
+            />
 
-                <Card className="border-slate-200 bg-white">
-                    <CardContent className="p-4 flex items-center gap-3">
-                        <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600">
-                            <Clock className="w-5 h-5" />
-                        </div>
-                        <div>
-                            <p className="text-xs font-medium text-slate-500">Đang thực tập</p>
-                            <p className="text-xl font-bold text-emerald-600">{metrics.inProgress}</p>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card className="border-slate-200 bg-white">
-                    <CardContent className="p-4 flex items-center gap-3">
-                        <div className="p-2.5 rounded-xl bg-amber-50 text-amber-600">
-                            <UserX className="w-5 h-5" />
-                        </div>
-                        <div>
-                            <p className="text-xs font-medium text-slate-500">Chưa có Mentor</p>
-                            <p className="text-xl font-bold text-amber-600">{metrics.unassignedMentor}</p>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card className="border-slate-200 bg-white">
-                    <CardContent className="p-4 flex items-center gap-3">
-                        <div className="p-2.5 rounded-xl bg-indigo-50 text-indigo-600">
-                            <CheckCircle2 className="w-5 h-5" />
-                        </div>
-                        <div>
-                            <p className="text-xs font-medium text-slate-500">Đã hoàn thành</p>
-                            <p className="text-xl font-bold text-indigo-600">{metrics.completed}</p>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
-
-            {/* Advanced Filters Panel */}
-            <Card className="border-slate-200 bg-slate-50/50">
-                <CardContent className="p-4 md:p-5 space-y-4">
-                    <div className="flex items-center justify-between pb-2 border-b border-slate-200">
-                        <div className="flex items-center gap-2 text-xs font-bold text-slate-700 uppercase tracking-wider">
-                            <Filter className="w-3.5 h-3.5 text-blue-600" />
-                            <span>Bộ Lọc Nâng Cao</span>
-                            {hasActiveFilters && (
-                                <Badge variant="brand" className="text-[10px] px-1.5 py-0">
-                                    Đang lọc: {filteredInterns.length}/{interns.length}
-                                </Badge>
-                            )}
-                        </div>
-
-                        {hasActiveFilters && (
-                            <button
-                                type="button"
-                                onClick={resetFilters}
-                                className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 transition-colors"
-                            >
-                                <RotateCcw className="w-3 h-3" />
-                                <span>Đặt lại bộ lọc</span>
-                            </button>
-                        )}
-                    </div>
-
-                    {/* Filter Controls Grid */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
-                        {/* 1. Search Box */}
-                        <div className="space-y-1 lg:col-span-2 xl:col-span-1">
-                            <label className="text-xs font-semibold text-slate-700 flex items-center gap-1">
-                                <Search className="w-3 h-3 text-slate-400" />
-                                Tìm kiếm
-                            </label>
-                            <div className="relative">
-                                <Input
-                                    type="text"
-                                    placeholder="Tên, MSSV, Email..."
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="h-9 text-xs pl-8 bg-white"
-                                />
-                                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-                            </div>
-                        </div>
-
-                        {/* 2. Term Filter */}
-                        <div className="space-y-1">
-                            <label className="text-xs font-semibold text-slate-700 flex items-center gap-1">
-                                <Calendar className="w-3 h-3 text-sky-600" />
-                                Kỳ thực tập
-                            </label>
-                            <select
-                                value={selectedTermId}
-                                onChange={(e) => setSelectedTermId(e.target.value)}
-                                className="w-full h-9 px-2.5 rounded-xl border border-slate-200 bg-white text-xs font-medium text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-blue-500 cursor-pointer shadow-2xs"
-                            >
-                                <option value="ALL">Tất cả kỳ ({interns.length})</option>
-                                {termsList.map((t) => (
-                                    <option key={t.id} value={t.id}>
-                                        {t.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                        {/* 3. Mentor Filter */}
-                        <div className="space-y-1">
-                            <label className="text-xs font-semibold text-slate-700 flex items-center gap-1">
-                                <UserCheck className="w-3 h-3 text-emerald-600" />
-                                Cán bộ hướng dẫn (Mentor)
-                            </label>
-                            <select
-                                value={selectedMentorId}
-                                onChange={(e) => setSelectedMentorId(e.target.value)}
-                                className="w-full h-9 px-2.5 rounded-xl border border-slate-200 bg-white text-xs font-medium text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-blue-500 cursor-pointer shadow-2xs"
-                            >
-                                <option value="ALL">Tất cả Mentor</option>
-                                <option value="UNASSIGNED">⚠️ Chưa có Mentor ({metrics.unassignedMentor})</option>
-                                {mentorsList.map((m) => {
-                                    const count = interns.filter((i) => i.mentorId === m.id).length;
-                                    return (
-                                        <option key={m.id} value={m.id}>
-                                            {m.name} ({count} SV)
-                                        </option>
-                                    );
-                                })}
-                            </select>
-                        </div>
-
-                        {/* 4. Job Position / Posting Filter */}
-                        <div className="space-y-1">
-                            <label className="text-xs font-semibold text-slate-700 flex items-center gap-1">
-                                <Briefcase className="w-3 h-3 text-indigo-600" />
-                                Tin tuyển dụng / Vị trí
-                            </label>
-                            <select
-                                value={selectedJobTitle}
-                                onChange={(e) => setSelectedJobTitle(e.target.value)}
-                                className="w-full h-9 px-2.5 rounded-xl border border-slate-200 bg-white text-xs font-medium text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-blue-500 cursor-pointer shadow-2xs"
-                            >
-                                <option value="ALL">Tất cả vị trí</option>
-                                {jobsList.map((job) => {
-                                    const count = interns.filter((i) => i.jobTitle === job).length;
-                                    return (
-                                        <option key={job} value={job}>
-                                            {job} ({count})
-                                        </option>
-                                    );
-                                })}
-                            </select>
-                        </div>
-
-                        {/* 5. Timeline / Period Filter */}
-                        <div className="space-y-1">
-                            <label className="text-xs font-semibold text-slate-700 flex items-center gap-1">
-                                <Clock className="w-3 h-3 text-purple-600" />
-                                Giai đoạn thời gian
-                            </label>
-                            <select
-                                value={selectedTimeline}
-                                onChange={(e) => setSelectedTimeline(e.target.value)}
-                                className="w-full h-9 px-2.5 rounded-xl border border-slate-200 bg-white text-xs font-medium text-slate-800 focus:outline-hidden focus:ring-1 focus:ring-blue-500 cursor-pointer shadow-2xs"
-                            >
-                                <option value="ALL">Tất cả thời gian</option>
-                                <option value="ONGOING">Đang diễn ra</option>
-                                <option value="ENDING_SOON">Sắp kết thúc (≤ 14 ngày)</option>
-                                <option value="UPCOMING">Sắp bắt đầu</option>
-                                <option value="FINISHED">Đã kết thúc</option>
-                            </select>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
+            {/* Multi-Dimensional Filter Bar Component */}
+            <CompanyInternFilterBar
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                selectedAcademicYear={selectedAcademicYear}
+                academicYearsList={academicYearsList}
+                onAcademicYearChange={handleAcademicYearChange}
+                selectedTermId={selectedTermId}
+                availableTermsList={availableTermsList}
+                onTermChange={setSelectedTermId}
+                selectedMentorId={selectedMentorId}
+                mentorsList={mentorsList}
+                unassignedCount={metrics.unassignedMentor}
+                internsCountByMentor={(mentorId) => interns.filter((i) => i.mentorId === mentorId).length}
+                onMentorChange={setSelectedMentorId}
+                selectedJobTitle={selectedJobTitle}
+                jobsList={jobsList}
+                internsCountByJob={(job) => interns.filter((i) => i.jobTitle === job).length}
+                onJobTitleChange={setSelectedJobTitle}
+                selectedTimeline={selectedTimeline}
+                onTimelineChange={setSelectedTimeline}
+                totalCount={interns.length}
+                filteredCount={filteredInterns.length}
+                hasActiveFilters={hasActiveFilters}
+                onResetFilters={resetFilters}
+            />
 
             {/* Content Results */}
             {filteredInterns.length === 0 ? (
                 <EmptyState
-                    title={interns.length === 0 ? "Chưa có thực tập sinh tiếp nhận" : "Không tìm thấy kết quả phù hợp"}
+                    title={interns.length === 0 ? 'Chưa có thực tập sinh tiếp nhận' : 'Không tìm thấy kết quả phù hợp'}
                     description={
                         interns.length === 0
-                            ? "Doanh nghiệp chưa có sinh viên nào bắt đầu giai đoạn thực tập chính thức."
-                            : "Thử thay đổi hoặc đặt lại bộ lọc để xem danh sách sinh viên khác."
+                            ? 'Doanh nghiệp chưa có sinh viên nào bắt đầu giai đoạn thực tập chính thức.'
+                            : 'Thử thay đổi hoặc đặt lại bộ lọc để xem danh sách sinh viên khác.'
                     }
                     action={
                         hasActiveFilters ? (
@@ -508,152 +317,12 @@ export default function CompanyInternsView() {
                     }
                 />
             ) : viewMode === 'cards' ? (
-                /* Card List View */
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    {filteredInterns.map((intern) => {
-                        const now = new Date();
-                        const start = intern.startDate ? new Date(intern.startDate) : null;
-                        const end = intern.endDate ? new Date(intern.endDate) : null;
-                        let progress = 0;
-                        if (start && end && end > start) {
-                            const total = end.getTime() - start.getTime();
-                            const current = now.getTime() - start.getTime();
-                            progress = Math.min(100, Math.max(0, Math.round((current / total) * 100)));
-                        }
-
-                        return (
-                            <Card key={intern.id} className="hover:border-slate-300 transition-all shadow-2xs hover:shadow-sm">
-                                <CardContent className="p-5 space-y-4">
-                                    {/* Student Info & Status */}
-                                    <div className="flex items-start justify-between gap-3">
-                                        <div className="space-y-1">
-                                            <div className="flex items-center flex-wrap gap-2">
-                                                <h2 className="font-bold text-base text-slate-900">
-                                                    {intern.studentName}
-                                                </h2>
-                                                <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200">
-                                                    MSSV: {intern.studentCode || 'N/A'}
-                                                </span>
-                                            </div>
-
-                                            {(intern.studentEmail || intern.studentPhone) && (
-                                                <div className="flex items-center flex-wrap gap-3 text-xs text-slate-500 pt-0.5">
-                                                    {intern.studentEmail && (
-                                                        <span className="flex items-center gap-1">
-                                                            <Mail className="w-3 h-3 text-slate-400" />
-                                                            {intern.studentEmail}
-                                                        </span>
-                                                    )}
-                                                    {intern.studentPhone && (
-                                                        <span className="flex items-center gap-1">
-                                                            <Phone className="w-3 h-3 text-slate-400" />
-                                                            {intern.studentPhone}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        <StatusBadge status={intern.status} type="placement" />
-                                    </div>
-
-                                    {/* Position & Job details */}
-                                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-1.5">
-                                        <div className="flex items-center justify-between gap-2">
-                                            <div className="flex items-center gap-1.5 text-xs text-slate-600">
-                                                <Briefcase className="w-3.5 h-3.5 text-indigo-600 flex-shrink-0" />
-                                                <span className="font-medium text-slate-500">Vị trí trúng tuyển:</span>
-                                            </div>
-                                            {intern.source && (
-                                                <Badge variant="outline" className="text-[10px] py-0">
-                                                    {intern.source === 'PARTNER_PORTAL' ? 'Cổng CICT' : 'Tự liên hệ'}
-                                                </Badge>
-                                            )}
-                                        </div>
-                                        <div className="flex items-center flex-wrap gap-2">
-                                            <span className="font-bold text-sm text-slate-900">
-                                                {intern.jobTitle || 'Chưa cập nhật vị trí'}
-                                            </span>
-                                            {intern.workFormat && (
-                                                <Badge variant="brand" className="text-[10px] py-0">
-                                                    {intern.workFormat}
-                                                </Badge>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {/* Mentors & Lecturer info */}
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                                        {/* Mentor DN */}
-                                        <div className="p-2.5 rounded-xl border border-slate-100 bg-white">
-                                            <div className="flex items-center gap-1.5 text-slate-500 mb-1">
-                                                <UserCheck className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
-                                                <span className="font-semibold">Mentor Doanh Nghiệp:</span>
-                                            </div>
-                                            {intern.mentorName ? (
-                                                <div>
-                                                    <p className="font-bold text-slate-900">{intern.mentorName}</p>
-                                                    {intern.mentorEmail && (
-                                                        <p className="text-[11px] text-slate-500 truncate">{intern.mentorEmail}</p>
-                                                    )}
-                                                </div>
-                                            ) : (
-                                                <span className="text-amber-600 font-semibold italic flex items-center gap-1">
-                                                    <UserX className="w-3.5 h-3.5" />
-                                                    Chưa phân công
-                                                </span>
-                                            )}
-                                        </div>
-
-                                        {/* Lecturer CICT */}
-                                        <div className="p-2.5 rounded-xl border border-slate-100 bg-white">
-                                            <div className="flex items-center gap-1.5 text-slate-500 mb-1">
-                                                <GraduationCap className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
-                                                <span className="font-semibold">GVHD Khoa CICT:</span>
-                                            </div>
-                                            <p className="font-bold text-slate-900">
-                                                {intern.lecturerName || 'Khoa đang chỉ định'}
-                                            </p>
-                                            <p className="text-[11px] text-slate-500">
-                                                {intern.termName ? `${intern.termName}` : 'Kỳ thực tập'}
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    {/* Timeline & Progress */}
-                                    {intern.startDate && intern.endDate && (
-                                        <div className="pt-2 border-t border-slate-100 space-y-1.5">
-                                            <div className="flex items-center justify-between text-xs text-slate-600">
-                                                <span className="flex items-center gap-1 font-medium">
-                                                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                                                    {new Date(intern.startDate).toLocaleDateString('vi-VN')} –{' '}
-                                                    {new Date(intern.endDate).toLocaleDateString('vi-VN')}
-                                                </span>
-                                                <span className="font-bold text-slate-700">{progress}% thời gian</span>
-                                            </div>
-
-                                            {/* Progress Bar */}
-                                            <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                                <div
-                                                    className={`h-full transition-all rounded-full ${
-                                                        progress >= 100
-                                                            ? 'bg-emerald-500'
-                                                            : progress > 0
-                                                            ? 'bg-blue-600'
-                                                            : 'bg-slate-300'
-                                                    }`}
-                                                    style={{ width: `${progress}%` }}
-                                                />
-                                            </div>
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
-                        );
-                    })}
+                    {filteredInterns.map((intern) => (
+                        <CompanyInternCard key={intern.id} intern={intern} />
+                    ))}
                 </div>
             ) : (
-                /* Group by Mentor View */
                 <div className="space-y-6">
                     {groupedByMentor.map(([mentorKey, group]) => (
                         <div key={mentorKey} className="space-y-3">
@@ -681,9 +350,7 @@ export default function CompanyInternsView() {
                                     <Card key={intern.id} className="border-slate-200 hover:border-slate-300 shadow-2xs">
                                         <CardContent className="p-4 space-y-2.5">
                                             <div className="flex items-center justify-between gap-2">
-                                                <span className="font-bold text-sm text-slate-900">
-                                                    {intern.studentName}
-                                                </span>
+                                                <span className="font-bold text-sm text-slate-900">{intern.studentName}</span>
                                                 <StatusBadge status={intern.status} type="placement" />
                                             </div>
 

@@ -34,6 +34,10 @@ export interface JobApplication {
     studentCode?: string;
     coverLetter?: string;
     cvDocumentId?: string;
+    termId?: string;
+    termName?: string;
+    academicYear?: string;
+    semester?: string;
     status: ApplicationStatus;
     appliedAt: string;
     interviewRounds?: InterviewRound[];

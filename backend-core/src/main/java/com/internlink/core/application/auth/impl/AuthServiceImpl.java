@@ -6,11 +6,13 @@ import com.internlink.core.infrastructure.persistence.jpa.JpaUserRepository;
 import com.internlink.core.infrastructure.security.CookieUtils;
 import com.internlink.core.infrastructure.security.CustomUserDetail;
 import com.internlink.core.infrastructure.security.JwtUtil;
+import com.internlink.core.infrastructure.security.TokenRevocationService;
 import com.internlink.core.presentation.auth.dto.request.LoginRequest;
 import com.internlink.core.presentation.auth.dto.response.AuthResponse;
 import com.internlink.core.presentation.auth.dto.response.UserSummaryDto;
 import com.internlink.core.shared.exception.ResourceNotFoundException;
 import com.internlink.core.shared.exception.UnauthorizedException;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,8 +26,11 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.OffsetDateTime;
+import java.util.Date;
+import java.util.Optional;
 import java.util.UUID;
 
 @Slf4j
@@ -37,6 +42,7 @@ public class AuthServiceImpl implements AuthService {
     private final JwtUtil jwtUtil;
     private final CookieUtils cookieUtils;
     private final JpaUserRepository userRepository;
+    private final TokenRevocationService tokenRevocationService;
 
     @Override
     @Transactional
@@ -76,10 +82,30 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public void logout(HttpServletResponse response) {
+    public void logout(HttpServletRequest request, HttpServletResponse response) {
+        if (request != null) {
+            String token = extractToken(request);
+            if (StringUtils.hasText(token) && jwtUtil.validateToken(token)) {
+                String jti = jwtUtil.getJtiFromToken(token);
+                Date expiryDate = jwtUtil.getExpirationDateFromToken(token);
+                tokenRevocationService.revokeToken(jti, expiryDate);
+            }
+        }
         ResponseCookie deleteCookie = cookieUtils.deleteAccessTokenCookie();
         response.addHeader(HttpHeaders.SET_COOKIE, deleteCookie.toString());
         SecurityContextHolder.clearContext();
+    }
+
+    private String extractToken(HttpServletRequest request) {
+        Optional<String> tokenFromCookie = cookieUtils.extractTokenFromCookie(request);
+        if (tokenFromCookie.isPresent()) {
+            return tokenFromCookie.get();
+        }
+        String bearerToken = request.getHeader(HttpHeaders.AUTHORIZATION);
+        if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
+            return bearerToken.substring(7);
+        }
+        return null;
     }
 
     @Override

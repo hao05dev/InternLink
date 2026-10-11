@@ -19,9 +19,10 @@ import {
     XCircle,
     Eye,
     MessageSquare,
-    AlertCircle
+    AlertCircle,
 } from 'lucide-react';
 import type { JobPosition, JobStatus } from '@/features/jobs/types/recruitment.types';
+import { MediaRichContent } from '@/components/ui/media-rich-content';
 
 export default function FacultyJobApprovalsView() {
     const [jobs, setJobs] = useState<JobPosition[]>([]);
@@ -155,17 +156,22 @@ export default function FacultyJobApprovalsView() {
                                                 <Users className="w-4 h-4 text-slate-400" />
                                                 <span>Chỉ tiêu: {job.vacancies}</span>
                                             </div>
-                                            {job.stipendAmount ? (
+                                            {job.stipendAmount && job.stipendAmount > 0 ? (
                                                 <div className="flex items-center gap-1.5 font-medium text-emerald-700">
                                                     <DollarSign className="w-4 h-4" />
                                                     <span>{job.stipendAmount.toLocaleString('vi-VN')} đ/tháng</span>
                                                 </div>
-                                            ) : null}
+                                            ) : (
+                                                <div className="flex items-center gap-1.5 font-medium text-slate-500">
+                                                    <DollarSign className="w-4 h-4 text-slate-400" />
+                                                    <span>Thỏa thuận</span>
+                                                </div>
+                                            )}
                                         </div>
 
-                                        <p className="text-xs text-slate-700 leading-relaxed bg-slate-50 p-3 rounded-lg border border-slate-200">
-                                            {job.description}
-                                        </p>
+                                        <div className="text-xs text-slate-700 leading-relaxed bg-slate-50/80 p-4 rounded-xl border border-slate-200 shadow-2xs">
+                                            <MediaRichContent text={job.description} />
+                                        </div>
 
                                         {/* Skills tags */}
                                         {job.skills && job.skills.length > 0 && (

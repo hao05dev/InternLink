@@ -19,7 +19,11 @@ import com.internlink.core.presentation.recruitment.dto.request.RecordInterviewR
 import com.internlink.core.presentation.recruitment.dto.request.ScheduleInterviewRequest;
 import com.internlink.core.presentation.recruitment.dto.response.InterviewRoundDto;
 import com.internlink.core.presentation.recruitment.dto.response.JobApplicationResponse;
+import com.internlink.core.shared.api.PageParam;
+import com.internlink.core.shared.api.PageResponse;
+import com.internlink.core.shared.api.PaginatedResponseMapper;
 import com.internlink.core.shared.enums.ApplicationStatus;
+import org.springframework.data.domain.Page;
 import com.internlink.core.shared.enums.DocumentType;
 import com.internlink.core.shared.enums.EligibilityStatus;
 import com.internlink.core.shared.enums.InterviewFormat;
@@ -58,6 +62,7 @@ public class JobApplicationServiceImpl implements JobApplicationService {
     private final JpaPlacementOfferRepository offerRepository;
     private final SecurityGuard securityGuard;
     private final com.internlink.core.application.system.NotificationService notifications;
+    private final PaginatedResponseMapper paginatedResponseMapper;
 
     /** Giới hạn số đơn ứng tuyển đang hoạt động trong một kỳ. */
     private static final int MAX_ACTIVE_APPLICATIONS_PER_TERM = 5;
@@ -74,6 +79,15 @@ public class JobApplicationServiceImpl implements JobApplicationService {
 
     @Override
     @Transactional(readOnly = true)
+    public PageResponse<JobApplicationResponse> getApplicationsByStudentPage(UUID studentId, PageParam pageParam) {
+        User actor = currentActor();
+        ResourceAuthorization.require(ResourceAuthorization.isAdmin(actor) || actor.getId().equals(studentId));
+        Page<JobApplication> page = applicationRepository.findByStudentId(studentId, pageParam.toPageable());
+        return paginatedResponseMapper.toPageResponse(page, this::mapToResponse);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<JobApplicationResponse> getApplicationsByJob(UUID jobId) {
         JobPosition job = jobPositionRepository.findById(jobId)
             .orElseThrow(() -> new ResourceNotFoundException("JobPosition", "id", jobId));
@@ -83,6 +97,18 @@ public class JobApplicationServiceImpl implements JobApplicationService {
         return applicationRepository.findByJobId(jobId).stream()
             .map(this::mapToResponse)
             .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResponse<JobApplicationResponse> getApplicationsByJobPage(UUID jobId, PageParam pageParam) {
+        JobPosition job = jobPositionRepository.findById(jobId)
+            .orElseThrow(() -> new ResourceNotFoundException("JobPosition", "id", jobId));
+        User actor = currentActor();
+        ResourceAuthorization.require(ResourceAuthorization.representsCompany(actor, job.getCompany().getId())
+            || ResourceAuthorization.managesDepartment(actor, job.getDepartment().getId()));
+        Page<JobApplication> page = applicationRepository.findByJobId(jobId, pageParam.toPageable());
+        return paginatedResponseMapper.toPageResponse(page, this::mapToResponse);
     }
 
     @Override
@@ -421,18 +447,25 @@ public class JobApplicationServiceImpl implements JobApplicationService {
             }
         }
 
+        var job = entity.getJob();
+        var term = job != null ? job.getTerm() : null;
+
         return JobApplicationResponse.builder()
             .id(entity.getId())
-            .jobId(entity.getJob().getId())
-            .jobTitle(entity.getJob().getTitle())
-            .companyName(entity.getJob().getCompany().getCompanyName())
-            .studentId(entity.getStudent().getId())
-            .studentName(entity.getStudent().getFullName())
-            .studentEmail(entity.getStudent().getEmail())
-            .submittedCvDocumentId(entity.getSubmittedCvDocument().getId())
+            .jobId(job != null ? job.getId() : null)
+            .jobTitle(job != null ? job.getTitle() : null)
+            .companyName(job != null && job.getCompany() != null ? job.getCompany().getCompanyName() : null)
+            .studentId(entity.getStudent() != null ? entity.getStudent().getId() : null)
+            .studentName(entity.getStudent() != null ? entity.getStudent().getFullName() : null)
+            .studentEmail(entity.getStudent() != null ? entity.getStudent().getEmail() : null)
+            .submittedCvDocumentId(entity.getSubmittedCvDocument() != null ? entity.getSubmittedCvDocument().getId() : null)
             .coverLetter(entity.getCoverLetter())
             .aiMatchDetail(entity.getAiMatchDetail())
             .interviewRounds(roundDtos)
+            .termId(term != null ? term.getId() : null)
+            .termName(term != null ? term.getTermName() : null)
+            .academicYear(term != null ? term.getAcademicYear() : null)
+            .semester(term != null ? term.getSemester() : null)
             .status(entity.getStatus())
             .submittedAt(entity.getSubmittedAt())
             .updatedAt(entity.getUpdatedAt())

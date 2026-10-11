@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { AcademicTermFilter } from '@/components/ui/academic-term-filter';
 import { Info, AlertCircle } from 'lucide-react';
+import { StipendInputField } from './stipend-input-field';
 
 interface JobBasicInfoSectionProps {
     terms: any[];
@@ -24,6 +25,8 @@ interface JobBasicInfoSectionProps {
     onVacanciesChange: (val: string) => void;
     stipendAmount: string;
     onStipendChange: (val: string) => void;
+    isNegotiable?: boolean;
+    onNegotiableChange?: (val: boolean) => void;
     isTermClosed?: boolean;
 }
 
@@ -44,6 +47,8 @@ export function JobBasicInfoSection({
     onVacanciesChange,
     stipendAmount,
     onStipendChange,
+    isNegotiable = false,
+    onNegotiableChange,
     isTermClosed,
 }: JobBasicInfoSectionProps) {
     return (
@@ -112,14 +117,12 @@ export function JobBasicInfoSection({
                         onChange={(e) => onVacanciesChange(e.target.value)}
                         required
                     />
-                    <Input
-                        label="Mức phụ cấp (VNĐ/tháng)"
-                        type="number"
-                        step="500000"
-                        min="0"
-                        value={stipendAmount}
-                        onChange={(e) => onStipendChange(e.target.value)}
-                        placeholder="VD: 4000000"
+                    <StipendInputField
+                        stipendAmount={stipendAmount}
+                        onStipendChange={onStipendChange}
+                        isNegotiable={isNegotiable}
+                        onNegotiableChange={onNegotiableChange}
+                        disabled={isTermClosed}
                     />
                 </div>
 

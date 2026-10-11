@@ -70,7 +70,8 @@ class JobApplicationServiceTest {
             studentRosterRepository,
             offerRepository,
             securityGuard,
-            notifications
+            notifications,
+            new com.internlink.core.shared.api.PaginatedResponseMapper()
         );
 
         department = Department.builder().name("Khoa CNTT").code("DI").build();

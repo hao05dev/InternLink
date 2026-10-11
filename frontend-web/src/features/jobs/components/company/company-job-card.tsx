@@ -18,7 +18,7 @@ interface CompanyJobCardProps {
 export function CompanyJobCard({ job, onSubmitReview, isSubmittingReview }: CompanyJobCardProps) {
     const isClosed = job.termStatus === 'CLOSED' || job.status === 'CLOSED';
     const canEdit = (job.status === 'DRAFT' || job.status === 'REJECTED') && !isClosed;
-    const canSubmit = job.status === 'DRAFT' && !isClosed;
+    const canSubmit = (job.status === 'DRAFT' || job.status === 'REJECTED') && !isClosed;
 
     return (
         <Card className="hover:border-slate-300 transition-colors overflow-hidden">
@@ -51,16 +51,21 @@ export function CompanyJobCard({ job, onSubmitReview, isSubmittingReview }: Comp
                             <Users className="w-3.5 h-3.5 text-slate-400" />
                             <span>Chỉ tiêu: {job.vacancies} SV</span>
                         </div>
-                        {job.stipendAmount ? (
+                        {job.stipendAmount && job.stipendAmount > 0 ? (
                             <div className="flex items-center gap-1 font-medium text-emerald-700">
                                 <DollarSign className="w-3.5 h-3.5" />
                                 <span>{job.stipendAmount.toLocaleString('vi-VN')} đ/tháng</span>
                             </div>
-                        ) : null}
+                        ) : (
+                            <div className="flex items-center gap-1 font-medium text-slate-500">
+                                <DollarSign className="w-3.5 h-3.5 text-slate-400" />
+                                <span>Thỏa thuận</span>
+                            </div>
+                        )}
                     </div>
 
                     <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">
-                        {job.description}
+                        {job.description ? job.description.replace(/<[^>]*>/g, ' ').replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim() : ''}
                     </p>
 
                     <div className="flex flex-wrap items-center gap-1.5 pt-1">
@@ -104,7 +109,7 @@ export function CompanyJobCard({ job, onSubmitReview, isSubmittingReview }: Comp
                             className="gap-1.5 text-xs h-8 w-full md:w-auto"
                         >
                             <Send className="w-3.5 h-3.5" />
-                            <span>Gửi duyệt</span>
+                            <span>{job.status === 'REJECTED' ? 'Gửi lại duyệt' : 'Gửi duyệt'}</span>
                         </Button>
                     )}
                 </div>

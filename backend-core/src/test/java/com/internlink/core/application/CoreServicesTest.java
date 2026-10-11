@@ -22,6 +22,7 @@ import com.internlink.core.infrastructure.persistence.jpa.*;
 import com.internlink.core.infrastructure.security.CookieUtils;
 import com.internlink.core.infrastructure.security.CustomUserDetail;
 import com.internlink.core.infrastructure.security.JwtUtil;
+import com.internlink.core.infrastructure.security.TokenRevocationService;
 import com.internlink.core.presentation.auth.dto.request.LoginRequest;
 import com.internlink.core.presentation.company.dto.request.CompanyRequest;
 import com.internlink.core.presentation.exception_case.dto.request.InternshipCaseRequest;
@@ -72,6 +73,7 @@ class CoreServicesTest {
     @Mock AuthenticationManager authenticationManager;
     @Mock JwtUtil jwtUtil;
     @Mock CookieUtils cookieUtils;
+    @Mock TokenRevocationService tokenRevocationService;
     @Mock HttpServletResponse servletResponse;
 
     @BeforeEach
@@ -280,7 +282,8 @@ class CoreServicesTest {
                         securityGuard,
                         placementMapper,
                         transitionValidator,
-                        notificationHelper);
+                        notificationHelper,
+                        new com.internlink.core.shared.api.PaginatedResponseMapper());
         LearningAgreement agreement =
                 LearningAgreement.builder().status(AgreementStatus.DRAFT).build();
         agreement.setId(UUID.randomUUID());
@@ -336,7 +339,7 @@ class CoreServicesTest {
     @Test
     void authMapsBadCredentialsToDomainUnauthorizedException() {
         AuthServiceImpl service =
-                new AuthServiceImpl(authenticationManager, jwtUtil, cookieUtils, userRepository);
+                new AuthServiceImpl(authenticationManager, jwtUtil, cookieUtils, userRepository, tokenRevocationService);
         when(authenticationManager.authenticate(any()))
                 .thenThrow(new BadCredentialsException("bad"));
 
@@ -354,7 +357,7 @@ class CoreServicesTest {
     @Test
     void authCurrentUserRequiresAuthenticatedPrincipal() {
         AuthServiceImpl service =
-                new AuthServiceImpl(authenticationManager, jwtUtil, cookieUtils, userRepository);
+                new AuthServiceImpl(authenticationManager, jwtUtil, cookieUtils, userRepository, tokenRevocationService);
 
         assertThatThrownBy(service::getCurrentUser).isInstanceOf(UnauthorizedException.class);
     }

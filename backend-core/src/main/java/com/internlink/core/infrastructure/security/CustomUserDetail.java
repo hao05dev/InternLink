@@ -26,6 +26,7 @@ public class CustomUserDetail implements UserDetails {
     private final String fullName;
     private final UserRole role;
     private final boolean isActive;
+    private final java.time.OffsetDateTime passwordChangedAt;
     private final Collection<? extends GrantedAuthority> authorities;
 
     public static CustomUserDetail create(User user) {
@@ -40,6 +41,7 @@ public class CustomUserDetail implements UserDetails {
             .fullName(user.getFullName())
             .role(user.getRole())
             .isActive(Boolean.TRUE.equals(user.getIsActive()))
+            .passwordChangedAt(user.getPasswordChangedAt())
             .authorities(authorities)
             .build();
     }

@@ -53,6 +53,7 @@ $RECYCLE.BIN/
 !docs/
 docs/*
 /docs
+!AGENTS.md
 /.vscode
 !docs/IMPLEMENTATION_FILE_MAP.md
 !docs/NOTIFICATIONS_EMAIL_R2_PLAN.md
@@ -78,6 +79,7 @@ docker-compose.yml
 # Agent & AI Editor Temporary Directories
 **/.agent/
 **/.agents/
+!**/.agents/rules/**
 **/skills-lock.json
 
 # --------------------------------------------------------------------

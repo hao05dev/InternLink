@@ -88,7 +88,8 @@ class RecruitmentWorkflowServiceTest {
                         notifHelper,
                         mock(
                                 com.internlink.core.application.system.upload.MediaReferencePolicy
-                                        .class));
+                                        .class),
+                        new com.internlink.core.shared.api.PaginatedResponseMapper());
         applicationService =
                 new JobApplicationServiceImpl(
                         applicationRepository,
@@ -99,7 +100,8 @@ class RecruitmentWorkflowServiceTest {
                         studentRosterRepository,
                         offerRepository,
                         securityGuard,
-                        notificationService);
+                        notificationService,
+                        new com.internlink.core.shared.api.PaginatedResponseMapper());
         offerService =
                 new PlacementOfferServiceImpl(
                         offerRepository,

@@ -228,9 +228,13 @@ export function SmartJobSearch({ termId, onSelectJob, className }: SmartJobSearc
                                                 <MapPin className="w-3.5 h-3.5" />
                                                 {job.location}
                                             </span>
-                                            {job.stipendAmount && (
+                                            {job.stipendAmount && job.stipendAmount > 0 ? (
                                                 <span className="text-emerald-600 font-medium">
                                                     {job.stipendAmount.toLocaleString("vi-VN")} đ
+                                                </span>
+                                            ) : (
+                                                <span className="text-slate-500 font-medium">
+                                                    Thỏa thuận
                                                 </span>
                                             )}
                                         </div>

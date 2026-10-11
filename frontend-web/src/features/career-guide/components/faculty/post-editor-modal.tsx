@@ -234,6 +234,7 @@ export function PostEditorModal({
                 contextId: editingPost?.authorUserId,
               }}
               onUploadStateChange={uploadState}
+              showTemplateButton={false}
             />
           </div>
 

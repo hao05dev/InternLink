@@ -152,4 +152,13 @@ export const jobService = {
         const response = await apiClient.get<any>(`/api/v1/jobs/public/parse-query?query=${encodeURIComponent(query)}`);
         return response.data;
     },
+
+    getTaxonomySkills: async (): Promise<Array<{ id: string; skillName: string }>> => {
+        try {
+            const response = await apiClient.get<Array<{ id: string; skillName: string }>>("/api/v1/matching/skills/taxonomy");
+            return response.data || [];
+        } catch {
+            return [];
+        }
+    },
 };

@@ -9,6 +9,7 @@ import { StatusBadge } from '@/features/workflow/components/status-badge';
 import { ArrowLeft, Edit3, Send, MapPin, Users, DollarSign, Clock, AlertCircle, Paperclip } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import { JobPosition } from '@/features/jobs/types/job.types';
+import { MediaRichContent } from '@/components/ui/media-rich-content';
 
 interface CompanyJobDetailViewProps {
     jobId: string;
@@ -68,10 +69,10 @@ export function CompanyJobDetailView({ jobId }: CompanyJobDetailViewProps) {
                             </Button>
                         </Link>
                     )}
-                    {job.status === 'DRAFT' && !isClosed && (
+                    {(job.status === 'DRAFT' || job.status === 'REJECTED') && !isClosed && (
                         <Button variant="primary" size="sm" onClick={handleSubmitReview} className="gap-1.5 text-xs">
                             <Send className="w-4 h-4" />
-                            <span>Gửi duyệt Khoa</span>
+                            <span>{job.status === 'REJECTED' ? 'Gửi lại duyệt Khoa' : 'Gửi duyệt Khoa'}</span>
                         </Button>
                     )}
                 </div>
@@ -101,14 +102,14 @@ export function CompanyJobDetailView({ jobId }: CompanyJobDetailViewProps) {
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 rounded-xl bg-slate-50 border border-slate-100 text-xs">
                         <div><p className="text-slate-500">Hình thức</p><p className="font-semibold text-slate-800 mt-0.5">{job.workFormat}</p></div>
                         <div><p className="text-slate-500">Chỉ tiêu</p><p className="font-semibold text-slate-800 mt-0.5">{job.vacancies} SV</p></div>
-                        <div><p className="text-slate-500">Phụ cấp</p><p className="font-semibold text-emerald-700 mt-0.5">{job.stipendAmount ? `${job.stipendAmount.toLocaleString('vi-VN')} đ/th` : 'Thỏa thuận'}</p></div>
+                        <div><p className="text-slate-500">Phụ cấp</p><p className="font-semibold text-emerald-700 mt-0.5">{job.stipendAmount && job.stipendAmount > 0 ? `${job.stipendAmount.toLocaleString('vi-VN')} đ/tháng` : 'Thỏa thuận'}</p></div>
                         <div><p className="text-slate-500">Địa điểm</p><p className="font-semibold text-slate-800 mt-0.5 line-clamp-1">{job.location}</p></div>
                     </div>
 
                     <div>
                         <h3 className="text-sm font-bold text-slate-900 mb-2">Mô tả công việc & Yêu cầu:</h3>
-                        <div className="text-xs text-slate-700 leading-relaxed whitespace-pre-line p-4 rounded-xl bg-slate-50/50 border border-slate-100">
-                            {job.description}
+                        <div className="text-xs text-slate-700 leading-relaxed p-4 rounded-xl bg-slate-50/70 border border-slate-200">
+                            <MediaRichContent text={job.description} />
                         </div>
                     </div>
 

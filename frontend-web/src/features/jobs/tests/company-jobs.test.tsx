@@ -158,10 +158,35 @@ describe('Company Jobs Management & Full-Page Form', () => {
         await waitFor(() => {
             expect(apiClient.post).toHaveBeenCalledWith('/api/v1/jobs', expect.objectContaining({
                 title: 'Frontend Developer Intern',
-                description: 'Mô tả chi tiết công việc',
+                description: expect.stringContaining('Mô tả chi tiết công việc'),
             }));
             expect(mockPush).toHaveBeenCalledWith('/company/jobs');
         });
+    });
+
+    it('restores draft from localStorage when creating new job', async () => {
+        localStorage.setItem(
+            'internlink_job_draft_comp-1',
+            JSON.stringify({
+                title: 'Bản nháp đã lưu',
+                description: 'Nội dung mô tả đã lưu trong bản nháp',
+                updatedAt: new Date().toISOString(),
+            })
+        );
+
+        render(<CompanyJobFormView mode="create" />);
+
+        await waitFor(() => {
+            expect(screen.getByText(/Hệ thống đã tự động khôi phục bản nháp/i)).toBeInTheDocument();
+        });
+
+        const titleInput = screen.getByLabelText(/Tiêu đề vị trí thực tập \*/i) as HTMLInputElement;
+        expect(titleInput.value).toBe('Bản nháp đã lưu');
+
+        const clearBtn = screen.getByRole('button', { name: /Xóa bản nháp & làm mới/i });
+        fireEvent.click(clearBtn);
+
+        expect(titleInput.value).toBe('');
     });
 
     it('renders company job detail view with KPIs and description', async () => {

@@ -76,11 +76,16 @@ export interface StatusBadgeProps {
     className?: string;
 }
 
-export function StatusBadge({ status, customLabel, className }: StatusBadgeProps) {
-    const config = STATUS_MAP[status] || {
-        label: customLabel || status,
-        className: "bg-slate-100 text-slate-700 border-slate-200",
-    };
+export function StatusBadge({ status, type, customLabel, className }: StatusBadgeProps) {
+    let config = STATUS_MAP[status];
+    if (type === "job" && status === "REJECTED") {
+        config = { label: "Yêu cầu điều chỉnh", className: "bg-amber-50 text-amber-700 border-amber-200" };
+    } else if (!config) {
+        config = {
+            label: customLabel || status,
+            className: "bg-slate-100 text-slate-700 border-slate-200",
+        };
+    }
 
     return (
         <span

@@ -4,7 +4,8 @@ import React from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { RichEditor } from "@/components/ui/rich-editor";
-import { FileText, Sparkles } from "lucide-react";
+import { FileText } from "lucide-react";
+import { JobSkillInputField } from "./job-skill-input-field";
 
 interface JobDescriptionSectionProps {
   companyId: string;
@@ -15,6 +16,7 @@ interface JobDescriptionSectionProps {
   onSkillsChange: (val: string) => void;
   benefitsText: string;
   onBenefitsChange: (val: string) => void;
+  disabled?: boolean;
 }
 
 export function JobDescriptionSection({
@@ -26,6 +28,7 @@ export function JobDescriptionSection({
   onSkillsChange,
   benefitsText,
   onBenefitsChange,
+  disabled = false,
 }: JobDescriptionSectionProps) {
   return (
     <Card className="border border-slate-200">
@@ -36,6 +39,7 @@ export function JobDescriptionSection({
         </CardTitle>
       </CardHeader>
       <CardContent className="p-5 space-y-4">
+        {/* Rich text editor cho Mô tả công việc */}
         <div className="space-y-1.5">
           <label className="block text-xs font-semibold text-slate-700">
             Mô tả công việc & Yêu cầu chi tiết *
@@ -50,21 +54,25 @@ export function JobDescriptionSection({
           />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-          <Input
-            label="Kỹ năng yêu cầu (phân cách bằng dấu phẩy) *"
+        <div className="space-y-4 pt-2">
+          {/* Ô nhập kỹ năng dạng Tag, Autocomplete và Chọn nhanh */}
+          <JobSkillInputField
             value={skillsText}
-            onChange={(e) => onSkillsChange(e.target.value)}
-            placeholder="VD: Java, Spring Boot, React, Git, Docker"
-            hint="Hệ thống sẽ đối sánh tự động với hồ sơ năng lực của sinh viên CICT"
+            onChange={onSkillsChange}
+            disabled={disabled}
           />
-          <Input
-            label="Quyền lợi & Phúc lợi khác (tùy chọn)"
-            value={benefitsText}
-            onChange={(e) => onBenefitsChange(e.target.value)}
-            placeholder="VD: Cơ hội tuyển chính thức sau thực tập, Hỗ trợ gửi xe, Mentor 1-1"
-            hint="Phân cách các quyền lợi bằng dấu phẩy"
-          />
+
+          {/* Ô nhập quyền lợi & phúc lợi khác */}
+          <div className="pt-2">
+            <Input
+              disabled={disabled}
+              label="Quyền lợi & Phúc lợi khác (tùy chọn)"
+              value={benefitsText}
+              onChange={(e) => onBenefitsChange(e.target.value)}
+              placeholder="VD: Cơ hội tuyển chính thức sau thực tập, Hỗ trợ gửi xe, Mentor 1-1"
+              hint="Phân cách các quyền lợi bằng dấu phẩy"
+            />
+          </div>
         </div>
       </CardContent>
     </Card>

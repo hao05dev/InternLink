@@ -1,437 +1,318 @@
-"use client";
+'use client';
 
-import React, { useState, useRef } from "react";
-import { MediaImageInput } from "./media-image-input";
-import { MediaRichContent } from "./media-rich-content";
-import type { MediaScope } from "@/lib/media-upload";
-import { Button } from "@/components/ui/button";
-import {
-  Bold,
-  Italic,
-  Strikethrough,
-  Heading1,
-  Heading2,
-  Heading3,
-  List,
-  ListOrdered,
-  Quote,
-  Code,
-  Link as LinkIcon,
-  Image as ImageIcon,
-  Eye,
-  Edit3,
-  Columns,
-  Minus,
-  Table,
-  HelpCircle,
-} from "lucide-react";
+import React, { useState, useRef, useEffect } from 'react';
+import { useEditor, EditorContent, useEditorState } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import Image from '@tiptap/extension-image';
+import Link from '@tiptap/extension-link';
+import { uploadMedia, type MediaScope } from '@/lib/media-upload';
+import { MediaRichContent } from './media-rich-content';
+import { RichEditorToolbar, type EditorViewMode } from './rich-editor-toolbar';
+import { RichEditorLinkBar } from './rich-editor-link-bar';
+import { JOB_TEMPLATE_HTML } from './rich-editor-templates';
+import { Eye } from 'lucide-react';
+import './rich-editor.css';
 
-interface RichEditorProps {
-  mediaScope?: MediaScope;
-  onUploadStateChange?: (busy: boolean) => void;
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-  minHeight?: string;
-  label?: string;
-  description?: string;
-  required?: boolean;
+export interface RichEditorProps {
+    mediaScope?: MediaScope;
+    onUploadStateChange?: (busy: boolean) => void;
+    value: string;
+    onChange: (value: string) => void;
+    placeholder?: string;
+    minHeight?: string;
+    label?: string;
+    description?: string;
+    required?: boolean;
+    disabled?: boolean;
+    showTemplateButton?: boolean;
 }
 
 export function RichEditor({
-  value,
-  onChange,
-  mediaScope,
-  onUploadStateChange,
-  placeholder = "Nhập nội dung bài viết / mô tả chi tiết tại đây...",
-  minHeight = "350px",
-  label,
-  description,
-  required = false,
+    value,
+    onChange,
+    mediaScope,
+    onUploadStateChange,
+    placeholder = 'Nhập nội dung mô tả chi tiết tại đây...',
+    minHeight = '240px',
+    label,
+    description,
+    required = false,
+    disabled = false,
+    showTemplateButton = true,
 }: RichEditorProps) {
-  const [viewMode, setViewMode] = useState<"write" | "preview" | "split">(
-    "write",
-  );
-  const [showImageDialog, setShowImageDialog] = useState(false);
-  const [imageUrl, setImageUrl] = useState("");
-  const [imageAlt, setImageAlt] = useState("");
-  const [showLinkDialog, setShowLinkDialog] = useState(false);
-  const [linkText, setLinkText] = useState("");
-  const [linkUrl, setLinkUrl] = useState("");
+    const [viewMode, setViewMode] = useState<EditorViewMode>('write');
+    const [showLinkDialog, setShowLinkDialog] = useState(false);
+    const [linkUrl, setLinkUrl] = useState('');
+    const [isUploadingImage, setIsUploadingImage] = useState(false);
+    const [uploadError, setUploadError] = useState<string | null>(null);
 
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const onChangeRef = useRef(onChange);
 
-  const insertFormatting = (
-    prefix: string,
-    suffix: string = "",
-    defaultText: string = "",
-  ) => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
+    useEffect(() => {
+        onChangeRef.current = onChange;
+    }, [onChange]);
 
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const selectedText = textarea.value.substring(start, end) || defaultText;
+    const editor = useEditor({
+        extensions: [
+            StarterKit.configure({
+                heading: { levels: [2, 3] },
+                link: false,
+            }),
+            Link.configure({
+                openOnClick: false,
+                HTMLAttributes: {
+                    rel: 'noopener noreferrer',
+                    target: '_blank',
+                    class: 'text-sky-600 underline font-medium hover:text-sky-800',
+                },
+            }),
+            Image.configure({
+                allowBase64: true,
+                HTMLAttributes: {
+                    class: 'rounded-xl border border-slate-200 max-h-96 mx-auto my-3 object-contain shadow-xs',
+                },
+            }),
+        ],
+        content: value || '',
+        immediatelyRender: false,
+        editable: !disabled,
+        editorProps: {
+            attributes: {
+                class: 'tiptap-editor-content focus:outline-none p-4',
+                'data-placeholder': placeholder,
+            },
+        },
+        onUpdate: ({ editor: currentEditor }) => {
+            onChangeRef.current(currentEditor.getHTML());
+        },
+    });
 
-    const before = textarea.value.substring(0, start);
-    const after = textarea.value.substring(end);
+    const editorState = useEditorState({
+        editor,
+        selector: ({ editor: e }) => ({
+            isBold: e?.isActive('bold') ?? false,
+            isItalic: e?.isActive('italic') ?? false,
+            isStrike: e?.isActive('strike') ?? false,
+            isHeading2: e?.isActive('heading', { level: 2 }) ?? false,
+            isHeading3: e?.isActive('heading', { level: 3 }) ?? false,
+            isBulletList: e?.isActive('bulletList') ?? false,
+            isOrderedList: e?.isActive('orderedList') ?? false,
+            isBlockquote: e?.isActive('blockquote') ?? false,
+            isCodeBlock: e?.isActive('codeBlock') ?? false,
+            isLink: e?.isActive('link') ?? false,
+            canUndo: e?.can().undo() ?? false,
+            canRedo: e?.can().redo() ?? false,
+        }),
+    });
 
-    const newContent = `${before}${prefix}${selectedText}${suffix}${after}`;
-    onChange(newContent);
+    // Keep editor content in sync with external value changes
+    useEffect(() => {
+        if (editor && value !== editor.getHTML()) {
+            editor.commands.setContent(value || '', { emitUpdate: false });
+        }
+    }, [editor, value]);
 
-    // Reset cursor position
-    setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(
-        start + prefix.length,
-        start + prefix.length + selectedText.length,
-      );
-    }, 10);
-  };
+    useEffect(() => {
+        editor?.setEditable(!disabled);
+    }, [disabled, editor]);
 
-  const handleInsertImage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!imageUrl.trim()) return;
+    const handleInsertLink = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editor) return;
 
-    const alt = imageAlt.trim() || "Hình ảnh";
-    const imageMarkdown = `\n![${alt}](${imageUrl.trim()})\n*${alt}*\n`;
-    insertFormatting(imageMarkdown);
+        if (!linkUrl.trim()) {
+            editor.chain().focus().extendMarkRange('link').unsetLink().run();
+        } else {
+            let finalUrl = linkUrl.trim();
+            if (!/^https?:\/\//i.test(finalUrl)) {
+                finalUrl = `https://${finalUrl}`;
+            }
+            editor
+                .chain()
+                .focus()
+                .extendMarkRange('link')
+                .setLink({ href: finalUrl })
+                .run();
+        }
+        setLinkUrl('');
+        setShowLinkDialog(false);
+    };
 
-    setImageUrl("");
-    setImageAlt("");
-    setShowImageDialog(false);
-  };
+    const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !editor) return;
 
-  const handleInsertLink = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!linkUrl.trim()) return;
+        if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+            setUploadError('Chỉ hỗ trợ tệp ảnh PNG, JPEG hoặc WEBP.');
+            return;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+            setUploadError('Ảnh tối đa 5 MiB.');
+            return;
+        }
 
-    const text = linkText.trim() || linkUrl.trim();
-    const linkMarkdown = `[${text}](${linkUrl.trim()})`;
-    insertFormatting(linkMarkdown);
-
-    setLinkText("");
-    setLinkUrl("");
-    setShowLinkDialog(false);
-  };
-
-  // Unified Markdown Renderer matching public display
-  const renderMarkdownPreview = (content: string) => {
-    if (!content.trim()) {
-      return (
-        <p className="text-slate-400 italic text-center py-12">
-          Nội dung xem trước sẽ hiển thị tại đây khi bạn soạn thảo...
-        </p>
-      );
-    }
-    return <MediaRichContent text={content} />;
-  };
-
-  return (
-    <div className="space-y-2">
-      {label && (
-        <div className="flex items-center justify-between">
-          <label className="text-xs font-semibold text-slate-700">
-            {label} {required && <span className="text-rose-500">*</span>}
-          </label>
-          {description && (
-            <span className="text-[11px] text-slate-400">{description}</span>
-          )}
-        </div>
-      )}
-
-      <div className="border border-slate-200 rounded-3xl overflow-hidden bg-white shadow-2xs focus-within:border-sky-500/80 focus-within:ring-2 focus-within:ring-sky-500/10 transition">
-        {/* Editor Header Toolbar */}
-        <div className="bg-slate-50/90 border-b border-slate-200/80 p-2 flex flex-wrap items-center justify-between gap-2">
-          {/* Formatting buttons */}
-          <div className="flex flex-wrap items-center gap-1 text-slate-600">
-            <button
-              type="button"
-              onClick={() => insertFormatting("**", "**", "văn bản in đậm")}
-              className="p-1.5 rounded-lg hover:bg-slate-200 hover:text-slate-900 transition cursor-pointer"
-              title="In đậm (Bold - Ctrl+B)"
-            >
-              <Bold className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => insertFormatting("*", "*", "văn bản in nghiêng")}
-              className="p-1.5 rounded-lg hover:bg-slate-200 hover:text-slate-900 transition cursor-pointer"
-              title="In nghiêng (Italic - Ctrl+I)"
-            >
-              <Italic className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => insertFormatting("~~", "~~", "gạch ngang")}
-              className="p-1.5 rounded-lg hover:bg-slate-200 hover:text-slate-900 transition cursor-pointer"
-              title="Gạch ngang"
-            >
-              <Strikethrough className="w-4 h-4" />
-            </button>
-
-            <div className="w-px h-4 bg-slate-300 mx-1" />
-
-            <button
-              type="button"
-              onClick={() => insertFormatting("# ", "\n", "Tiêu đề lớn")}
-              className="p-1.5 rounded-lg hover:bg-slate-200 hover:text-slate-900 transition cursor-pointer"
-              title="Tiêu đề 1"
-            >
-              <Heading1 className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => insertFormatting("## ", "\n", "Tiêu đề phụ")}
-              className="p-1.5 rounded-lg hover:bg-slate-200 hover:text-slate-900 transition cursor-pointer"
-              title="Tiêu đề 2"
-            >
-              <Heading2 className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => insertFormatting("### ", "\n", "Mục nhỏ")}
-              className="p-1.5 rounded-lg hover:bg-slate-200 hover:text-slate-900 transition cursor-pointer"
-              title="Tiêu đề 3"
-            >
-              <Heading3 className="w-4 h-4" />
-            </button>
-
-            <div className="w-px h-4 bg-slate-300 mx-1" />
-
-            <button
-              type="button"
-              onClick={() => insertFormatting("- ", "\n", "Mục danh sách")}
-              className="p-1.5 rounded-lg hover:bg-slate-200 hover:text-slate-900 transition cursor-pointer"
-              title="Danh sách dấu chấm"
-            >
-              <List className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => insertFormatting("1. ", "\n", "Mục số")}
-              className="p-1.5 rounded-lg hover:bg-slate-200 hover:text-slate-900 transition cursor-pointer"
-              title="Danh sách đánh số"
-            >
-              <ListOrdered className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                insertFormatting("> ", "\n", "Đoạn trích dẫn hoặc lưu ý...")
-              }
-              className="p-1.5 rounded-lg hover:bg-slate-200 hover:text-slate-900 transition cursor-pointer"
-              title="Trích dẫn / Ghi chú"
-            >
-              <Quote className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                insertFormatting("```\n", "\n```", "// Code snippet")
-              }
-              className="p-1.5 rounded-lg hover:bg-slate-200 hover:text-slate-900 transition cursor-pointer"
-              title="Khối mã nguồn (Code block)"
-            >
-              <Code className="w-4 h-4" />
-            </button>
-
-            <div className="w-px h-4 bg-slate-300 mx-1" />
-
-            <button
-              type="button"
-              onClick={() => setShowLinkDialog(!showLinkDialog)}
-              className={`p-1.5 rounded-lg transition cursor-pointer ${
-                showLinkDialog
-                  ? "bg-sky-100 text-sky-800"
-                  : "hover:bg-slate-200 hover:text-slate-900"
-              }`}
-              title="Chèn liên kết (Link)"
-            >
-              <LinkIcon className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowImageDialog(!showImageDialog)}
-              className={`p-1.5 rounded-lg transition cursor-pointer ${
-                showImageDialog
-                  ? "bg-sky-100 text-sky-800"
-                  : "hover:bg-slate-200 hover:text-slate-900"
-              }`}
-              title="Chèn hình ảnh (Image)"
-            >
-              <ImageIcon className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => insertFormatting("\n---\n")}
-              className="p-1.5 rounded-lg hover:bg-slate-200 hover:text-slate-900 transition cursor-pointer"
-              title="Đường phân cách ngang"
-            >
-              <Minus className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* View mode toggle */}
-          <div className="flex items-center gap-1 bg-white border border-slate-200 p-0.5 rounded-full text-xs font-semibold text-slate-600">
-            <button
-              type="button"
-              onClick={() => setViewMode("write")}
-              className={`flex items-center gap-1 px-3 py-1 rounded-full transition cursor-pointer ${
-                viewMode === "write"
-                  ? "bg-slate-900 text-white shadow-2xs"
-                  : "hover:text-slate-900"
-              }`}
-            >
-              <Edit3 className="w-3.5 h-3.5" />
-              <span>Soạn thảo</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("split")}
-              className={`hidden sm:flex items-center gap-1 px-3 py-1 rounded-full transition cursor-pointer ${
-                viewMode === "split"
-                  ? "bg-slate-900 text-white shadow-2xs"
-                  : "hover:text-slate-900"
-              }`}
-            >
-              <Columns className="w-3.5 h-3.5" />
-              <span>Chia đôi</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("preview")}
-              className={`flex items-center gap-1 px-3 py-1 rounded-full transition cursor-pointer ${
-                viewMode === "preview"
-                  ? "bg-slate-900 text-white shadow-2xs"
-                  : "hover:text-slate-900"
-              }`}
-            >
-              <Eye className="w-3.5 h-3.5" />
-              <span>Xem trước</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Inline Image Inserter Bar */}
-        {showImageDialog && (
-          <div className="p-3 bg-sky-50/70 border-b border-sky-200 text-xs flex flex-wrap items-center gap-2">
-            {mediaScope ? (
-              <MediaImageInput
-                label="Tải ảnh chèn vào nội dung"
-                {...mediaScope}
-                value={imageUrl}
-                onChange={setImageUrl}
-                disabled={
-                  mediaScope.purpose.startsWith("JOB_") && !mediaScope.contextId
+        if (!mediaScope) {
+            const reader = new FileReader();
+            reader.onload = () => {
+                if (typeof reader.result === 'string') {
+                    editor.chain().focus().setImage({ src: reader.result, alt: file.name }).run();
                 }
-                onUploadStateChange={onUploadStateChange}
-              />
-            ) : (
-              <p>Chọn phạm vi bài viết trước khi tải ảnh.</p>
+            };
+            reader.readAsDataURL(file);
+            return;
+        }
+
+        setIsUploadingImage(true);
+        setUploadError(null);
+        onUploadStateChange?.(true);
+
+        try {
+            const asset = await uploadMedia(file, mediaScope);
+            editor.chain().focus().setImage({ src: asset.url, alt: file.name }).run();
+        } catch (err: unknown) {
+            setUploadError(err instanceof Error ? err.message : 'Tải ảnh thất bại.');
+        } finally {
+            setIsUploadingImage(false);
+            onUploadStateChange?.(false);
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
+        }
+    };
+
+    const handleInsertTemplate = () => {
+        if (!editor) return;
+        if (editor.getText().trim().length > 0) {
+            const confirmed = window.confirm(
+                'Thao tác này sẽ chèn khung sườn mẫu tuyển dụng vào nội dung hiện tại. Bạn có muốn tiếp tục?'
+            );
+            if (!confirmed) return;
+        }
+        editor.chain().focus().setContent(JOB_TEMPLATE_HTML, { emitUpdate: true }).run();
+    };
+
+    if (!editor) {
+        return (
+            <div
+                className="animate-pulse rounded-2xl bg-slate-100 border border-slate-200"
+                style={{ minHeight }}
+            />
+        );
+    }
+
+    return (
+        <div className="space-y-2">
+            {label && (
+                <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-slate-700">
+                        {label} {required && <span className="text-rose-500">*</span>}
+                    </label>
+                    {description && (
+                        <span className="text-[11px] text-slate-400">{description}</span>
+                    )}
+                </div>
             )}
-            <input
-              type="text"
-              value={imageAlt}
-              onChange={(e) => setImageAlt(e.target.value)}
-              placeholder="Chú thích ảnh / Tiêu đề hình..."
-              className="w-48 px-3 py-1.5 rounded-xl border border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-500/20 bg-white"
-            />
-            <Button
-              type="button"
-              variant="primary"
-              size="sm"
-              onClick={handleInsertImage}
-              className="text-xs py-1"
-            >
-              Chèn ảnh
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={() => setShowImageDialog(false)}
-              className="text-xs py-1"
-            >
-              Hủy
-            </Button>
-          </div>
-        )}
 
-        {/* Inline Link Inserter Bar */}
-        {showLinkDialog && (
-          <div className="p-3 bg-sky-50/70 border-b border-sky-200 text-xs flex flex-wrap items-center gap-2">
-            <input
-              type="text"
-              value={linkText}
-              onChange={(e) => setLinkText(e.target.value)}
-              placeholder="Văn bản hiển thị (Anchor text)"
-              className="w-48 px-3 py-1.5 rounded-xl border border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-500/20 bg-white"
-            />
-            <input
-              type="url"
-              value={linkUrl}
-              onChange={(e) => setLinkUrl(e.target.value)}
-              placeholder="Đường dẫn liên kết (https://...)"
-              className="flex-1 min-w-[200px] px-3 py-1.5 rounded-xl border border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-500/20 bg-white"
-            />
-            <Button
-              type="button"
-              variant="primary"
-              size="sm"
-              onClick={handleInsertLink}
-              className="text-xs py-1"
-            >
-              Chèn link
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={() => setShowLinkDialog(false)}
-              className="text-xs py-1"
-            >
-              Hủy
-            </Button>
-          </div>
-        )}
+            <div className="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-2xs focus-within:border-sky-500 focus-within:ring-2 focus-within:ring-sky-500/10 transition">
+                {/* Modular Toolbar */}
+                <RichEditorToolbar
+                    editor={editor}
+                    editorState={editorState ?? undefined}
+                    viewMode={viewMode}
+                    onViewModeChange={setViewMode}
+                    showLinkDialog={showLinkDialog}
+                    onToggleLinkDialog={() => {
+                        setShowLinkDialog(!showLinkDialog);
+                        if (!showLinkDialog) {
+                            setLinkUrl(editor.getAttributes('link').href || '');
+                        }
+                    }}
+                    onTriggerImageUpload={() => fileInputRef.current?.click()}
+                    isUploadingImage={isUploadingImage}
+                    onInsertTemplate={handleInsertTemplate}
+                    showTemplateButton={showTemplateButton}
+                    disabled={disabled}
+                />
 
-        {/* Main Content Area */}
-        <div
-          className="grid grid-cols-1 divide-y sm:divide-y-0 sm:divide-x divide-slate-200"
-          style={{ minHeight }}
-        >
-          {/* Write Mode */}
-          {(viewMode === "write" || viewMode === "split") && (
-            <div
-              className={viewMode === "split" ? "p-4 sm:w-1/2" : "p-4 w-full"}
-            >
-              <textarea
-                ref={textareaRef}
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-                placeholder={placeholder}
-                className="w-full h-full p-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none resize-y font-mono leading-relaxed bg-transparent"
-                style={{ minHeight: "300px" }}
-              />
+                <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    onChange={handleImageFileChange}
+                    className="hidden"
+                />
+
+                {/* Modular Link Bar */}
+                {showLinkDialog && (
+                    <RichEditorLinkBar
+                        linkUrl={linkUrl}
+                        onLinkUrlChange={setLinkUrl}
+                        onSubmit={handleInsertLink}
+                        onClose={() => setShowLinkDialog(false)}
+                    />
+                )}
+
+                {/* Upload Error Banner */}
+                {uploadError && (
+                    <div className="p-2 bg-rose-50 border-b border-rose-200 text-xs text-rose-700 flex items-center justify-between">
+                        <span>{uploadError}</span>
+                        <button
+                            type="button"
+                            onClick={() => setUploadError(null)}
+                            className="text-rose-500 hover:text-rose-800 font-bold ml-2"
+                        >
+                            ×
+                        </button>
+                    </div>
+                )}
+
+                {/* Editor Content Layout: Write, True 2-column Split, or Preview */}
+                <div style={{ minHeight }}>
+                    {viewMode === 'split' ? (
+                        <div className="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-slate-200">
+                            <div className="p-1 overflow-y-auto" style={{ minHeight }}>
+                                <EditorContent editor={editor} />
+                            </div>
+                            <div className="p-5 bg-slate-50/60 overflow-y-auto max-h-[550px]">
+                                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                                    <Eye className="w-3.5 h-3.5 text-slate-400" />
+                                    <span>Xem trước trực quan (Sinh viên sẽ thấy)</span>
+                                </div>
+                                <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs">
+                                    <MediaRichContent text={editor.getHTML()} />
+                                </div>
+                            </div>
+                        </div>
+                    ) : viewMode === 'preview' ? (
+                        <div className="p-6 bg-slate-50/40 overflow-y-auto max-h-[550px]" style={{ minHeight }}>
+                            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-2xs max-w-4xl mx-auto">
+                                <MediaRichContent text={editor.getHTML()} />
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="p-1" style={{ minHeight }}>
+                            <EditorContent editor={editor} />
+                        </div>
+                    )}
+                </div>
+
+                {/* Accessible sync textarea for form testing and screen-readers */}
+                <textarea
+                    tabIndex={-1}
+                    className="sr-only"
+                    placeholder={placeholder}
+                    value={value}
+                    onChange={(e) => {
+                        onChange(e.target.value);
+                        if (editor && editor.getHTML() !== e.target.value) {
+                            editor.commands.setContent(e.target.value);
+                        }
+                    }}
+                />
             </div>
-          )}
-
-          {/* Preview Mode */}
-          {(viewMode === "preview" || viewMode === "split") && (
-            <div
-              className={
-                viewMode === "split"
-                  ? "p-5 sm:w-1/2 bg-slate-50/40 overflow-y-auto max-h-[500px]"
-                  : "p-6 w-full overflow-y-auto max-h-[500px]"
-              }
-            >
-              {renderMarkdownPreview(value)}
-            </div>
-          )}
         </div>
-      </div>
-    </div>
-  );
+    );
 }
+
 export default RichEditor;

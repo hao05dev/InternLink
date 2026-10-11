@@ -1,6 +1,8 @@
 "use client";
 
 import React, { type ReactNode } from "react";
+import DOMPurify from "dompurify";
+import "./rich-editor.css";
 
 /** Safe image verification matching existing security rules */
 function isSafeImageUrl(src: string): boolean {
@@ -174,6 +176,20 @@ export function MediaRichContent({
 }) {
   if (!text || !text.trim()) {
     return null;
+  }
+
+  // Handle HTML content from TipTap WYSIWYG editor
+  if (/<[a-z][\s\S]*>/i.test(text)) {
+    const cleanHtml = DOMPurify.sanitize(text, {
+      ADD_ATTR: ["target", "rel", "style", "class"],
+      FORBID_TAGS: ["style", "iframe", "object", "video", "audio", "script"],
+    });
+    return (
+      <div
+        className={`rich-prose-content ${className}`}
+        dangerouslySetInnerHTML={{ __html: cleanHtml }}
+      />
+    );
   }
 
   const lines = text.split("\n");

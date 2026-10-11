@@ -4,6 +4,8 @@ import com.internlink.core.application.placement.InternshipPlacementService;
 import com.internlink.core.infrastructure.security.CustomUserDetail;
 import com.internlink.core.presentation.placement.dto.response.InternshipPlacementResponse;
 import com.internlink.core.shared.api.ApiResponse;
+import com.internlink.core.shared.api.PageParam;
+import com.internlink.core.shared.api.PageResponse;
 import com.internlink.core.shared.enums.PlacementStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -69,6 +71,16 @@ public class InternshipPlacementController {
     ) {
         List<InternshipPlacementResponse> list = placementService.getPlacementsByTerm(termId);
         return ResponseEntity.ok(ApiResponse.success(list));
+    }
+
+    @GetMapping("/term/{termId}/page")
+    @PreAuthorize("hasAnyRole('ADMIN', 'FACULTY_ADMIN')")
+    public ResponseEntity<ApiResponse<PageResponse<InternshipPlacementResponse>>> getPlacementsByTermPage(
+        @PathVariable UUID termId,
+        @ModelAttribute PageParam pageParam
+    ) {
+        PageResponse<InternshipPlacementResponse> response = placementService.getPlacementsByTermPage(termId, pageParam);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @PostMapping("/activate")

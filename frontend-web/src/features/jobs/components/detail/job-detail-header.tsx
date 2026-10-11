@@ -36,7 +36,7 @@ export function JobDetailHeader({
   const [copied, setCopied] = useState(false);
 
   const formatCurrency = (amount?: number) => {
-    if (!amount || amount === 0) return "Thương lượng / Phụ cấp dự án";
+    if (!amount || amount === 0) return "Thỏa thuận";
     return (
       new Intl.NumberFormat("vi-VN", {
         style: "currency",
