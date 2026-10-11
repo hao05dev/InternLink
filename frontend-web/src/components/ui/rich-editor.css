@@ -167,3 +167,63 @@
   border-top: 1px solid #e2e8f0;
   margin: 1.5em 0;
 }
+
+/* Enhanced Blog Editorial Typography */
+.blog-editorial-prose {
+  font-size: 1rem;
+  line-height: 1.8;
+  color: #1e293b;
+}
+
+.blog-editorial-prose p,
+.blog-editorial-prose li {
+  color: #1e293b;
+  line-height: 1.8;
+}
+
+.blog-editorial-prose h1,
+.blog-editorial-prose h2,
+.blog-editorial-prose h3,
+.blog-editorial-prose h4 {
+  color: #0f172a;
+}
+
+.blog-editorial-prose h2 {
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin-top: 1.8em;
+  margin-bottom: 0.6em;
+  padding-left: 0.75rem;
+  border-left: 4px solid #0284c7;
+  line-height: 1.4;
+}
+
+.blog-editorial-prose h3 {
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin-top: 1.4em;
+  margin-bottom: 0.5em;
+  line-height: 1.45;
+}
+
+.blog-editorial-prose p {
+  margin-bottom: 1.15em;
+}
+
+.blog-editorial-prose ul,
+.blog-editorial-prose ol {
+  margin: 0.75em 0 1.25em;
+  padding-left: 1.6em;
+}
+
+.blog-editorial-prose li {
+  margin-bottom: 0.5em;
+  line-height: 1.75;
+}
+
+.blog-editorial-prose strong,
+.blog-editorial-prose b {
+  color: #0f172a;
+  font-weight: 700;
+}
+

@@ -68,6 +68,12 @@ const ROLE_NAV_CONFIG: Record<UserRole, RoleNavConfig> = {
         dashboardHref: "/student/dashboard",
         profileHref: "/student/profile",
     },
+    BLOG_MANAGER: {
+        portalName: "Quản lý Blog & Truyền thông",
+        badgeClass: "bg-teal-50 text-teal-700 border-teal-200",
+        dashboardLabel: "Cổng quản lý Blog",
+        dashboardHref: "/blog-manager/posts",
+    },
 };
 
 export function Navbar() {
@@ -137,7 +143,7 @@ export function Navbar() {
                         <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
                     </Link>
                     <Link
-                        href="/#about"
+                        href="/about"
                         className="px-4 py-2 rounded-full hover:bg-white hover:text-slate-900 transition-colors text-[13.5px] lg:text-[15px] font-semibold tracking-tight"
                     >
                         <span>Về trường</span>
@@ -320,7 +326,7 @@ export function Navbar() {
                             <span>Tin tức & Blog</span>
                         </Link>
                         <Link
-                            href="/#about"
+                            href="/about"
                             onClick={() => setMobileMenuOpen(false)}
                             className="px-4 py-3 rounded-2xl hover:bg-slate-50 flex items-center gap-3"
                         >

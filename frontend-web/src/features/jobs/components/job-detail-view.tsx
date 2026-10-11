@@ -66,6 +66,12 @@ export default function JobDetailView({ id }: { id: string }) {
           }
         })
         .catch(() => {});
+
+      jobService.getMyApplications().then((apps) => {
+        if (mounted && apps.some((a) => a.jobId === jobId)) {
+          setIsApplied(true);
+        }
+      }).catch(() => {});
     }
 
     return () => {
@@ -131,8 +137,14 @@ export default function JobDetailView({ id }: { id: string }) {
           <JobDetailHeader
             job={job}
             isAuthenticated={isAuthenticated}
+            userRole={user?.role}
+            userCompanyId={user?.companyId}
             isApplied={isApplied}
-            onOpenApplyModal={() => setShowApplyModal(true)}
+            onOpenApplyModal={() => {
+              if (isAuthenticated && user?.role === "STUDENT") {
+                setShowApplyModal(true);
+              }
+            }}
             onRedirectLogin={() => router.push(`/login?redirect=/jobs/${job.id}`)}
           />
 
@@ -180,8 +192,8 @@ export default function JobDetailView({ id }: { id: string }) {
           </div>
         </div>
 
-        {/* Apply Modal */}
-        {showApplyModal && (
+        {/* Apply Modal - Protected strictly for STUDENT only */}
+        {showApplyModal && isAuthenticated && user?.role === "STUDENT" && (
           <JobApplyModal
             jobId={job.id}
             jobTitle={job.title}

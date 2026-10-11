@@ -133,3 +133,6 @@ export function FacultyPostsManagementView() {
         </div>
     );
 }
+
+export const BlogPostsManagementView = FacultyPostsManagementView;
+

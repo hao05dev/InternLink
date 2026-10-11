@@ -137,6 +137,15 @@ export const jobService = {
         return response.data;
     },
 
+    getMyApplications: async (): Promise<JobApplication[]> => {
+        try {
+            const response = await apiClient.get<JobApplication[]>("/api/v1/applications/my-applications");
+            return response.data || [];
+        } catch {
+            return [];
+        }
+    },
+
     parseSearchQuery: async (query: string): Promise<{
         parsed: boolean;
         raw_query: string;

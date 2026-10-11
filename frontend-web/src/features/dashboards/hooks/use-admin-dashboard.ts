@@ -78,6 +78,7 @@ export function useAdminDashboard() {
             FACULTY_ADMIN: users.filter((u) => u.role === "FACULTY_ADMIN").length,
             COMPANY_REP: users.filter((u) => u.role === "COMPANY_REP").length,
             COMPANY_MENTOR: users.filter((u) => u.role === "COMPANY_MENTOR").length,
+            BLOG_MANAGER: users.filter((u) => u.role === "BLOG_MANAGER").length,
             ADMIN: users.filter((u) => u.role === "ADMIN").length,
         };
 

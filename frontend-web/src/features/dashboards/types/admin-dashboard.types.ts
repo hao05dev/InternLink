@@ -40,6 +40,7 @@ export const ROLE_DISPLAY: Record<
     STUDENT: { label: "Sinh viên", badgeVariant: "brand" },
     COMPANY_REP: { label: "Đại diện Doanh nghiệp", badgeVariant: "warning" },
     COMPANY_MENTOR: { label: "Mentor Doanh nghiệp", badgeVariant: "success" },
+    BLOG_MANAGER: { label: "Biên tập viên Blog", badgeVariant: "primary" },
 };
 
 // Baseline programs for CICT CTU

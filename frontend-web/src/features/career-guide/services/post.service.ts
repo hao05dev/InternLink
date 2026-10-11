@@ -25,6 +25,23 @@ export const postService = {
         }
     },
 
+    async recordView(slug: string, visitorId?: string): Promise<PostItem | null> {
+        try {
+            const headers: Record<string, string> = {};
+            if (visitorId) {
+                headers['X-Visitor-Id'] = visitorId;
+            }
+            const res = await apiClient.post<PostItem>(
+                `/api/v1/posts/public/by-slug/${slug}/view`,
+                {},
+                { headers }
+            );
+            return res.data || null;
+        } catch {
+            return null;
+        }
+    },
+
     async getManagementPosts(params?: {
         category?: PostCategory | string;
         status?: PostStatus | string;

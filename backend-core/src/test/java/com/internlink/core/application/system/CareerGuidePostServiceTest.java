@@ -104,7 +104,7 @@ class CareerGuidePostServiceTest {
     }
 
     @Test
-    @DisplayName("getPublishedPostBySlug - should increment view count and return response")
+    @DisplayName("getPublishedPostBySlug - should return response when published")
     void getPublishedPostBySlug_success() {
         when(postRepository.findBySlug(post.getSlug())).thenReturn(Optional.of(post));
 
@@ -112,7 +112,6 @@ class CareerGuidePostServiceTest {
 
         assertThat(response).isNotNull();
         assertThat(response.getSlug()).isEqualTo(post.getSlug());
-        verify(postRepository, times(1)).incrementViewCount(post.getId());
     }
 
     @Test

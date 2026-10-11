@@ -1,465 +1,118 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import Link from "next/link";
-import { 
-    Search, MapPin, Briefcase, DollarSign, Calendar, Users, 
-    Building2, Filter, CheckCircle2, ChevronRight, Sparkles, GraduationCap 
-} from "lucide-react";
-import { jobService } from "@/features/jobs/services/job.service";
-import { JobPosition, WorkFormat } from "@/features/jobs/types/job.types";
-import { VIETNAM_LOCATIONS } from "@/features/jobs/data/vietnam-locations";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { PublicShell } from "@/components/layouts/public-shell";
+import { usePublicJobSearch } from "@/features/jobs/hooks/use-public-job-search";
+import { JobSearchBanner } from "./public-search/job-search-banner";
+import { JobSearchFilterSidebar } from "./public-search/job-search-filter-sidebar";
+import { JobSearchQuickChips } from "./public-search/job-search-quick-chips";
+import { JobSearchEmptyState } from "./public-search/job-search-empty-state";
+import { PublicJobCard } from "./public-search/public-job-card";
 
 export default function JobSearchView() {
-    const [jobs, setJobs] = useState<JobPosition[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [keyword, setKeyword] = useState("");
-    const [selectedLocation, setSelectedLocation] = useState<string>("ALL");
-    const [selectedFormat, setSelectedFormat] = useState<string>("ALL");
-    const [selectedMajor, setSelectedMajor] = useState<string>("ALL");
-    const [onlyWithStipend, setOnlyWithStipend] = useState<boolean>(false);
-
-    useEffect(() => {
-        let mounted = true;
-        setLoading(true);
-        jobService.getPublicJobs()
-            .then(data => {
-                if (mounted) {
-                    setJobs(data);
-                    setLoading(false);
-                }
-            })
-            .catch(() => {
-                if (mounted) setLoading(false);
-            });
-        return () => { mounted = false; };
-    }, []);
-
-    // Client-side instant filtering
-    const filteredJobs = useMemo(() => {
-        return jobs.filter(job => {
-            const matchKw = !keyword.trim() || 
-                job.title.toLowerCase().includes(keyword.toLowerCase()) ||
-                job.companyName.toLowerCase().includes(keyword.toLowerCase()) ||
-                job.location.toLowerCase().includes(keyword.toLowerCase()) ||
-                job.skills?.some(s => s.skillName?.toLowerCase().includes(keyword.toLowerCase()));
-
-            const matchLocation = selectedLocation === "ALL" || 
-                job.location.toLowerCase().includes(selectedLocation.toLowerCase());
-            const matchFormat = selectedFormat === "ALL" || job.workFormat === selectedFormat;
-            const matchMajor = selectedMajor === "ALL" || job.targetProgramCodes?.includes(selectedMajor);
-            const matchStipend = !onlyWithStipend || (job.stipendAmount && job.stipendAmount > 0);
-
-            return matchKw && matchLocation && matchFormat && matchMajor && matchStipend;
-        });
-    }, [jobs, keyword, selectedLocation, selectedFormat, selectedMajor, onlyWithStipend]);
-
-    const formatCurrency = (amount?: number) => {
-        if (!amount || amount === 0) return "Thỏa thuận";
-        return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(amount) + " / tháng";
-    };
-
-    const formatDate = (dateStr?: string) => {
-        if (!dateStr) return "30/11/2026";
-        try {
-            return new Date(dateStr).toLocaleDateString("vi-VN", {
-                day: "2-digit",
-                month: "2-digit",
-                year: "numeric"
-            });
-        } catch {
-            return dateStr;
-        }
-    };
-
-    const getWorkFormatBadge = (format: WorkFormat) => {
-        switch (format) {
-            case "ONSITE":
-                return <Badge variant="brand" className="bg-sky-50 text-sky-700 border-sky-200">Trực tiếp (On-site)</Badge>;
-            case "HYBRID":
-                return <Badge variant="secondary" className="bg-indigo-50 text-indigo-700 border-indigo-200">Kết hợp (Hybrid)</Badge>;
-            case "REMOTE":
-                return <Badge variant="success" className="bg-emerald-50 text-emerald-700 border-emerald-200">Từ xa (Remote)</Badge>;
-            default:
-                return null;
-        }
-    };
+    const {
+        filteredJobs,
+        loading,
+        keyword,
+        setKeyword,
+        selectedLocation,
+        setSelectedLocation,
+        selectedFormat,
+        setSelectedFormat,
+        selectedMajor,
+        setSelectedMajor,
+        deadlineFilter,
+        setDeadlineFilter,
+        onlyWithStipend,
+        setOnlyWithStipend,
+        resetFilters,
+        hasActiveFilters,
+        isJobActive
+    } = usePublicJobSearch();
 
     return (
         <PublicShell>
             <div className="min-h-screen bg-slate-50/80 py-6 sm:py-10">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                {/* Header Banner */}
-                <div className="relative overflow-hidden bg-gradient-to-r from-cict-dark via-cict-navy to-sky-900 rounded-3xl p-6 sm:p-10 text-white shadow-xl mb-8 border border-white/10">
-                    <div className="absolute top-0 right-0 w-96 h-96 bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
-                    <div className="relative max-w-3xl">
-                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-sky-200 text-xs font-semibold uppercase tracking-wider mb-4 border border-white/15 shadow-2xs">
-                            <GraduationCap className="w-3.5 h-3.5" />
-                            Cổng Thực tập Doanh nghiệp CICT • CTU
-                        </div>
-                        <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-white mb-3">
-                            Khám Phá Vị Trí Thực Tập Tốt Nghiệp
-                        </h1>
-                        <p className="text-sky-100/90 text-xs sm:text-sm leading-relaxed mb-6">
-                            Các vị trí thực tập được thẩm định trực tiếp bởi Ban Quản lý Thực tập Trường CNTT&TT - ĐH Cần Thơ, đảm bảo quyền lợi tích lũy tín chỉ và môi trường đào tạo chuyên nghiệp.
-                        </p>
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    {/* Header Banner */}
+                    <JobSearchBanner 
+                        keyword={keyword}
+                        onKeywordChange={setKeyword}
+                        onResetKeyword={() => setKeyword("")}
+                    />
 
-                        {/* Search Bar */}
-                        <div className="flex flex-col sm:flex-row gap-3">
-                            <div className="relative flex-1">
-                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                                <input
-                                    type="text"
-                                    value={keyword}
-                                    onChange={(e) => setKeyword(e.target.value)}
-                                    placeholder="Tìm theo vị trí, kỹ năng (Java, React, Tester...), hoặc tên công ty..."
-                                    className="w-full pl-11 pr-14 py-3.5 bg-white text-slate-900 rounded-full text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-sky-400 shadow-md"
+                    {/* Main Content Layout */}
+                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 lg:gap-8 items-start">
+                        {/* Left Sidebar Filter */}
+                        <div className="lg:col-span-1 lg:sticky lg:top-24 space-y-5">
+                            <JobSearchFilterSidebar 
+                                deadlineFilter={deadlineFilter}
+                                onSelectDeadlineFilter={setDeadlineFilter}
+                                selectedLocation={selectedLocation}
+                                onSelectLocation={setSelectedLocation}
+                                selectedFormat={selectedFormat}
+                                onSelectFormat={setSelectedFormat}
+                                selectedMajor={selectedMajor}
+                                onSelectMajor={setSelectedMajor}
+                                onlyWithStipend={onlyWithStipend}
+                                onToggleStipend={setOnlyWithStipend}
+                                hasActiveFilters={hasActiveFilters}
+                                onResetFilters={resetFilters}
+                            />
+                        </div>
+
+                        {/* Right Listing Column */}
+                        <div className="lg:col-span-3 space-y-4 min-w-0">
+                            {/* Result Counter & Quick Filter Chips */}
+                            <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/80 shadow-xs space-y-3">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                                    <span className="text-slate-600 font-medium">
+                                        Tìm thấy <strong className="text-slate-900 font-bold text-sm">{filteredJobs.length}</strong> vị trí thực tập phù hợp
+                                    </span>
+                                    <span className="text-emerald-700 font-semibold bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100 flex items-center gap-1.5 w-fit">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                        Cập nhật theo thời gian thực
+                                    </span>
+                                </div>
+
+                                <JobSearchQuickChips 
+                                    selectedLocation={selectedLocation}
+                                    onSelectLocation={setSelectedLocation}
+                                    selectedFormat={selectedFormat}
+                                    onSelectFormat={setSelectedFormat}
+                                    onlyWithStipend={onlyWithStipend}
+                                    onToggleStipend={() => setOnlyWithStipend(prev => !prev)}
+                                    deadlineFilter={deadlineFilter}
+                                    onSelectDeadlineFilter={setDeadlineFilter}
                                 />
-                                {keyword && (
-                                    <button 
-                                        onClick={() => setKeyword("")}
-                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600 font-semibold"
-                                    >
-                                        Xóa
-                                    </button>
-                                )}
-                            </div>
-                            <Button 
-                                variant="default" 
-                                className="bg-slate-950 hover:bg-slate-900 text-white font-bold px-7 py-3.5 rounded-full shadow-md cursor-pointer text-xs sm:text-sm gap-2"
-                            >
-                                <span>Tìm kiếm</span>
-                                <div className="w-5 h-5 rounded-full bg-white text-slate-950 flex items-center justify-center -mr-1">
-                                    <Search className="w-3 h-3" />
-                                </div>
-                            </Button>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Main Content Layout */}
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 lg:gap-8 items-start">
-                    {/* Left Sidebar Filter (Sticky on Desktop) */}
-                    <div className="lg:col-span-1 lg:sticky lg:top-24 space-y-5">
-                        <div className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-xs">
-                            <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 mb-4">
-                                <div className="flex items-center gap-2 font-bold text-slate-900 text-xs sm:text-sm">
-                                    <Filter className="w-4 h-4 text-sky-700" />
-                                    Bộ lọc tìm kiếm
-                                </div>
-                                {(selectedLocation !== "ALL" || selectedFormat !== "ALL" || selectedMajor !== "ALL" || onlyWithStipend || keyword) && (
-                                    <button
-                                        onClick={() => {
-                                            setSelectedLocation("ALL");
-                                            setSelectedFormat("ALL");
-                                            setSelectedMajor("ALL");
-                                            setOnlyWithStipend(false);
-                                            setKeyword("");
-                                        }}
-                                        className="text-xs text-sky-700 hover:underline font-semibold cursor-pointer"
-                                    >
-                                        Đặt lại
-                                    </button>
-                                )}
                             </div>
 
-                            {/* Location / Province Filter */}
-                            <div className="mb-5">
-                                <label className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">
-                                    <MapPin className="w-3.5 h-3.5 text-sky-600" />
-                                    Địa điểm (Tỉnh / Thành)
-                                </label>
-                                <select
-                                    value={selectedLocation}
-                                    onChange={(e) => setSelectedLocation(e.target.value)}
-                                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500 cursor-pointer"
-                                >
-                                    {VIETNAM_LOCATIONS.map((loc) => (
-                                        <option key={loc.value} value={loc.value}>
-                                            {loc.label} {loc.group !== "Toàn quốc" ? `(${loc.group})` : ""}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            {/* Work Format Filter */}
-                            <div className="mb-5">
-                                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">
-                                    Hình thức làm việc
-                                </label>
-                                <div className="space-y-1">
-                                    {[
-                                        { label: "Tất cả hình thức", value: "ALL" },
-                                        { label: "Trực tiếp tại văn phòng (On-site)", value: "ONSITE" },
-                                        { label: "Linh hoạt (Hybrid)", value: "HYBRID" },
-                                        { label: "Làm việc từ xa (Remote)", value: "REMOTE" },
-                                    ].map(item => (
-                                        <button
-                                            key={item.value}
-                                            onClick={() => setSelectedFormat(item.value)}
-                                            className={`w-full text-left px-3.5 py-2 rounded-full text-xs font-medium transition-colors cursor-pointer ${
-                                                selectedFormat === item.value 
-                                                    ? "bg-sky-50 text-sky-800 font-bold border border-sky-200/80 shadow-2xs" 
-                                                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                                            }`}
-                                        >
-                                            {item.label}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Major / Program Filter */}
-                            <div className="mb-5">
-                                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">
-                                    Chuyên ngành đào tạo
-                                </label>
-                                <div className="space-y-1">
-                                    {[
-                                        { label: "Tất cả chuyên ngành", value: "ALL" },
-                                        { label: "Kỹ thuật phần mềm (SE)", value: "SE" },
-                                        { label: "Công nghệ thông tin (IT)", value: "IT" },
-                                        { label: "Khoa học máy tính (CS)", value: "CS" },
-                                    ].map(item => (
-                                        <button
-                                            key={item.value}
-                                            onClick={() => setSelectedMajor(item.value)}
-                                            className={`w-full text-left px-3.5 py-2 rounded-full text-xs font-medium transition-colors cursor-pointer ${
-                                                selectedMajor === item.value 
-                                                    ? "bg-sky-50 text-sky-800 font-bold border border-sky-200/80 shadow-2xs" 
-                                                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                                            }`}
-                                        >
-                                            {item.label}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Stipend Filter */}
-                            <div className="pt-3.5 border-t border-slate-100">
-                                <label className="flex items-center gap-2.5 cursor-pointer text-xs font-medium text-slate-700 select-none">
-                                    <input
-                                        type="checkbox"
-                                        checked={onlyWithStipend}
-                                        onChange={(e) => setOnlyWithStipend(e.target.checked)}
-                                        className="rounded border-slate-300 text-sky-600 focus:ring-sky-500 w-4 h-4 cursor-pointer"
-                                    />
-                                    <span className="font-semibold text-slate-800">Chỉ hiện vị trí có hỗ trợ phụ cấp</span>
-                                </label>
-                            </div>
-                        </div>
-
-                        {/* Educational Note Box */}
-                        <div className="bg-sky-50/80 rounded-3xl border border-sky-200/70 p-5 text-xs text-sky-900 shadow-2xs">
-                            <div className="flex items-center gap-2 font-bold mb-1.5 text-sky-950">
-                                <CheckCircle2 className="w-4 h-4 text-sky-700 shrink-0" />
-                                Bảo trợ học phần chính thức
-                            </div>
-                            <p className="text-sky-800/90 leading-relaxed text-[11px]">
-                                Tất cả vị trí được doanh nghiệp ký kết tiếp nhận qua cổng thông tin đều được Khoa CNTT&TT công nhận đạt chuẩn học phần Thực tập doanh nghiệp.
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Right Listing Column */}
-                    <div className="lg:col-span-3 space-y-4 min-w-0">
-                        {/* Result Counter & Quick Filter Chips */}
-                        <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/80 shadow-xs space-y-3">
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-                                <span className="text-slate-600 font-medium">
-                                    Tìm thấy <strong className="text-slate-900 font-bold text-sm">{filteredJobs.length}</strong> vị trí thực tập phù hợp
-                                </span>
-                                <span className="text-slate-400 font-medium">
-                                    Học kỳ 1 Năm học 2026 - 2027
-                                </span>
-                            </div>
-
-                            {/* Quick Chips Filter Bar */}
-                            <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-slate-100">
-                                <span className="text-[11px] font-semibold text-slate-400 mr-1">Lọc nhanh:</span>
-                                {["Cần Thơ", "Hồ Chí Minh", "Hà Nội", "Đà Nẵng"].map((loc) => (
-                                    <button
-                                        key={loc}
-                                        onClick={() => setSelectedLocation(selectedLocation === loc ? "ALL" : loc)}
-                                        className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors cursor-pointer border ${
-                                            selectedLocation === loc
-                                                ? "bg-sky-700 text-white border-sky-700 shadow-2xs"
-                                                : "bg-slate-50 text-slate-600 border-slate-200/80 hover:bg-slate-100"
-                                        }`}
-                                    >
-                                        📍 {loc}
-                                    </button>
-                                ))}
-                                <button
-                                    onClick={() => setOnlyWithStipend(prev => !prev)}
-                                    className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors cursor-pointer border ${
-                                        onlyWithStipend
-                                            ? "bg-emerald-50 text-emerald-800 border-emerald-300 shadow-2xs"
-                                            : "bg-slate-50 text-slate-600 border-slate-200/80 hover:bg-slate-100"
-                                    }`}
-                                >
-                                    💰 Có phụ cấp
-                                </button>
-                                {["ONSITE", "HYBRID", "REMOTE"].map((fmt) => (
-                                    <button
-                                        key={fmt}
-                                        onClick={() => setSelectedFormat(selectedFormat === fmt ? "ALL" : fmt)}
-                                        className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors cursor-pointer border ${
-                                            selectedFormat === fmt
-                                                ? "bg-sky-50 text-sky-800 border-sky-300 shadow-2xs"
-                                                : "bg-slate-50 text-slate-600 border-slate-200/80 hover:bg-slate-100"
-                                        }`}
-                                    >
-                                        {fmt === "ONSITE" ? "🏢 Trực tiếp" : fmt === "HYBRID" ? "⚡ Linh hoạt" : "🌐 Từ xa"}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Job Cards */}
-                        {loading ? (
-                            <div className="space-y-4">
-                                {[1, 2, 3].map(n => (
-                                    <div key={n} className="bg-white rounded-3xl border border-slate-200 p-6 animate-pulse space-y-4">
-                                        <div className="h-6 bg-slate-200 rounded w-1/3"></div>
-                                        <div className="h-4 bg-slate-100 rounded w-2/3"></div>
-                                        <div className="h-10 bg-slate-50 rounded"></div>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : filteredJobs.length === 0 ? (
-                            <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center shadow-sm">
-                                <Briefcase className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                                <h3 className="text-base font-bold text-slate-800 mb-1">Không tìm thấy vị trí phù hợp</h3>
-                                <p className="text-xs text-slate-500 max-w-sm mx-auto mb-4">
-                                    Thử thay đổi từ khóa tìm kiếm hoặc chọn lại các bộ lọc hình thức, chuyên ngành để xem các vị trí khác.
-                                </p>
-                                <Button 
-                                    variant="outline" 
-                                    onClick={() => {
-                                        setKeyword("");
-                                        setSelectedFormat("ALL");
-                                        setSelectedMajor("ALL");
-                                        setOnlyWithStipend(false);
-                                    }}
-                                    className="cursor-pointer text-xs rounded-full"
-                                >
-                                    Đặt lại bộ lọc
-                                </Button>
-                            </div>
-                        ) : (
-                            <div className="space-y-4">
-                                {filteredJobs.map(job => (
-                                    <div 
-                                        key={job.id}
-                                        className="bg-white rounded-3xl border border-slate-200/80 p-5 sm:p-6 shadow-2xs hover:border-sky-300 hover:shadow-card-hover transition-colors duration-200 group"
-                                    >
-                                        <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
-                                            <div className="flex items-start gap-3.5 sm:gap-4 min-w-0 flex-1">
-                                                {/* Company Logo */}
-                                                <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center p-2 shrink-0">
-                                                    <Building2 className="w-6 h-6 text-sky-700" />
-                                                </div>
-
-                                                <div className="space-y-1.5 min-w-0 flex-1">
-                                                    <Link 
-                                                        href={`/jobs/${job.id}`}
-                                                        className="text-base font-bold text-slate-900 group-hover:text-sky-700 transition-colors block line-clamp-1"
-                                                    >
-                                                        {job.title}
-                                                    </Link>
-
-                                                    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600 font-medium">
-                                                        <span className="font-semibold text-slate-800">{job.companyName}</span>
-                                                        <span className="text-slate-300">•</span>
-                                                        <span className="flex items-center gap-1 text-slate-500">
-                                                            <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                                            <span className="truncate max-w-[200px]">{job.location}</span>
-                                                        </span>
-                                                        <span className="text-slate-300">•</span>
-                                                        <span className="flex items-center gap-1 text-slate-500 shrink-0">
-                                                            <Users className="w-3.5 h-3.5 text-slate-400" />
-                                                            {job.vacancies} chỉ tiêu
-                                                        </span>
-                                                    </div>
-
-                                                    {/* Badges row */}
-                                                    <div className="flex flex-wrap items-center gap-2 pt-1">
-                                                        {getWorkFormatBadge(job.workFormat)}
-                                                        <Badge variant="success" className="bg-emerald-50 text-emerald-700 border-emerald-200 font-bold rounded-full px-2.5">
-                                                            {formatCurrency(job.stipendAmount)}
-                                                        </Badge>
-                                                        {job.experienceLevel && (
-                                                            <Badge variant="outline" className="text-slate-600 border-slate-200 rounded-full px-2.5">
-                                                                {job.experienceLevel}
-                                                            </Badge>
-                                                        )}
-                                                        {job.isExpired && (
-                                                            <Badge variant="destructive" className="bg-rose-50 text-rose-700 border-rose-200 font-semibold rounded-full px-2 text-[10px]">
-                                                                Đã hết hạn
-                                                            </Badge>
-                                                        )}
-                                                        {job.status === "CLOSED" && (
-                                                            <Badge variant="secondary" className="bg-slate-100 text-slate-700 border-slate-200 font-semibold rounded-full px-2 text-[10px]">
-                                                                Đã đóng nhận hồ sơ
-                                                            </Badge>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {/* Action Button Container */}
-                                            <div className="flex sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto pt-3 sm:pt-0 border-t sm:border-t-0 border-slate-100 gap-2.5 sm:gap-3 shrink-0">
-                                                <div className="text-xs text-slate-400 flex items-center gap-1 shrink-0">
-                                                    <Calendar className="w-3.5 h-3.5 shrink-0" />
-                                                    Hạn: <span className="font-semibold text-slate-600">{formatDate(job.applicationDeadline || job.deadline)}</span>
-                                                </div>
-                                                <Link href={`/jobs/${job.id}`} className="shrink-0">
-                                                    <Button 
-                                                        variant="default"
-                                                        size="sm"
-                                                        className="bg-slate-950 hover:bg-slate-900 text-white font-bold px-4 py-2 text-xs cursor-pointer shadow-xs whitespace-nowrap rounded-full gap-2"
-                                                    >
-                                                        <span>Chi tiết & Ứng tuyển</span>
-                                                        <div className="w-4 h-4 rounded-full bg-white text-slate-950 flex items-center justify-center -mr-1">
-                                                            <ChevronRight className="w-3 h-3" />
-                                                        </div>
-                                                    </Button>
-                                                </Link>
-                                            </div>
+                            {/* Job Cards */}
+                            {loading ? (
+                                <div className="space-y-4">
+                                    {[1, 2, 3].map(n => (
+                                        <div key={n} className="bg-white rounded-3xl border border-slate-200 p-6 animate-pulse space-y-4">
+                                            <div className="h-6 bg-slate-200 rounded w-1/3"></div>
+                                            <div className="h-4 bg-slate-100 rounded w-2/3"></div>
+                                            <div className="h-10 bg-slate-50 rounded"></div>
                                         </div>
-
-                                        {/* Job Brief Description */}
-                                        <p className="mt-3.5 text-xs text-slate-600 line-clamp-2 leading-relaxed">
-                                            {job.description ? job.description.replace(/<[^>]*>/g, ' ').replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim() : ''}
-                                        </p>
-
-                                        {/* Skill tags */}
-                                        {job.skills && job.skills.length > 0 && (
-                                            <div className="mt-3 pt-3 border-t border-slate-100 flex flex-wrap items-center gap-1.5">
-                                                <span className="text-[11px] text-slate-400 font-medium mr-1">Kỹ năng:</span>
-                                                {job.skills.map((s, idx) => (
-                                                    <span 
-                                                        key={idx}
-                                                        className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[11px] font-medium hover:bg-slate-200 transition-colors"
-                                                    >
-                                                        {s.skillName || s.skillId}
-                                                    </span>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
+                                    ))}
+                                </div>
+                            ) : filteredJobs.length === 0 ? (
+                                <JobSearchEmptyState onResetFilters={resetFilters} />
+                            ) : (
+                                <div className="space-y-4">
+                                    {filteredJobs.map(job => (
+                                        <PublicJobCard 
+                                            key={job.id} 
+                                            job={job} 
+                                            isActive={isJobActive(job)} 
+                                        />
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
-            </div>
             </div>
         </PublicShell>
     );

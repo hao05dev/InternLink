@@ -32,7 +32,7 @@ export function PublicShell({ children, hideNavbar = false }: PublicShellProps) 
                                 <Link href="/jobs" className={footerLinkClassName}>Vị trí thực tập</Link>
                                 <Link href="/companies" className={footerLinkClassName}>Doanh nghiệp</Link>
                                 <Link href="/career-guide" className={footerLinkClassName}>Tin tức & Blog</Link>
-                                <Link href="/#about" className={footerLinkClassName}>Về trường</Link>
+                                <Link href="/about" className={footerLinkClassName}>Về trường</Link>
                             </nav>
                         </div>
                         <div>

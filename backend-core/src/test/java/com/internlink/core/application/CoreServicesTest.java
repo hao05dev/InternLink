@@ -74,6 +74,7 @@ class CoreServicesTest {
     @Mock JwtUtil jwtUtil;
     @Mock CookieUtils cookieUtils;
     @Mock TokenRevocationService tokenRevocationService;
+    @Mock org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
     @Mock HttpServletResponse servletResponse;
 
     @BeforeEach
@@ -339,7 +340,7 @@ class CoreServicesTest {
     @Test
     void authMapsBadCredentialsToDomainUnauthorizedException() {
         AuthServiceImpl service =
-                new AuthServiceImpl(authenticationManager, jwtUtil, cookieUtils, userRepository, tokenRevocationService);
+                new AuthServiceImpl(authenticationManager, jwtUtil, cookieUtils, userRepository, companyRepository, passwordEncoder, notificationService, tokenRevocationService);
         when(authenticationManager.authenticate(any()))
                 .thenThrow(new BadCredentialsException("bad"));
 
@@ -357,7 +358,7 @@ class CoreServicesTest {
     @Test
     void authCurrentUserRequiresAuthenticatedPrincipal() {
         AuthServiceImpl service =
-                new AuthServiceImpl(authenticationManager, jwtUtil, cookieUtils, userRepository, tokenRevocationService);
+                new AuthServiceImpl(authenticationManager, jwtUtil, cookieUtils, userRepository, companyRepository, passwordEncoder, notificationService, tokenRevocationService);
 
         assertThatThrownBy(service::getCurrentUser).isInstanceOf(UnauthorizedException.class);
     }

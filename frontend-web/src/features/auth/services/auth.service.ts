@@ -1,18 +1,25 @@
 import { apiClient, ApiError } from "@/lib/api-client";
 import { ApiResponse } from "@/lib/api.types";
-import type { AuthResponse, UserSummary, LoginCredentials } from "@/features/auth/types/auth.types";
+import type { AuthResponse, UserSummary, LoginCredentials, RegisterCompanyPayload } from "@/features/auth/types/auth.types";
+
 export const login = async (credentials: LoginCredentials): Promise<AuthResponse> => {
     const response: ApiResponse<AuthResponse> = await apiClient.post("/api/v1/auth/login", credentials);
     return response.data;
-}
+};
+
+export const registerCompany = async (payload: RegisterCompanyPayload): Promise<AuthResponse> => {
+    const response: ApiResponse<AuthResponse> = await apiClient.post("/api/v1/auth/register/company", payload);
+    return response.data;
+};
+
 export const logout = async (): Promise<void> => {
     await apiClient.post("/api/v1/auth/logout", {});
-}
+};
 
 export const getCurrentUser = async (): Promise<UserSummary> => {
     const response: ApiResponse<UserSummary> = await apiClient.get("/api/v1/auth/me");
     return response.data;
-}
+};
 
 export const getSessionUser = async (): Promise<UserSummary | null> => {
     try {
@@ -27,7 +34,6 @@ export const getSessionUser = async (): Promise<UserSummary | null> => {
         if (!missingSessionEndpoint) {
             throw error;
         }
-        // An older backend may not have /session yet. Preserve existing cookies until it restarts.
         try {
             return await getCurrentUser();
         } catch (legacyError) {
@@ -35,8 +41,12 @@ export const getSessionUser = async (): Promise<UserSummary | null> => {
             throw legacyError;
         }
     }
-}
+};
 
 export const authService = {
-    login, logout, getCurrentUser, getSessionUser,
-}
+    login,
+    registerCompany,
+    logout,
+    getCurrentUser,
+    getSessionUser,
+};

@@ -48,14 +48,24 @@ export function AboutSchoolSection() {
           </p>
         </div>
 
-        <a
-          href="https://cict.ctu.edu.vn"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex min-h-11 items-center gap-2 rounded-md text-sm font-medium text-sky-700 transition-colors hover:text-sky-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 self-start sm:shrink-0 sm:self-auto"
-        >
-          Cổng thông tin CICT <ArrowUpRight aria-hidden="true" className="h-4 w-4" />
-        </a>
+        <div className="flex flex-wrap items-center gap-2.5 self-start sm:shrink-0 sm:self-auto">
+          <Link
+            href="/about"
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-lg bg-sky-700 px-4 py-2 text-sm font-semibold text-white shadow-2xs transition hover:bg-sky-800"
+          >
+            <span>Tìm hiểu chi tiết</span>
+            <ArrowUpRight aria-hidden="true" className="h-4 w-4" />
+          </Link>
+          <a
+            href="https://cict.ctu.edu.vn"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+          >
+            <span>Cổng CICT</span>
+            <ArrowUpRight aria-hidden="true" className="h-4 w-4 text-slate-400" />
+          </a>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

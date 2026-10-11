@@ -1,48 +1,28 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
 import { ArrowLeft, Loader2, FileQuestion } from "lucide-react";
 import { PublicShell } from "@/components/layouts/public-shell";
-import { postService } from "../services/post.service";
-import { PostItem } from "../types/post.types";
-import { BlogPostDetailContent } from "./public/blog-post-detail-content";
 import { Button } from "@/components/ui/button";
+import { useBlogPostDetail } from "../hooks/use-blog-post-detail";
+import { usePostViewGuard } from "../hooks/use-post-view-guard";
+import { BlogArticleHeader } from "./detail/blog-article-header";
+import { BlogArticleBody } from "./detail/blog-article-body";
+import { BlogSidebarRelatedPosts } from "./detail/blog-sidebar-related-posts";
+import { BlogSidebarFeaturedJobs } from "./detail/blog-sidebar-featured-jobs";
+import { BlogSidebarPartnerNotice } from "./detail/blog-sidebar-partner-notice";
 
 interface BlogPostDetailViewProps {
     slug: string;
 }
 
 export default function BlogPostDetailView({ slug }: BlogPostDetailViewProps) {
-    const [post, setPost] = useState<PostItem | null>(null);
-    const [isLoading, setIsLoading] = useState<boolean>(true);
-    const [isNotFound, setIsNotFound] = useState<boolean>(false);
+    const { post, setPost, relatedPosts, suggestedJobs, isLoading, isNotFound } = useBlogPostDetail(slug);
 
-    useEffect(() => {
-        let isMounted = true;
-        async function fetchPost() {
-            try {
-                setIsLoading(true);
-                setIsNotFound(false);
-                const data = await postService.getPublicPostBySlug(slug);
-                if (isMounted) {
-                    if (data) {
-                        setPost(data);
-                    } else {
-                        setIsNotFound(true);
-                    }
-                }
-            } catch (err) {
-                if (isMounted) setIsNotFound(true);
-            } finally {
-                if (isMounted) setIsLoading(false);
-            }
-        }
-        fetchPost();
-        return () => {
-            isMounted = false;
-        };
-    }, [slug]);
+    // Lớp bảo vệ chống tăng view ảo, đảm bảo mỗi người thật chỉ tính 1 view/24h
+    usePostViewGuard(slug, (updatedPost) => {
+        setPost(prev => prev ? { ...prev, viewCount: updatedPost.viewCount } : updatedPost);
+    });
 
     if (isLoading) {
         return (
@@ -83,26 +63,37 @@ export default function BlogPostDetailView({ slug }: BlogPostDetailViewProps) {
 
     return (
         <PublicShell>
-            <div className="min-h-screen bg-slate-50/70 dark:bg-slate-950 py-10">
-                <div className="max-w-4xl mx-auto px-4 sm:px-6">
-                    {/* Breadcrumbs */}
+            <div className="min-h-screen bg-slate-50/80 py-8 sm:py-10">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    {/* Breadcrumbs Navigation */}
                     <div className="flex items-center gap-2 text-xs text-slate-500 mb-6 truncate">
                         <Link
                             href="/career-guide"
-                            className="hover:text-sky-600 flex items-center gap-1 transition-colors shrink-0"
+                            className="hover:text-sky-600 flex items-center gap-1 transition-colors shrink-0 font-medium"
                         >
                             <ArrowLeft className="w-3.5 h-3.5" />
                             Tin tức & Blog
                         </Link>
                         <span>/</span>
-                        <span className="text-slate-800 dark:text-slate-200 font-medium truncate">
+                        <span className="text-slate-800 font-semibold truncate">
                             {post.title}
                         </span>
                     </div>
 
-                    {/* Article Container */}
-                    <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-6 sm:p-10 shadow-2xs">
-                        <BlogPostDetailContent post={post} />
+                    {/* Main Content Layout: 2 Columns */}
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                        {/* Left Column: Main Article (8/12 cols) */}
+                        <div className="lg:col-span-8 bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-10 shadow-xs">
+                            <BlogArticleHeader post={post} />
+                            <BlogArticleBody post={post} />
+                        </div>
+
+                        {/* Right Column: Sticky Sidebar Widgets (4/12 cols) */}
+                        <div className="lg:col-span-4 lg:sticky lg:top-24 space-y-6">
+                            <BlogSidebarRelatedPosts posts={relatedPosts} />
+                            <BlogSidebarFeaturedJobs jobs={suggestedJobs} />
+                            <BlogSidebarPartnerNotice />
+                        </div>
                     </div>
                 </div>
             </div>

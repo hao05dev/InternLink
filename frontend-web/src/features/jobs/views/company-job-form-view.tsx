@@ -157,7 +157,7 @@ export function CompanyJobFormView({ mode, jobId }: CompanyJobFormViewProps) {
             setSelectedDeptId(j.departmentId || "");
             setSelectedTermId(j.termId || "");
             if (j.skills && j.skills.length > 0) {
-              setSkillsText(j.skills.map((s) => s.skillName || s.skillId).join(", "));
+              setSkillsText(j.skills.map((s: { skillName?: string; skillId?: string }) => s.skillName || s.skillId).join(", "));
             } else if (j.mandatorySkillIds) {
               setSkillsText(j.mandatorySkillIds.join(", "));
             }

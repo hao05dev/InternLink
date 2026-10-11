@@ -83,4 +83,34 @@ describe("PortalLayout Navigation Active State", () => {
     expect(manageJobsLink).toHaveClass("bg-sky-50");
     expect(postJobLink).not.toHaveClass("bg-sky-50");
   });
+
+  it("renders Blog Manager portal with correct title and navigation items", () => {
+    vi.spyOn(AuthContextModule, "useAuth").mockReturnValue({
+      user: {
+        id: "blog-1",
+        email: "editor.blog@ctu.edu.vn",
+        fullName: "Biên tập viên Blog",
+        role: "BLOG_MANAGER",
+      },
+      isLoading: false,
+      isAuthenticated: true,
+      login: vi.fn(),
+      logout: vi.fn(),
+      refreshUser: vi.fn(),
+    });
+
+    currentPathname = "/blog-manager/posts";
+
+    render(
+      <PortalLayout portalRole="BLOG_MANAGER">
+        <div>Blog Manager Workspace</div>
+      </PortalLayout>
+    );
+
+    expect(screen.getAllByText("Cổng Quản Lý Blog & Truyền Thông")[0]).toBeInTheDocument();
+    expect(screen.getByText("Blog Manager Workspace")).toBeInTheDocument();
+    const postsLink = screen.getAllByText("Quản lý bài viết")[0].closest("a");
+    expect(postsLink).toBeInTheDocument();
+  });
 });
+

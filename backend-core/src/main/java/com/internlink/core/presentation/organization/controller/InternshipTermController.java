@@ -36,6 +36,11 @@ public class InternshipTermController {
             id, request.pickupLocation(), request.pickupDate())));
     }
 
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<InternshipTermResponse>>> getAllTerms() {
+        return ResponseEntity.ok(ApiResponse.success(termService.getAllTerms()));
+    }
+
     @GetMapping("/by-department/{departmentId}")
     public ResponseEntity<ApiResponse<List<InternshipTermResponse>>> getTermsByDepartment(
             @PathVariable UUID departmentId

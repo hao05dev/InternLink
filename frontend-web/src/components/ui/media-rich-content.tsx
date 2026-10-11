@@ -37,41 +37,21 @@ export function parseInlineMarkdown(text: string): ReactNode[] {
       tokens.push(text.substring(lastIndex, match.index));
     }
 
-    const [
-      fullMatch,
-      isImg,
-      imgAlt,
-      imgSrc,
-      isLink,
-      linkText,
-      linkUrl,
-      isCode,
-      codeContent,
-      ,
-      boldItalicText,
-      boldTextStar,
-      boldTextUnder,
-      italicTextStar,
-      italicTextUnder,
-      strikeText,
-    ] = [
-      match[0],
-      match[1],
-      match[2],
-      match[3],
-      match[4],
-      match[5],
-      match[6],
-      match[7],
-      match[8],
-      match[9],
-      match[10],
-      match[12],
-      match[14],
-      match[16],
-      match[18],
-      match[20],
-    ];
+    const fullMatch = match[0];
+    const isImg = match[1];
+    const imgAlt = match[2];
+    const imgSrc = match[3];
+    const isLink = match[4];
+    const linkText = match[5];
+    const linkUrl = match[6];
+    const isCode = match[7];
+    const codeContent = match[8];
+    const boldItalicText = match[9] ? match[10] : undefined;
+    const boldTextStar = match[11] ? match[12] : undefined;
+    const boldTextUnder = match[13] ? match[14] : undefined;
+    const italicTextStar = match[15] ? match[16] : undefined;
+    const italicTextUnder = match[17] ? match[18] : undefined;
+    const strikeText = match[19] ? match[20] : undefined;
 
     const key = `inline-${match.index}-${lastIndex}`;
 
@@ -130,7 +110,7 @@ export function parseInlineMarkdown(text: string): ReactNode[] {
         </strong>
       );
     } else if (boldTextStar || boldTextUnder) {
-      const bContent = boldTextStar || boldTextUnder;
+      const bContent = boldTextStar || boldTextUnder || "";
       tokens.push(
         <strong
           key={key}
@@ -140,7 +120,7 @@ export function parseInlineMarkdown(text: string): ReactNode[] {
         </strong>
       );
     } else if (italicTextStar || italicTextUnder) {
-      const iContent = italicTextStar || italicTextUnder;
+      const iContent = italicTextStar || italicTextUnder || "";
       tokens.push(
         <em key={key} className="italic text-slate-800 dark:text-slate-200">
           {parseInlineMarkdown(iContent)}
@@ -211,10 +191,10 @@ export function MediaRichContent({
         elements.push(
           <ul
             key={key}
-            className="list-disc list-outside ml-5 sm:ml-6 space-y-1.5 my-3 text-slate-700 dark:text-slate-300"
+            className="list-disc list-outside ml-5 sm:ml-6 space-y-1.5 my-3 text-slate-800"
           >
             {listItems.map((item, idx) => (
-              <li key={idx} className="leading-relaxed pl-0.5">
+              <li key={idx} className="leading-relaxed pl-0.5 text-slate-800">
                 {parseInlineMarkdown(item)}
               </li>
             ))}
@@ -224,10 +204,10 @@ export function MediaRichContent({
         elements.push(
           <ol
             key={key}
-            className="list-decimal list-outside ml-5 sm:ml-6 space-y-1.5 my-3 text-slate-700 dark:text-slate-300"
+            className="list-decimal list-outside ml-5 sm:ml-6 space-y-1.5 my-3 text-slate-800"
           >
             {listItems.map((item, idx) => (
-              <li key={idx} className="leading-relaxed pl-0.5">
+              <li key={idx} className="leading-relaxed pl-0.5 text-slate-800">
                 {parseInlineMarkdown(item)}
               </li>
             ))}
@@ -488,7 +468,7 @@ export function MediaRichContent({
       elements.push(
         <p
           key={`p-${index}`}
-          className="my-2.5 leading-relaxed text-slate-700 dark:text-slate-300 text-sm sm:text-base font-normal"
+          className="my-2.5 leading-relaxed text-slate-800 text-sm sm:text-base font-normal"
         >
           {parseInlineMarkdown(trimmed)}
         </p>

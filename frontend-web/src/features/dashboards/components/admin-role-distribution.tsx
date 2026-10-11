@@ -15,7 +15,7 @@ interface AdminRoleDistributionProps {
 }
 
 export function AdminRoleDistribution({ roleCounts, totalUsers }: AdminRoleDistributionProps) {
-    const roles: UserRole[] = ["STUDENT", "LECTURER", "FACULTY_ADMIN", "COMPANY_REP", "COMPANY_MENTOR", "ADMIN"];
+    const roles: UserRole[] = ["STUDENT", "LECTURER", "FACULTY_ADMIN", "COMPANY_REP", "COMPANY_MENTOR", "BLOG_MANAGER", "ADMIN"];
 
     return (
         <Card>

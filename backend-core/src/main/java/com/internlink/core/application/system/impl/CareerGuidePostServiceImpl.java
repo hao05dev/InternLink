@@ -37,6 +37,7 @@ public class CareerGuidePostServiceImpl implements CareerGuidePostService {
     private final JpaUserRepository userRepository;
     private final CareerGuidePostMapper postMapper;
     private final com.internlink.core.application.system.upload.MediaReferencePolicy media;
+    private final com.internlink.core.application.system.PostViewGuardService postViewGuardService;
 
     private static final Pattern NONLATIN = Pattern.compile("[^\\w-]");
     private static final Pattern WHITESPACE = Pattern.compile("[\\s]");
@@ -57,7 +58,7 @@ public class CareerGuidePostServiceImpl implements CareerGuidePostService {
     }
 
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public PostResponse getPublishedPostBySlug(String slug) {
         CareerGuidePost post =
                 postRepository
@@ -72,8 +73,31 @@ public class CareerGuidePostServiceImpl implements CareerGuidePostService {
                     "Bài viết cẩm nang không khả dụng hoặc chưa được xuất bản.");
         }
 
-        postRepository.incrementViewCount(post.getId());
-        post.setViewCount(post.getViewCount() + 1);
+        return postMapper.toResponse(post);
+    }
+
+    @Override
+    @Transactional
+    public PostResponse recordView(String slug, String visitorIdentity) {
+        CareerGuidePost post =
+                postRepository
+                        .findBySlug(slug)
+                        .orElseThrow(
+                                () ->
+                                        new ResourceNotFoundException(
+                                                "Bài viết cẩm nang", "slug", slug));
+
+        if (!"PUBLISHED".equalsIgnoreCase(post.getStatus())) {
+            throw new ResourceNotFoundException(
+                    "Bài viết cẩm nang không khả dụng hoặc chưa được xuất bản.");
+        }
+
+        // Kiểm tra điều kiện duy nhất 1 view trong 24 giờ cho cùng 1 người thật
+        if (postViewGuardService.recordViewIfEligible(post.getId(), visitorIdentity)) {
+            postRepository.incrementViewCount(post.getId());
+            post.setViewCount(post.getViewCount() + 1);
+            log.info("Ghi nhận lượt xem hợp lệ mới cho bài viết [{}]. Tổng views: {}", slug, post.getViewCount());
+        }
 
         return postMapper.toResponse(post);
     }

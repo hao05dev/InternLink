@@ -53,6 +53,14 @@ public class InternshipTermServiceImpl implements InternshipTermService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<InternshipTermResponse> getAllTerms() {
+        return termRepository.findAll().stream()
+            .map(this::mapToResponse)
+            .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<InternshipTermResponse> getTermsByDepartment(UUID departmentId) {
         return termRepository.findByDepartmentId(departmentId).stream()
             .map(this::mapToResponse)

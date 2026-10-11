@@ -8,18 +8,18 @@ import {
   Users,
   Calendar,
   Share2,
-  Bookmark,
-  CheckCircle2,
-  Send,
   Check,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { JobPosition } from "@/features/jobs/types/job.types";
+import { UserRole } from "@/features/auth/types/auth.types";
+import { JobDetailActionBar } from "./job-detail-action-bar";
 
 interface JobDetailHeaderProps {
   job: JobPosition;
   isAuthenticated: boolean;
+  userRole?: UserRole;
+  userCompanyId?: string;
   isApplied: boolean;
   onOpenApplyModal: () => void;
   onRedirectLogin: () => void;
@@ -28,11 +28,12 @@ interface JobDetailHeaderProps {
 export function JobDetailHeader({
   job,
   isAuthenticated,
+  userRole,
+  userCompanyId,
   isApplied,
   onOpenApplyModal,
   onRedirectLogin,
 }: JobDetailHeaderProps) {
-  const [saved, setSaved] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const formatCurrency = (amount?: number) => {
@@ -162,37 +163,15 @@ export function JobDetailHeader({
       </div>
 
       {/* Primary Action Button Bar */}
-      <div className="flex flex-col sm:flex-row items-center gap-3">
-        {isApplied ? (
-          <div className="w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-sm">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-            Bạn đã nộp hồ sơ ứng tuyển vị trí này thành công
-          </div>
-        ) : (
-          <Button
-            variant="primary"
-            onClick={() => {
-              if (!isAuthenticated) {
-                onRedirectLogin();
-              } else {
-                onOpenApplyModal();
-              }
-            }}
-            className="w-full sm:w-auto flex-1 font-bold py-3.5 px-8 rounded-xl shadow-xs text-sm cursor-pointer"
-          >
-            <Send className="w-4 h-4 mr-2" />
-            Ứng tuyển ngay
-          </Button>
-        )}
-        <Button
-          variant="outline"
-          onClick={() => setSaved(!saved)}
-          className="w-full sm:w-auto px-6 py-3.5 rounded-xl text-slate-700 border-slate-200 hover:bg-slate-50 font-semibold text-sm cursor-pointer"
-        >
-          <Bookmark className="w-4 h-4 mr-1.5 text-slate-400" />
-          {saved ? "Đã lưu vị trí" : "Lưu vào danh sách"}
-        </Button>
-      </div>
+      <JobDetailActionBar
+        job={job}
+        isAuthenticated={isAuthenticated}
+        userRole={userRole}
+        userCompanyId={userCompanyId}
+        isApplied={isApplied}
+        onOpenApplyModal={onOpenApplyModal}
+        onRedirectLogin={onRedirectLogin}
+      />
     </div>
   );
 }

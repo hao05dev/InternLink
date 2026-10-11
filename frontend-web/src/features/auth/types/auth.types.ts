@@ -1,4 +1,4 @@
-export type UserRole = "STUDENT" | "COMPANY_REP" | "ADMIN" | "COMPANY_MENTOR" | "LECTURER" | "FACULTY_ADMIN";
+export type UserRole = "STUDENT" | "COMPANY_REP" | "ADMIN" | "COMPANY_MENTOR" | "LECTURER" | "FACULTY_ADMIN" | "BLOG_MANAGER";
 
 export interface LoginCredentials {
     email: string;
@@ -24,4 +24,21 @@ export interface AuthResponse {
     fullName: string;
     role: UserRole;
     mustChangePassword?: boolean;
+}
+
+export interface RegisterCompanyPayload {
+    companyName: string;
+    taxCode: string;
+    industry?: string;
+    website?: string;
+    address: {
+        street?: string;
+        ward?: string;
+        district?: string;
+        province?: string;
+    };
+    fullName: string;
+    email: string;
+    phoneNumber: string;
+    password: string;
 }

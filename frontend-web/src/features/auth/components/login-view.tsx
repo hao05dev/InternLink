@@ -63,6 +63,13 @@ const TEST_ACCOUNTS: TestAccount[] = [
         description: "Quản trị phân quyền & cấu hình hệ thống",
     },
     {
+        label: "Biên tập viên Blog",
+        email: "editor.blog@ctu.edu.vn",
+        role: "BLOG_MANAGER",
+        category: "school",
+        description: "Đăng tải bài viết, quản lý blog & truyền thông",
+    },
+    {
         label: "Đại diện Doanh nghiệp",
         email: "tuyendung.fptct@fpt.com",
         role: "COMPANY_REP",
@@ -103,6 +110,7 @@ export default function LoginView() {
                 FACULTY_ADMIN: "/faculty/dashboard",
                 LECTURER: "/lecturer/dashboard",
                 ADMIN: "/admin/dashboard",
+                BLOG_MANAGER: "/blog-manager/posts",
             };
             const targetUrl = roleRedirects[authData.role] || "/";
             router.push(targetUrl);
@@ -151,6 +159,7 @@ export default function LoginView() {
                 FACULTY_ADMIN: "/faculty/dashboard",
                 LECTURER: "/lecturer/dashboard",
                 ADMIN: "/admin/dashboard",
+                BLOG_MANAGER: "/blog-manager/posts",
             };
             const targetUrl = roleRedirects[authData.role] || "/";
             router.push(targetUrl);

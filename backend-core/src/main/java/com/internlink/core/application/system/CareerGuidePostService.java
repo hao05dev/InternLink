@@ -14,6 +14,8 @@ public interface CareerGuidePostService {
 
     PostResponse getPublishedPostBySlug(String slug);
 
+    PostResponse recordView(String slug, String visitorIdentity);
+
     List<PostResponse> getAllPostsForManagement(PostCategory category, String status, String search);
 
     PostResponse getPostById(UUID id);

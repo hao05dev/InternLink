@@ -68,12 +68,14 @@ const ROLE_CONFIG: Record<UserRole, { label: string; variant: 'brand' | 'primary
     STUDENT: { label: 'Sinh viên', variant: 'brand' },
     COMPANY_REP: { label: 'Đại diện Doanh nghiệp', variant: 'warning' },
     COMPANY_MENTOR: { label: 'Mentor Doanh nghiệp', variant: 'success' },
+    BLOG_MANAGER: { label: 'Biên tập viên Blog', variant: 'primary' },
 };
 
 const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
     { value: 'STUDENT', label: 'Sinh viên' },
     { value: 'LECTURER', label: 'Giảng viên hướng dẫn' },
     { value: 'FACULTY_ADMIN', label: 'Ban Quản lý Khoa' },
+    { value: 'BLOG_MANAGER', label: 'Biên tập viên Blog' },
     { value: 'COMPANY_REP', label: 'Đại diện Doanh nghiệp' },
     { value: 'COMPANY_MENTOR', label: 'Mentor Doanh nghiệp' },
     { value: 'ADMIN', label: 'Quản trị viên' },
@@ -456,7 +458,7 @@ export default function AdminUsersView() {
                                     options={ROLE_OPTIONS}
                                 />
 
-                                {(form.role === 'FACULTY_ADMIN' || form.role === 'LECTURER' || form.role === 'STUDENT') && (
+                                {(form.role === 'FACULTY_ADMIN' || form.role === 'LECTURER' || form.role === 'STUDENT' || form.role === 'BLOG_MANAGER') && (
                                     <Select
                                         label="Khoa / Bộ môn"
                                         value={form.departmentId}
