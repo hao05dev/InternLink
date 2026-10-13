@@ -53,8 +53,7 @@ $RECYCLE.BIN/
 !docs/
 docs/*
 /docs
-!AGENTS.md
-/.vscode
+AGENTS.md
 !docs/IMPLEMENTATION_FILE_MAP.md
 !docs/NOTIFICATIONS_EMAIL_R2_PLAN.md
 !docs/NOTIFICATIONS_EMAIL_R2_STATUS.md
@@ -65,9 +64,7 @@ docker-compose.yml
 # 3. IDEs & Editors
 # --------------------------------------------------------------------
 .idea/
-.vscode/*
-!.vscode/extensions.json
-!.vscode/settings.json
+.vscode/
 *.iml
 *.iws
 *.ipr
