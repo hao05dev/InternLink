@@ -2,40 +2,46 @@ package com.internlink.core.application.portfolio;
 
 import com.internlink.core.application.placement.WeeklyLogbookService;
 import com.internlink.core.domain.auth.User;
-import com.internlink.core.domain.placement.*;
-import com.internlink.core.infrastructure.persistence.jpa.*;
+import com.internlink.core.domain.placement.DailyJournal;
+import com.internlink.core.domain.placement.InternshipPlacement;
+import com.internlink.core.infrastructure.persistence.jpa.JpaDailyJournalRepository;
+import com.internlink.core.infrastructure.persistence.jpa.JpaInternshipPlacementRepository;
+import com.internlink.core.infrastructure.persistence.jpa.JpaUserRepository;
+import com.internlink.core.infrastructure.persistence.jpa.JpaWeeklyLogbookRepository;
 import com.internlink.core.presentation.placement.dto.request.WeeklyLogbookRequest;
 import com.internlink.core.presentation.placement.dto.response.WeeklyLogbookResponse;
-import com.internlink.core.shared.enums.*;
-import com.internlink.core.shared.exception.*;
-import com.internlink.core.shared.security.*;
-
+import com.internlink.core.shared.enums.LogbookStatus;
+import com.internlink.core.shared.enums.VerificationSource;
+import com.internlink.core.shared.exception.BadRequestException;
+import com.internlink.core.shared.exception.ResourceNotFoundException;
+import com.internlink.core.shared.security.ResourceAuthorization;
+import com.internlink.core.shared.security.SecurityGuard;
 import jakarta.validation.constraints.*;
-
 import lombok.RequiredArgsConstructor;
-
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.*;
-import java.time.*;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class DailyJournalService {
+
     private final JpaDailyJournalRepository journals;
     private final JpaInternshipPlacementRepository placements;
     private final JpaUserRepository users;
     private final JpaWeeklyLogbookRepository weekly;
     private final WeeklyLogbookService weeklyService;
+    private final DailyJournalAggregationService aggregationService;
     private final SecurityGuard security;
     private final PortfolioMediaResolver media;
-    private final com.internlink.core.application.system.notification
-                    .PlacementWorkflowNotificationHelper
-            notifications;
+    private final com.internlink.core.application.system.notification.PlacementWorkflowNotificationHelper notifications;
 
     public record Input(
             Integer version,
@@ -101,52 +107,28 @@ public class DailyJournalService {
         InternshipPlacement p = placement(placementId, true);
         User a = actor();
         ResourceAuthorization.require(PortfolioAccess.student(a, p));
-        active(p);
-        if (date.isBefore(p.getStartDate())
-                || date.isAfter(p.getEndDate())
-                || date.isAfter(LocalDate.now(ZoneId.of("Asia/Ho_Chi_Minh"))))
-            throw new BadRequestException(
-                    "Ngày nhật ký phải thuộc kỳ thực tập và không ở tương lai");
+        DailyJournalValidation.checkActiveAndTerm(p);
+        DailyJournalValidation.checkDate(p, date);
         unlockedWeek(p, date);
-        DailyJournal j =
-                journals.findByPlacementIdAndWorkDate(placementId, date)
-                        .orElseGet(
-                                () -> {
-                                    DailyJournal value = new DailyJournal();
-                                    value.setPlacement(p);
-                                    value.setWorkDate(date);
-                                    return value;
-                                });
-        checkVersion(j.getId() != null ? j.getVersion() : null, in.version());
-        if (!Set.of("DRAFT", "REVISION_REQUIRED").contains(j.getStatus()))
-            throw new BadRequestException(
-                    "Nhật ký đã gửi; người xác nhận cần yêu cầu sửa trước khi cập nhật");
-        if (!Set.of("PRESENT", "REMOTE", "LEAVE", "ABSENT", "DAY_OFF").contains(in.attendance()))
-            throw new BadRequestException("Tình trạng tham gia không hợp lệ");
-        boolean working = Set.of("PRESENT", "REMOTE").contains(in.attendance());
-        BigDecimal hours = BigDecimal.ZERO;
-        if (working) {
-            if (in.startTime() == null
-                    || in.endTime() == null
-                    || !in.endTime().isAfter(in.startTime()))
-                throw new BadRequestException("Nhập giờ bắt đầu và kết thúc hợp lệ trong ngày");
-            long minutes =
-                    Duration.between(in.startTime(), in.endTime()).toMinutes() - in.breakMinutes();
-            if (minutes <= 0 || in.sessions() < 1)
-                throw new BadRequestException("Số buổi và thời gian làm việc phải lớn hơn 0");
-            hours =
-                    BigDecimal.valueOf(minutes)
-                            .divide(BigDecimal.valueOf(60), 2, RoundingMode.HALF_UP);
-        }
-        String tasks = RichText.clean(in.tasks()),
-                results = RichText.clean(in.results()),
-                reflection = RichText.clean(in.reflection());
-        if (in.submit()
-                && working
-                && (RichText.text(tasks).isBlank() || RichText.text(results).isBlank()))
-            throw new BadRequestException("Cần ghi công việc đã làm và kết quả trong ngày");
-        if (in.submit() && !working && RichText.text(reflection).isBlank())
-            throw new BadRequestException("Ghi lý do nghỉ/vắng trong phần khó khăn và ghi chú");
+
+        DailyJournal j = journals.findByPlacementIdAndWorkDate(placementId, date)
+                .orElseGet(() -> {
+                    DailyJournal value = new DailyJournal();
+                    value.setPlacement(p);
+                    value.setWorkDate(date);
+                    return value;
+                });
+
+        DailyJournalValidation.checkVersion(j.getId() != null ? j.getVersion() : null, in.version());
+        DailyJournalValidation.checkEditableStatus(j.getStatus());
+        BigDecimal hours = DailyJournalValidation.calculateHours(in);
+
+        String tasks = RichText.clean(in.tasks());
+        String results = RichText.clean(in.results());
+        String reflection = RichText.clean(in.reflection());
+        DailyJournalValidation.validateContentOnSubmit(in, tasks, results, reflection);
+
+        boolean working = java.util.Set.of("PRESENT", "REMOTE").contains(in.attendance());
         j.setAttendance(in.attendance());
         j.setStartTime(working ? in.startTime() : null);
         j.setEndTime(working ? in.endTime() : null);
@@ -158,15 +140,19 @@ public class DailyJournalService {
         j.setResults(results);
         j.setReflection(reflection);
         j.setEvidence(in.evidence() == null ? "" : in.evidence().trim());
+
         if (in.submit()) {
             j.setStatus("SUBMITTED");
+            j.setVerificationSource(VerificationSource.STUDENT_REPORTED);
             j.setSubmittedAt(OffsetDateTime.now());
             j.setReviewedBy(null);
             j.setReviewedAt(null);
             j.setReviewNote(null);
         }
         var saved = journals.saveAndFlush(j);
-        if (in.submit()) notifications.daily(p, a.getId(), true);
+        if (in.submit()) {
+            notifications.daily(p, a.getId(), true);
+        }
         return view(saved);
     }
 
@@ -175,23 +161,21 @@ public class DailyJournalService {
         InternshipPlacement p = placement(placementId, true);
         User a = actor();
         ResourceAuthorization.require(PortfolioAccess.confirmDaily(a, p));
-        active(p);
+        DailyJournalValidation.checkActiveAndTerm(p);
         unlockedWeek(p, date);
-        DailyJournal j =
-                journals.findByPlacementIdAndWorkDate(placementId, date)
-                        .orElseThrow(() -> new BadRequestException("Chưa có nhật ký cho ngày này"));
-        checkVersion(j.getVersion(), in.version());
-        if (!Set.of("CONFIRMED", "REVISION_REQUIRED").contains(in.decision())
-                || !("SUBMITTED".equals(j.getStatus())
-                        || ("CONFIRMED".equals(j.getStatus())
-                                && "REVISION_REQUIRED".equals(in.decision()))))
-            throw new BadRequestException("Trạng thái xác nhận không hợp lệ");
-        if ("REVISION_REQUIRED".equals(in.decision()) && (in.note() == null || in.note().isBlank()))
-            throw new BadRequestException("Cần ghi nội dung yêu cầu bổ sung");
+
+        DailyJournal j = journals.findByPlacementIdAndWorkDate(placementId, date)
+                .orElseThrow(() -> new BadRequestException("Chưa có nhật ký cho ngày này"));
+
+        DailyJournalValidation.checkVersion(j.getVersion(), in.version());
+        DailyJournalValidation.validateReview(j, in);
+
         j.setStatus(in.decision());
+        j.setVerificationSource(VerificationSource.MENTOR_VERIFIED);
         j.setReviewNote(in.note());
         j.setReviewedBy(a);
         j.setReviewedAt(OffsetDateTime.now());
+
         var saved = journals.saveAndFlush(j);
         notifications.daily(p, a.getId(), false);
         return view(saved);
@@ -209,25 +193,15 @@ public class DailyJournalService {
         InternshipPlacement p = placement(placementId, true);
         User a = actor();
         ResourceAuthorization.require(PortfolioAccess.student(a, p));
-        active(p);
-        Week w =
-                aggregate(p).stream()
-                        .filter(v -> v.number() == number)
-                        .findFirst()
-                        .orElseThrow(() -> new BadRequestException("Tuần không hợp lệ"));
-        if (w.end().isAfter(LocalDate.now(ZoneId.of("Asia/Ho_Chi_Minh"))))
-            throw new BadRequestException("Chỉ tổng hợp khi tuần đã kết thúc");
-        if (w.confirmedDays() == 0)
-            throw new BadRequestException("Chưa có nhật ký ngày được xác nhận");
-        boolean unresolved =
-                journals.findByPlacementIdOrderByWorkDateAsc(placementId).stream()
-                        .anyMatch(
-                                j ->
-                                        !j.getWorkDate().isBefore(w.start())
-                                                && !j.getWorkDate().isAfter(w.end())
-                                                && !"CONFIRMED".equals(j.getStatus()));
-        if (unresolved)
-            throw new BadRequestException("Còn nhật ký ngày chưa được xác nhận trong tuần");
+        DailyJournalValidation.checkActiveAndTerm(p);
+
+        Week w = aggregate(p).stream()
+                .filter(v -> v.number() == number)
+                .findFirst()
+                .orElseThrow(() -> new BadRequestException("Tuần không hợp lệ"));
+
+        aggregationService.validateWeekForSubmission(p, w);
+
         return weeklyService.submitLogbook(
                 a.getId(),
                 new WeeklyLogbookRequest(
@@ -235,85 +209,22 @@ public class DailyJournalService {
                         number,
                         w.start(),
                         w.end(),
-                        w.tasks().isBlank()
-                                ? "Không phát sinh công việc; xem nhật ký ngày đã xác nhận."
-                                : w.tasks(),
-                        w.reflection().isBlank()
-                                ? "Xem kết quả trong nhật ký ngày."
-                                : w.reflection(),
+                        w.tasks().isBlank() ? "Không phát sinh công việc; xem nhật ký ngày đã ghi nhận." : w.tasks(),
+                        w.reflection().isBlank() ? "Xem kết quả trong nhật ký ngày." : w.reflection(),
                         w.hours()));
     }
 
     public List<Week> aggregate(InternshipPlacement p) {
-        List<DailyJournal> all = journals.findByPlacementIdOrderByWorkDateAsc(p.getId());
-        var existing = weekly.findByPlacementIdOrderByWeekNumberAsc(p.getId());
-        int count = (int) (ChronoUnit.DAYS.between(p.getStartDate(), p.getEndDate()) / 7) + 1;
-        List<Week> result = new ArrayList<>();
-        for (int n = 1; n <= count; n++) {
-            LocalDate start = p.getStartDate().plusWeeks(n - 1),
-                    end =
-                            start.plusDays(6).isAfter(p.getEndDate())
-                                    ? p.getEndDate()
-                                    : start.plusDays(6);
-            var days =
-                    all.stream()
-                            .filter(
-                                    j ->
-                                            !j.getWorkDate().isBefore(start)
-                                                    && !j.getWorkDate().isAfter(end))
-                            .toList();
-            var confirmed = days.stream().filter(j -> "CONFIRMED".equals(j.getStatus())).toList();
-            final int week = n;
-            var log =
-                    existing.stream()
-                            .filter(l -> l.getWeekNumber() == week)
-                            .findFirst()
-                            .orElse(null);
-            result.add(
-                    new Week(
-                            n,
-                            start,
-                            end,
-                            (int) days.stream().filter(j -> !"DRAFT".equals(j.getStatus())).count(),
-                            confirmed.size(),
-                            confirmed.stream().mapToInt(DailyJournal::getSessions).sum(),
-                            confirmed.stream()
-                                    .map(DailyJournal::getHours)
-                                    .reduce(BigDecimal.ZERO, BigDecimal::add),
-                            join(confirmed, "tasks"),
-                            join(confirmed, "results"),
-                            join(confirmed, "reflection"),
-                            log == null ? "NOT_SUBMITTED" : log.getStatus().name(),
-                            log == null ? null : log.getId()));
-        }
-        return result;
-    }
-
-    private String join(List<DailyJournal> days, String field) {
-        return days.stream()
-                .map(
-                        j ->
-                                j.getWorkDate()
-                                        + ": "
-                                        + RichText.text(
-                                                switch (field) {
-                                                    case "tasks" -> j.getTasks();
-                                                    case "results" -> j.getResults();
-                                                    default -> j.getReflection();
-                                                }))
-                .collect(Collectors.joining("\n"));
+        return aggregationService.aggregate(p);
     }
 
     private void unlockedWeek(InternshipPlacement p, LocalDate date) {
         int n = (int) (ChronoUnit.DAYS.between(p.getStartDate(), date) / 7) + 1;
-        weekly.findByPlacementIdAndWeekNumber(p.getId(), n)
-                .ifPresent(
-                        w -> {
-                            if (w.getStatus() != LogbookStatus.REVISION_REQUESTED
-                                    && w.getStatus() != LogbookStatus.DRAFT)
-                                throw new BadRequestException(
-                                        "Tuần đã gửi/duyệt; cần yêu cầu sửa nhật ký tuần trước");
-                        });
+        weekly.findByPlacementIdAndWeekNumber(p.getId(), n).ifPresent(w -> {
+            if (w.getStatus() != LogbookStatus.REVISION_REQUESTED && w.getStatus() != LogbookStatus.DRAFT) {
+                throw new BadRequestException("Tuần đã gửi/duyệt; cần yêu cầu sửa nhật ký tuần trước");
+            }
+        });
     }
 
     private View view(DailyJournal j) {
@@ -354,14 +265,10 @@ public class DailyJournalService {
     }
 
     public static void active(InternshipPlacement p) {
-        if (p.getStatus() != PlacementStatus.ACTIVE)
-            throw new BadRequestException("Chỉ cập nhật khi kỳ thực tập đang hoạt động");
+        DailyJournalValidation.checkActiveAndTerm(p);
     }
 
     public static void checkVersion(Integer actual, Integer expected) {
-        if (!Objects.equals(actual, expected))
-            throw new org.springframework.web.server.ResponseStatusException(
-                    org.springframework.http.HttpStatus.CONFLICT,
-                    "Dữ liệu đã thay đổi. Hãy tải lại trước khi lưu để tránh ghi đè.");
+        DailyJournalValidation.checkVersion(actual, expected);
     }
 }

@@ -1,9 +1,11 @@
 package com.internlink.core.application.placement.impl;
 
+import com.internlink.core.application.placement.PlacementTaskAccessPolicy;
 import com.internlink.core.application.placement.PlacementTaskService;
 import com.internlink.core.domain.auth.User;
 import com.internlink.core.domain.placement.InternshipPlacement;
 import com.internlink.core.domain.placement.PlacementTask;
+import com.internlink.core.shared.security.TermGuard;
 import com.internlink.core.infrastructure.persistence.jpa.JpaInternshipPlacementRepository;
 import com.internlink.core.infrastructure.persistence.jpa.JpaPlacementTaskRepository;
 import com.internlink.core.infrastructure.persistence.jpa.JpaUserRepository;
@@ -37,7 +39,14 @@ public class PlacementTaskServiceImpl implements PlacementTaskService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<PlacementTaskResponse> getTasksByPlacement(UUID placementId) {
+    public List<PlacementTaskResponse> getTasksByPlacement(UUID actorId, UUID placementId) {
+        User actor = userRepository.findById(actorId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", actorId));
+        InternshipPlacement placement = placementRepository.findById(placementId)
+                .orElseThrow(() -> new ResourceNotFoundException("InternshipPlacement", "id", placementId));
+
+        PlacementTaskAccessPolicy.requireCanView(actor, placement);
+
         return taskRepository.findByPlacementId(placementId).stream()
                 .map(this::mapToResponse)
                 .toList();
@@ -45,59 +54,40 @@ public class PlacementTaskServiceImpl implements PlacementTaskService {
 
     @Override
     @Transactional(readOnly = true)
-    public PlacementTaskResponse getTaskById(UUID id) {
-        PlacementTask task =
-                taskRepository
-                        .findById(id)
-                        .orElseThrow(
-                                () -> new ResourceNotFoundException("PlacementTask", "id", id));
+    public PlacementTaskResponse getTaskById(UUID actorId, UUID id) {
+        User actor = userRepository.findById(actorId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", actorId));
+        PlacementTask task = taskRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("PlacementTask", "id", id));
+
+        PlacementTaskAccessPolicy.requireCanView(actor, task.getPlacement());
         return mapToResponse(task);
     }
 
     @Override
     @Transactional
     public PlacementTaskResponse createTask(UUID mentorId, PlacementTaskRequest request) {
-        InternshipPlacement placement =
-                placementRepository
-                        .findById(request.getPlacementId())
-                        .orElseThrow(
-                                () ->
-                                        new ResourceNotFoundException(
-                                                "InternshipPlacement",
-                                                "id",
-                                                request.getPlacementId()));
+        User mentor = userRepository.findById(mentorId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", mentorId));
+        InternshipPlacement placement = placementRepository.findById(request.getPlacementId())
+                .orElseThrow(() -> new ResourceNotFoundException("InternshipPlacement", "id", request.getPlacementId()));
 
-        User mentor =
-                userRepository
-                        .findById(mentorId)
-                        .orElseThrow(() -> new ResourceNotFoundException("User", "id", mentorId));
-
+        TermGuard.requireNotClosed(placement.getTerm());
         if (placement.getStatus() != PlacementStatus.ACTIVE) {
             throw new BadRequestException("Chỉ có thể giao nhiệm vụ cho lần thực tập đang ACTIVE");
         }
-        if (placement.getMentor() == null
-                || (mentor.getRole() != UserRole.ADMIN
-                        && !placement.getMentor().getId().equals(mentorId))) {
-            throw new BadRequestException("Người dùng không phải Mentor của lần thực tập này");
-        }
+        PlacementTaskAccessPolicy.requireCanCreate(mentor, placement);
 
-        PlacementTask task =
-                PlacementTask.builder()
-                        .placement(placement)
-                        .assignedByMentor(mentor)
-                        .title(request.getTitle().trim())
-                        .description(request.getDescription().trim())
-                        .learningOutcomes(
-                                request.getLearningOutcomes() != null
-                                        ? request.getLearningOutcomes()
-                                        : List.of())
-                        .dueAt(request.getDueAt())
-                        .progressPercent(
-                                request.getProgressPercent() != null
-                                        ? request.getProgressPercent()
-                                        : 0)
-                        .status(TaskStatus.ASSIGNED)
-                        .build();
+        PlacementTask task = PlacementTask.builder()
+                .placement(placement)
+                .assignedByMentor(mentor)
+                .title(request.getTitle().trim())
+                .description(request.getDescription().trim())
+                .learningOutcomes(request.getLearningOutcomes() != null ? request.getLearningOutcomes() : List.of())
+                .dueAt(request.getDueAt())
+                .progressPercent(request.getProgressPercent() != null ? request.getProgressPercent() : 0)
+                .status(TaskStatus.ASSIGNED)
+                .build();
 
         var saved = taskRepository.save(task);
         notifications.task(task, mentorId, "TASK_ASSIGNED");
@@ -107,15 +97,18 @@ public class PlacementTaskServiceImpl implements PlacementTaskService {
     @Override
     @Transactional
     public PlacementTaskResponse submitTask(UUID id, UUID studentId, String submissionSummary) {
-        PlacementTask task =
-                taskRepository
-                        .findById(id)
-                        .orElseThrow(
-                                () -> new ResourceNotFoundException("PlacementTask", "id", id));
+        PlacementTask task = taskRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("PlacementTask", "id", id));
 
-        if (!task.getPlacement().getStudent().getId().equals(studentId)) {
+        TermGuard.requireNotClosed(task.getPlacement().getTerm());
+        if (task.getPlacement().getStatus() != PlacementStatus.ACTIVE) {
+            throw new BadRequestException("Chỉ có thể nộp nhiệm vụ cho lần thực tập đang ACTIVE");
+        }
+        if (task.getPlacement().getStudent() == null
+                || !task.getPlacement().getStudent().getId().equals(studentId)) {
             throw new BadRequestException("Bạn không có quyền nộp nhiệm vụ này");
         }
+
         if (task.getStatus() != TaskStatus.ASSIGNED
                 && task.getStatus() != TaskStatus.IN_PROGRESS
                 && task.getStatus() != TaskStatus.REVISION_REQUIRED) {
@@ -142,21 +135,17 @@ public class PlacementTaskServiceImpl implements PlacementTaskService {
             TaskStatus status,
             String mentorFeedback,
             Integer progressPercent) {
-        PlacementTask task =
-                taskRepository
-                        .findById(id)
-                        .orElseThrow(
-                                () -> new ResourceNotFoundException("PlacementTask", "id", id));
+        User reviewer = userRepository.findById(reviewerId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", reviewerId));
+        PlacementTask task = taskRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("PlacementTask", "id", id));
 
-        User reviewer =
-                userRepository
-                        .findById(reviewerId)
-                        .orElseThrow(() -> new ResourceNotFoundException("User", "id", reviewerId));
-        if (task.getPlacement().getMentor() == null
-                || (reviewer.getRole() != UserRole.ADMIN
-                        && !task.getPlacement().getMentor().getId().equals(reviewerId))) {
-            throw new BadRequestException("Người dùng không phải Mentor của lần thực tập này");
+        TermGuard.requireNotClosed(task.getPlacement().getTerm());
+        if (task.getPlacement().getStatus() != PlacementStatus.ACTIVE) {
+            throw new BadRequestException("Chỉ có thể đánh giá nhiệm vụ cho lần thực tập đang ACTIVE");
         }
+        PlacementTaskAccessPolicy.requireCanReview(reviewer, task);
+
         if (task.getStatus() != TaskStatus.SUBMITTED) {
             throw new BadRequestException("Chỉ có thể đánh giá nhiệm vụ đã SUBMITTED");
         }

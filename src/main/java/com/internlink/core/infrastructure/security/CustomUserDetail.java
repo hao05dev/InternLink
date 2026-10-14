@@ -26,6 +26,7 @@ public class CustomUserDetail implements UserDetails {
     private final String fullName;
     private final UserRole role;
     private final boolean isActive;
+    private final java.time.OffsetDateTime lockedUntil;
     private final java.time.OffsetDateTime passwordChangedAt;
     private final Collection<? extends GrantedAuthority> authorities;
 
@@ -41,6 +42,7 @@ public class CustomUserDetail implements UserDetails {
             .fullName(user.getFullName())
             .role(user.getRole())
             .isActive(Boolean.TRUE.equals(user.getIsActive()))
+            .lockedUntil(user.getLockedUntil())
             .passwordChangedAt(user.getPasswordChangedAt())
             .authorities(authorities)
             .build();
@@ -63,7 +65,10 @@ public class CustomUserDetail implements UserDetails {
 
     @Override
     public boolean isAccountNonLocked() {
-        return isActive;
+        if (!isActive) {
+            return false;
+        }
+        return lockedUntil == null || lockedUntil.isBefore(java.time.OffsetDateTime.now());
     }
 
     @Override
