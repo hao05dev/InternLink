@@ -1,20 +1,20 @@
 package com.internlink.core.domain.placement;
 
-import com.internlink.core.shared.domain.BaseEntity;
-import com.internlink.core.shared.enums.PlacementStatus;
 import com.internlink.core.domain.auth.User;
 import com.internlink.core.domain.company.Company;
-import com.internlink.core.domain.organization.InternshipTerm;
 import com.internlink.core.domain.evaluation.AssessmentScheme;
+import com.internlink.core.domain.organization.InternshipTerm;
+import com.internlink.core.shared.domain.BaseEntity;
+import com.internlink.core.shared.enums.PlacementStatus;
+import com.internlink.core.shared.enums.SupervisionMode;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Map;
-
-
 
 @Entity
 @Table(name = "internship_placements")
@@ -80,4 +80,9 @@ public class InternshipPlacement extends BaseEntity {
     @Builder.Default
     @Column(name = "status", nullable = false, length = 30)
     private PlacementStatus status = PlacementStatus.PREPARING;
+
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    @Column(name = "supervision_mode", nullable = false, length = 30)
+    private SupervisionMode supervisionMode = SupervisionMode.ACADEMIC_FOLLOWUP;
 }

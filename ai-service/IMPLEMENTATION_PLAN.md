@@ -164,7 +164,7 @@ Nếu thời gian còn 4–6 tuần, giữ F1–F3 và thực nghiệm; hoãn F4
 
 ## 6. Căn cứ và đầu vào còn cần
 
-Tài liệu nền: [Nghiên cứu AI InternLink](H:/._HK12627/LuanVan/InternLink/docs/AI_RESEARCH_AND_IMPLEMENTATION_PLAN.md), [Mô tả luận văn](H:/._HK12627/LuanVan/InternLink/mo_ta_luan_van.txt).
+Tài liệu nền: [Nghiên cứu AI InternLink](../docs/ai/AI_RESEARCH_AND_IMPLEMENTATION_PLAN.md), [Mô tả luận văn](../mo_ta_luan_van.txt).
 
 BP9.1/9.3 định hướng learning agreement và giám sát; BP9.2/9.5 định hướng checklist chất lượng; BP9.4 định hướng năng lực và minh chứng; R25/R26 định hướng taxonomy. Quy chế/CLO/rubric của trường vẫn phải được xác nhận riêng, không thay bằng tài liệu nước ngoài.
 

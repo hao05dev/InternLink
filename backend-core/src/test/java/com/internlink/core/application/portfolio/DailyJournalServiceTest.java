@@ -1,7 +1,6 @@
 package com.internlink.core.application.portfolio;
 
 import static com.internlink.core.application.portfolio.PortfolioTestData.*;
-
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -37,12 +36,17 @@ class DailyJournalServiceTest {
     com.internlink.core.application.system.notification.PlacementWorkflowNotificationHelper
             notifications;
 
-    @InjectMocks DailyJournalService service;
+    DailyJournalAggregationService aggregationService;
+    DailyJournalService service;
     InternshipPlacement p;
 
     @BeforeEach
     void setup() {
         p = placement();
+        aggregationService = new DailyJournalAggregationService(journals, weekly);
+        service = new DailyJournalService(
+                journals, placements, users, weekly, weeklyService,
+                aggregationService, security, media, notifications);
     }
 
     void student() {
@@ -105,7 +109,8 @@ class DailyJournalServiceTest {
     }
 
     @Test
-    void onlyConfirmedDaysCountAndAbsentDaysAreNotInvented() {
+    void onlyConfirmedDaysCountInMentorOnlineMode() {
+        p.setSupervisionMode(SupervisionMode.MENTOR_ONLINE);
         var confirmed = new DailyJournal();
         confirmed.setWorkDate(p.getStartDate());
         confirmed.setStatus("CONFIRMED");
@@ -122,6 +127,29 @@ class DailyJournalServiceTest {
         var week = service.aggregate(p).get(0);
         assertThat(week.hours()).isEqualByComparingTo("8");
         assertThat(week.sessions()).isEqualTo(2);
+        assertThat(week.confirmedDays()).isEqualTo(1);
+        assertThat(week.submittedDays()).isEqualTo(2);
+    }
+
+    @Test
+    void submittedDaysCountInAcademicFollowupMode() {
+        p.setSupervisionMode(SupervisionMode.ACADEMIC_FOLLOWUP);
+        var confirmed = new DailyJournal();
+        confirmed.setWorkDate(p.getStartDate());
+        confirmed.setStatus("CONFIRMED");
+        confirmed.setHours(new BigDecimal("8"));
+        confirmed.setSessions(2);
+        confirmed.setTasks("<b>API</b>");
+        var pending = new DailyJournal();
+        pending.setWorkDate(p.getStartDate().plusDays(1));
+        pending.setStatus("SUBMITTED");
+        pending.setHours(new BigDecimal("8"));
+        pending.setSessions(2);
+        when(journals.findByPlacementIdOrderByWorkDateAsc(p.getId()))
+                .thenReturn(List.of(confirmed, pending));
+        var week = service.aggregate(p).get(0);
+        assertThat(week.hours()).isEqualByComparingTo("16");
+        assertThat(week.sessions()).isEqualTo(4);
         assertThat(week.confirmedDays()).isEqualTo(1);
         assertThat(week.submittedDays()).isEqualTo(2);
     }

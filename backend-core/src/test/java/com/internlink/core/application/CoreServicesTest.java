@@ -28,6 +28,7 @@ import com.internlink.core.presentation.company.dto.request.CompanyRequest;
 import com.internlink.core.presentation.exception_case.dto.request.InternshipCaseRequest;
 import com.internlink.core.presentation.organization.dto.request.*;
 import com.internlink.core.shared.enums.*;
+import com.internlink.core.shared.exception.AccountLockedException;
 import com.internlink.core.shared.exception.BadRequestException;
 import com.internlink.core.shared.exception.UnauthorizedException;
 import com.internlink.core.shared.security.SecurityGuard;
@@ -361,6 +362,49 @@ class CoreServicesTest {
                 new AuthServiceImpl(authenticationManager, jwtUtil, cookieUtils, userRepository, companyRepository, passwordEncoder, notificationService, tokenRevocationService);
 
         assertThatThrownBy(service::getCurrentUser).isInstanceOf(UnauthorizedException.class);
+    }
+
+    @Test
+    void authLocksAccountAfterFiveFailedAttempts() {
+        AuthServiceImpl service =
+                new AuthServiceImpl(authenticationManager, jwtUtil, cookieUtils, userRepository, companyRepository, passwordEncoder, notificationService, tokenRevocationService);
+        User user = User.builder()
+                .email("user@example.com")
+                .failedLoginAttempts(4)
+                .isActive(true)
+                .build();
+        when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.of(user));
+        when(authenticationManager.authenticate(any())).thenThrow(new BadCredentialsException("bad"));
+
+        assertThatThrownBy(
+                () -> service.login(
+                        LoginRequest.builder().email("user@example.com").password("wrong").build(),
+                        servletResponse))
+                .isInstanceOf(AccountLockedException.class);
+
+        assertThat(user.getFailedLoginAttempts()).isEqualTo(5);
+        assertThat(user.getLockedUntil()).isNotNull();
+    }
+
+    @Test
+    void authRejectsAlreadyLockedAccount() {
+        AuthServiceImpl service =
+                new AuthServiceImpl(authenticationManager, jwtUtil, cookieUtils, userRepository, companyRepository, passwordEncoder, notificationService, tokenRevocationService);
+        User user = User.builder()
+                .email("user@example.com")
+                .failedLoginAttempts(5)
+                .lockedUntil(OffsetDateTime.now().plusMinutes(10))
+                .isActive(true)
+                .build();
+        when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.of(user));
+
+        assertThatThrownBy(
+                () -> service.login(
+                        LoginRequest.builder().email("user@example.com").password("any").build(),
+                        servletResponse))
+                .isInstanceOf(AccountLockedException.class);
+
+        verify(authenticationManager, never()).authenticate(any());
     }
 
     private Department department() {

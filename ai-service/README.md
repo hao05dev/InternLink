@@ -105,8 +105,8 @@ Bộ test không gọi API thật hoặc dùng CV thật. Test adapter Gemini t�
 
 ## Tài liệu
 
-- [Kiến trúc và quyết định thiết kế](H:/._HK12627/LuanVan/InternLink/ai-service/ARCHITECTURE.md)
-- [Kế hoạch hoàn thành chức năng](H:/._HK12627/LuanVan/InternLink/ai-service/IMPLEMENTATION_PLAN.md)
-- [Nghiên cứu nền của dự án](H:/._HK12627/LuanVan/InternLink/docs/AI_RESEARCH_AND_IMPLEMENTATION_PLAN.md)
+- [Kiến trúc và quyết định thiết kế](ARCHITECTURE.md)
+- [Kế hoạch hoàn thành chức năng](IMPLEMENTATION_PLAN.md)
+- [Nghiên cứu nền của dự án](../docs/ai/AI_RESEARCH_AND_IMPLEMENTATION_PLAN.md)
 
 Xem [bàn giao tích hợp](IMPLEMENTATION_STATUS.md) để chạy các màn hình mới. Đã có BM25/Jaccard runner, adapter local E5 và hỗ trợ bản nháp JD/nhật ký/kế hoạch học. Model thật, OCR, cache, hàng đợi và thực nghiệm chuyên gia vẫn là hạng mục tiếp theo.

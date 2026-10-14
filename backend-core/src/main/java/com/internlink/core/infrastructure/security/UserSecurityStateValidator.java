@@ -22,7 +22,7 @@ public class UserSecurityStateValidator {
      * @return true nếu token hợp lệ với trạng thái người dùng
      */
     public boolean isTokenValidForUser(CustomUserDetail user, Date issuedAt) {
-        if (user == null || !user.isEnabled()) {
+        if (user == null || !user.isEnabled() || !user.isAccountNonLocked()) {
             return false;
         }
 

@@ -75,4 +75,17 @@ class UserSecurityStateValidatorTest {
         boolean valid = validator.isTokenValidForUser(user, tokenIssuedAt);
         assertThat(valid).isTrue();
     }
+
+    @Test
+    void shouldRejectLockedUser() {
+        CustomUserDetail user = CustomUserDetail.builder()
+                .id(UUID.randomUUID())
+                .isActive(true)
+                .lockedUntil(OffsetDateTime.now().plusMinutes(15))
+                .authorities(List.of())
+                .build();
+
+        boolean valid = validator.isTokenValidForUser(user, new Date());
+        assertThat(valid).isFalse();
+    }
 }

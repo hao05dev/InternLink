@@ -27,16 +27,20 @@ public class PlacementTaskController {
     @GetMapping("/placement/{placementId}")
     @PreAuthorize("hasAnyRole('STUDENT', 'COMPANY_MENTOR', 'LECTURER', 'FACULTY_ADMIN', 'ADMIN')")
     public ResponseEntity<ApiResponse<List<PlacementTaskResponse>>> getTasksByPlacement(
+        @AuthenticationPrincipal CustomUserDetail userDetail,
         @PathVariable UUID placementId
     ) {
-        List<PlacementTaskResponse> tasks = taskService.getTasksByPlacement(placementId);
+        List<PlacementTaskResponse> tasks = taskService.getTasksByPlacement(userDetail.getId(), placementId);
         return ResponseEntity.ok(ApiResponse.success(tasks));
     }
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('STUDENT', 'COMPANY_MENTOR', 'LECTURER', 'FACULTY_ADMIN', 'ADMIN')")
-    public ResponseEntity<ApiResponse<PlacementTaskResponse>> getTaskById(@PathVariable UUID id) {
-        PlacementTaskResponse task = taskService.getTaskById(id);
+    public ResponseEntity<ApiResponse<PlacementTaskResponse>> getTaskById(
+        @AuthenticationPrincipal CustomUserDetail userDetail,
+        @PathVariable UUID id
+    ) {
+        PlacementTaskResponse task = taskService.getTaskById(userDetail.getId(), id);
         return ResponseEntity.ok(ApiResponse.success(task));
     }
 

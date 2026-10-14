@@ -2,6 +2,8 @@
 
 > **Nền tảng quản lý toàn trình quy trình thực tập tốt nghiệp**, kết nối đồng bộ 3 bên: **Sinh viên — Doanh nghiệp tiếp nhận — Trường Đại học Cần Thơ (Trường CNTT&TT - CICT)**.
 
+📚 **[Mục lục tài liệu](docs/README.md)** · [Đánh giá mã hóa lai cho InternLink](docs/security/INTERNLINK_ENCRYPTION_ASSESSMENT.md) · [Rà soát tài liệu](docs/DOCUMENTATION_REVIEW.md)
+
 [![Spring Boot](https://img.shields.io/badge/Backend-Spring%20Boot%203.x-6DB33F?logo=springboot&logoColor=white)](backend-core)
 [![Next.js](https://img.shields.io/badge/Frontend-Next.js%2014-black?logo=next.js&logoColor=white)](frontend-web)
 [![FastAPI](https://img.shields.io/badge/AI%20Service-FastAPI-009688?logo=fastapi&logoColor=white)](ai-service)
@@ -43,7 +45,8 @@ Truy cập trang đăng nhập tại: **`http://localhost:3000/login`**
 InternLink/
 ├── backend-core/      # Backend API (Spring Boot 3, Java 21, JPA/Hibernate, Flyway)
 ├── frontend-web/      # Web App Portal (Next.js 14 App Router, Tailwind CSS, Zustand)
-└── ai-service/        # AI Microservice (FastAPI, Python, Gemini/NLP Matching)
+├── ai-service/        # AI Microservice (FastAPI, Python, Gemini/NLP Matching)
+└── docs/              # Tài liệu theo chủ đề; bắt đầu từ docs/README.md
 ```
 
 ---

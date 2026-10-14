@@ -10,6 +10,7 @@ import com.internlink.core.infrastructure.security.TokenRevocationService;
 import com.internlink.core.presentation.auth.dto.request.LoginRequest;
 import com.internlink.core.presentation.auth.dto.response.AuthResponse;
 import com.internlink.core.presentation.auth.dto.response.UserSummaryDto;
+import com.internlink.core.shared.exception.AccountLockedException;
 import com.internlink.core.shared.exception.ResourceNotFoundException;
 import com.internlink.core.shared.exception.UnauthorizedException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -21,6 +22,7 @@ import org.springframework.http.ResponseCookie;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
+import org.springframework.security.authentication.LockedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -28,6 +30,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.Date;
 import java.util.Optional;
@@ -58,21 +61,49 @@ public class AuthServiceImpl implements AuthService {
     private final NotificationService notificationService;
     private final TokenRevocationService tokenRevocationService;
 
+    private static final int MAX_FAILED_ATTEMPTS = 5;
+    private static final long LOCKOUT_DURATION_MINUTES = 15;
+
     @Override
     @Transactional
     public AuthResponse login(LoginRequest request, HttpServletResponse response) {
+        String cleanEmail = request.getEmail() != null ? request.getEmail().trim().toLowerCase() : "";
+        Optional<User> existingUserOpt = userRepository.findByEmail(cleanEmail);
+
+        if (existingUserOpt.isPresent()) {
+            User existingUser = existingUserOpt.get();
+            OffsetDateTime lockedUntil = existingUser.getLockedUntil();
+            if (lockedUntil != null) {
+                if (lockedUntil.isAfter(OffsetDateTime.now())) {
+                    long secondsRemaining = Duration.between(OffsetDateTime.now(), lockedUntil).getSeconds();
+                    long minutesRemaining = Math.max(1, (secondsRemaining + 59) / 60);
+                    throw new AccountLockedException(
+                        String.format("Tài khoản đã bị tạm khóa do nhập sai mật khẩu quá %d lần. Vui lòng thử lại sau %d phút.", MAX_FAILED_ATTEMPTS, minutesRemaining),
+                        secondsRemaining
+                    );
+                } else {
+                    // Thời gian khóa đã hết hạn -> reset để cho phép thử lại
+                    existingUser.setFailedLoginAttempts(0);
+                    existingUser.setLockedUntil(null);
+                    userRepository.save(existingUser);
+                }
+            }
+        }
+
         try {
             Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
+                new UsernamePasswordAuthenticationToken(cleanEmail, request.getPassword())
             );
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
             CustomUserDetail principal = (CustomUserDetail) authentication.getPrincipal();
 
-            // Cập nhật last_login_at
+            // Cập nhật last_login_at và reset bộ đếm failed_login_attempts
             User user = userRepository.findById(principal.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", principal.getId()));
             user.setLastLoginAt(OffsetDateTime.now());
+            user.setFailedLoginAttempts(0);
+            user.setLockedUntil(null);
             userRepository.save(user);
 
             // Tạo JWT và đính kèm vào HttpOnly Cookie
@@ -89,9 +120,32 @@ public class AuthServiceImpl implements AuthService {
                 .build();
 
         } catch (BadCredentialsException ex) {
+            if (existingUserOpt.isPresent()) {
+                User user = existingUserOpt.get();
+                int attempts = (user.getFailedLoginAttempts() == null ? 0 : user.getFailedLoginAttempts()) + 1;
+                user.setFailedLoginAttempts(attempts);
+
+                if (attempts >= MAX_FAILED_ATTEMPTS) {
+                    user.setLockedUntil(OffsetDateTime.now().plusMinutes(LOCKOUT_DURATION_MINUTES));
+                    userRepository.save(user);
+                    log.warn("Tài khoản [{}] đã bị tạm khóa {} phút do nhập sai mật khẩu {} lần liên tiếp.", user.getEmail(), LOCKOUT_DURATION_MINUTES, MAX_FAILED_ATTEMPTS);
+                    throw new AccountLockedException(
+                        String.format("Tài khoản đã bị tạm khóa %d phút do nhập sai mật khẩu %d lần liên tiếp.", LOCKOUT_DURATION_MINUTES, MAX_FAILED_ATTEMPTS),
+                        LOCKOUT_DURATION_MINUTES * 60
+                    );
+                }
+
+                userRepository.save(user);
+                int remaining = MAX_FAILED_ATTEMPTS - attempts;
+                throw new UnauthorizedException(
+                    String.format("Email hoặc mật khẩu không chính xác. Bạn còn %d lần thử trước khi tài khoản bị tạm khóa.", remaining)
+                );
+            }
             throw new UnauthorizedException("Email hoặc mật khẩu không chính xác");
         } catch (DisabledException ex) {
             throw new UnauthorizedException("Tài khoản đã bị khóa hoặc chưa kích hoạt");
+        } catch (LockedException ex) {
+            throw new AccountLockedException("Tài khoản đang bị tạm khóa hoặc bị vô hiệu hóa.");
         }
     }
 

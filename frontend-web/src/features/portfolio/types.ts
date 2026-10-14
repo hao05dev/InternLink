@@ -6,6 +6,7 @@ export interface PlacementMeta {
   semester?: string; startDate: string; endDate: string; status: string; source: string;
   hasMentor: boolean; weekCount: number; requiredWeeks?: number; reportDueAt?: string;
   isExtended?: boolean; extensionReason?: string; schemeReference?: string;
+  supervisionMode?: 'ACADEMIC_FOLLOWUP' | 'MENTOR_ONLINE';
   programName?: string; courseCode?: string; components: { code: string; name: string; weight: number; assessorRole: string; criteria?: { code: string; name: string; weight: number }[] }[];
 }
 export interface ExtensionRequestDto {
@@ -18,6 +19,7 @@ export interface JournalInput {
 }
 export interface Journal extends JournalInput {
   id: string; workDate: string; status: string; version: number; hours: number;
+  verificationSource?: 'STUDENT_REPORTED' | 'MENTOR_VERIFIED' | 'LECTURER_ACKNOWLEDGED';
   reviewNote?: string; reviewer?: string; submittedAt?: string; reviewedAt?: string;
 }
 export interface WeekSummary {
