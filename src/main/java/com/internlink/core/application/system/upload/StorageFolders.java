@@ -34,6 +34,8 @@ public final class StorageFolders {
 
     public static String media(MediaPurpose purpose, UUID context, UUID owner, String scope) {
         return switch (purpose) {
+            case COMPANY_LOGO, COMPANY_COVER ->
+                    "media/companies/" + context + "/" + purpose.folder() + "/" + month();
             case JOB_BANNER, JOB_IMAGE, JOB_ATTACHMENT ->
                     "media/recruitment/companies/"
                             + context

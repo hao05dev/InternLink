@@ -14,6 +14,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class MediaAssetRepository {
     private final JdbcTemplate jdbc;
+    private final CompanyMediaReferenceRepository companyReferences;
 
     public record Asset(
             UUID id,
@@ -71,6 +72,7 @@ public class MediaAssetRepository {
     }
 
     public boolean publicReference(Asset a) {
+        if (a.purpose().company()) return companyReferences.publicReference(a);
         if (a.purpose().privateImage()) return false;
         String table = a.purpose().job() ? "job_positions" : "career_guide_posts";
         String image = a.purpose().job() ? "banner_url" : "cover_image_url";
@@ -102,6 +104,7 @@ public class MediaAssetRepository {
     }
 
     public boolean departmentReference(Asset a, UUID department) {
+        if (a.purpose().company()) return false;
         String table = a.purpose().job() ? "job_positions" : "career_guide_posts";
         String image = a.purpose().job() ? "banner_url" : "cover_image_url";
         String content = a.purpose().job() ? "description" : "content";

@@ -17,6 +17,8 @@ import java.util.List;
 @Component
 @RequiredArgsConstructor
 public class JobPositionMapper {
+    private final com.internlink.core.application.company.impl.CompanyPublicMapper companies;
+    private final JobLocationResolver locations;
 
     private final JpaJobSkillRepository jobSkillRepository;
 
@@ -56,6 +58,10 @@ public class JobPositionMapper {
                 .id(entity.getId())
                 .companyId(entity.getCompany().getId())
                 .companyName(entity.getCompany().getCompanyName())
+                .company(companies.summary(entity.getCompany()))
+                .useCompanyLocation(entity.isUseCompanyLocation())
+                .mapEmbedUrl(locations.resolve(entity).mapEmbedUrl())
+                .mapsUrl(locations.resolve(entity).mapsUrl())
                 .termId(entity.getTerm().getId())
                 .termName(entity.getTerm().getTermName())
                 .termStatus(
@@ -66,7 +72,7 @@ public class JobPositionMapper {
                 .departmentName(entity.getDepartment().getName())
                 .title(entity.getTitle())
                 .workFormat(entity.getWorkFormat())
-                .location(entity.getLocation())
+                .location(locations.resolve(entity).address())
                 .vacancies(entity.getVacancies())
                 .description(entity.getDescription())
                 .bannerUrl(entity.getBannerUrl())

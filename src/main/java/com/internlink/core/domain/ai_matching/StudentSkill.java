@@ -1,19 +1,19 @@
 package com.internlink.core.domain.ai_matching;
 
-import com.internlink.core.shared.enums.SkillSource;
 import com.internlink.core.domain.auth.User;
 import com.internlink.core.domain.system.Document;
+import com.internlink.core.shared.enums.ProficiencyLevel;
+import com.internlink.core.shared.enums.SkillSource;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.type.SqlTypes;
+
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.Map;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
-
-
 
 @Entity
 @Table(name = "student_skills")
@@ -41,8 +41,9 @@ public class StudentSkill {
     @Column(name = "source", nullable = false, length = 30)
     private SkillSource source;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "proficiency_level", length = 30)
-    private String proficiencyLevel;
+    private ProficiencyLevel proficiencyLevel;
 
     @Column(name = "confidence", precision = 5, scale = 4)
     private BigDecimal confidence;

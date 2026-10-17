@@ -31,13 +31,15 @@ public class CompanyServiceImpl implements CompanyService {
     private final JpaUserRepository userRepository;
     private final AuditLogService auditLogService;
     private final SecurityGuard securityGuard;
+    private final CompanyMapper mapper;
+    private final com.internlink.core.application.company.CompanyAccessPolicy access;
     private final com.internlink.core.application.system.NotificationService notifications;
 
     @Override
     @Transactional(readOnly = true)
     public List<CompanyResponse> getAllCompanies() {
         return companyRepository.findAll().stream()
-            .map(this::mapToResponse)
+            .map(mapper::mapToResponse)
             .toList();
     }
 
@@ -45,16 +47,17 @@ public class CompanyServiceImpl implements CompanyService {
     @Transactional(readOnly = true)
     public List<CompanyResponse> getCompaniesByStatus(VerificationStatus status) {
         return companyRepository.findByVerificationStatus(status).stream()
-            .map(this::mapToResponse)
+            .map(mapper::mapToResponse)
             .toList();
     }
 
     @Override
     @Transactional(readOnly = true)
     public CompanyResponse getCompanyById(UUID id) {
+        access.requireRead(id);
         Company company = companyRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Company", "id", id));
-        return mapToResponse(company);
+        return mapper.mapToResponse(company);
     }
 
     @Override
@@ -81,12 +84,13 @@ public class CompanyServiceImpl implements CompanyService {
                 "Doanh nghiệp mới chờ thẩm định", saved.getCompanyName() + " đã đăng ký tham gia hệ thống.",
                 role == UserRole.ADMIN ? "/admin/companies" : "/faculty/companies"));
         }
-        return mapToResponse(saved);
+        return mapper.mapToResponse(saved);
     }
 
     @Override
     @Transactional
     public CompanyResponse updateCompany(UUID id, CompanyRequest request) {
+        access.requireOwner(id);
         Company company = companyRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Company", "id", id));
 
@@ -103,7 +107,7 @@ public class CompanyServiceImpl implements CompanyService {
         company.setWebsite(request.getWebsite());
         company.setAddress(request.getAddress());
 
-        return mapToResponse(companyRepository.save(company));
+        return mapper.mapToResponse(companyRepository.save(company));
     }
 
     @Override
@@ -135,23 +139,7 @@ public class CompanyServiceImpl implements CompanyService {
         userRepository.findByCompanyIdAndRole(saved.getId(), UserRole.COMPANY_REP).forEach(user ->
             notifications.sendNotification(user.getId(), "COMPANY_REVIEWED", "Kết quả thẩm định doanh nghiệp",
                 "Hồ sơ " + saved.getCompanyName() + " có trạng thái " + status.name() + ". Xem ghi chú trong hệ thống.", "/company/dashboard"));
-        return mapToResponse(saved);
+        return mapper.mapToResponse(saved);
     }
 
-    private CompanyResponse mapToResponse(Company entity) {
-        return CompanyResponse.builder()
-            .id(entity.getId())
-            .companyName(entity.getCompanyName())
-            .taxCode(entity.getTaxCode())
-            .industry(entity.getIndustry())
-            .website(entity.getWebsite())
-            .address(entity.getAddress())
-            .verificationStatus(entity.getVerificationStatus())
-            .verificationDetail(entity.getVerificationDetail())
-            .verifiedByUserId(entity.getVerifiedBy() != null ? entity.getVerifiedBy().getId() : null)
-            .verifiedAt(entity.getVerifiedAt())
-            .createdAt(entity.getCreatedAt())
-            .updatedAt(entity.getUpdatedAt())
-            .build();
-    }
 }

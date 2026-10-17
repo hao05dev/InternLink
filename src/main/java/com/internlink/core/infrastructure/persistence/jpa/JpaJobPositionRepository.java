@@ -41,13 +41,13 @@ public interface JpaJobPositionRepository extends JpaRepository<JobPosition, UUI
           AND (:workFormat IS NULL OR j.workFormat = :workFormat)
           AND (
               :location IS NULL OR :location = ''
-              OR LOWER(j.location) LIKE LOWER(CONCAT('%', :location, '%'))
+              OR LOWER(CASE WHEN j.useCompanyLocation = true THEN j.company.officeAddress ELSE j.location END) LIKE LOWER(CONCAT('%', :location, '%'))
           )
           AND (
               :keyword IS NULL OR :keyword = ''
               OR LOWER(j.title) LIKE LOWER(CONCAT('%', :keyword, '%'))
               OR LOWER(j.description) LIKE LOWER(CONCAT('%', :keyword, '%'))
-              OR LOWER(j.location) LIKE LOWER(CONCAT('%', :keyword, '%'))
+              OR LOWER(CASE WHEN j.useCompanyLocation = true THEN j.company.officeAddress ELSE j.location END) LIKE LOWER(CONCAT('%', :keyword, '%'))
               OR LOWER(j.company.companyName) LIKE LOWER(CONCAT('%', :keyword, '%'))
           )
         ORDER BY j.createdAt DESC
@@ -75,13 +75,13 @@ public interface JpaJobPositionRepository extends JpaRepository<JobPosition, UUI
           AND (:workFormat IS NULL OR j.workFormat = :workFormat)
           AND (
               :location IS NULL OR :location = ''
-              OR LOWER(j.location) LIKE LOWER(CONCAT('%', :location, '%'))
+              OR LOWER(CASE WHEN j.useCompanyLocation = true THEN j.company.officeAddress ELSE j.location END) LIKE LOWER(CONCAT('%', :location, '%'))
           )
           AND (
               :keyword IS NULL OR :keyword = ''
               OR LOWER(j.title) LIKE LOWER(CONCAT('%', :keyword, '%'))
               OR LOWER(j.description) LIKE LOWER(CONCAT('%', :keyword, '%'))
-              OR LOWER(j.location) LIKE LOWER(CONCAT('%', :keyword, '%'))
+              OR LOWER(CASE WHEN j.useCompanyLocation = true THEN j.company.officeAddress ELSE j.location END) LIKE LOWER(CONCAT('%', :keyword, '%'))
               OR LOWER(j.company.companyName) LIKE LOWER(CONCAT('%', :keyword, '%'))
           )
         ORDER BY 
@@ -106,13 +106,13 @@ public interface JpaJobPositionRepository extends JpaRepository<JobPosition, UUI
           AND (:workFormat IS NULL OR j.workFormat = :workFormat)
           AND (
               :location IS NULL OR :location = ''
-              OR LOWER(j.location) LIKE LOWER(CONCAT('%', :location, '%'))
+              OR LOWER(CASE WHEN j.useCompanyLocation = true THEN j.company.officeAddress ELSE j.location END) LIKE LOWER(CONCAT('%', :location, '%'))
           )
           AND (
               :keyword IS NULL OR :keyword = ''
               OR LOWER(j.title) LIKE LOWER(CONCAT('%', :keyword, '%'))
               OR LOWER(j.description) LIKE LOWER(CONCAT('%', :keyword, '%'))
-              OR LOWER(j.location) LIKE LOWER(CONCAT('%', :keyword, '%'))
+              OR LOWER(CASE WHEN j.useCompanyLocation = true THEN j.company.officeAddress ELSE j.location END) LIKE LOWER(CONCAT('%', :keyword, '%'))
               OR LOWER(j.company.companyName) LIKE LOWER(CONCAT('%', :keyword, '%'))
           )
         ORDER BY j.createdAt DESC
@@ -137,13 +137,13 @@ public interface JpaJobPositionRepository extends JpaRepository<JobPosition, UUI
           AND (:workFormat IS NULL OR j.workFormat = :workFormat)
           AND (
               :location IS NULL OR :location = ''
-              OR LOWER(j.location) LIKE LOWER(CONCAT('%', :location, '%'))
+              OR LOWER(CASE WHEN j.useCompanyLocation = true THEN j.company.officeAddress ELSE j.location END) LIKE LOWER(CONCAT('%', :location, '%'))
           )
           AND (
               :keyword IS NULL OR :keyword = ''
               OR LOWER(j.title) LIKE LOWER(CONCAT('%', :keyword, '%'))
               OR LOWER(j.description) LIKE LOWER(CONCAT('%', :keyword, '%'))
-              OR LOWER(j.location) LIKE LOWER(CONCAT('%', :keyword, '%'))
+              OR LOWER(CASE WHEN j.useCompanyLocation = true THEN j.company.officeAddress ELSE j.location END) LIKE LOWER(CONCAT('%', :keyword, '%'))
               OR LOWER(j.company.companyName) LIKE LOWER(CONCAT('%', :keyword, '%'))
           )
         ORDER BY 

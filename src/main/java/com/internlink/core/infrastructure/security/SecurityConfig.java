@@ -64,8 +64,6 @@ public class SecurityConfig {
                                 "/api/v1/public/**",
                                 "/api/v1/jobs/public/**",
                                 "/api/v1/terms",
-                                "/api/v1/companies",
-                                "/api/v1/companies/**",
                                 "/api/v1/posts/public/**",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
@@ -89,13 +87,13 @@ public class SecurityConfig {
                                                 "/api/v1/public/**",
                                                 "/api/v1/jobs/public/**",
                                                 "/api/v1/terms",
-                                                "/api/v1/companies",
-                                                "/api/v1/companies/**",
                                                 "/api/v1/posts/public/**",
                                                 "/v3/api-docs/**",
                                                 "/swagger-ui/**",
                                                 "/swagger-ui.html")
                                         .permitAll()
+                                        .requestMatchers(org.springframework.http.HttpMethod.GET,
+                                                "/api/v1/companies/public", "/api/v1/companies/public/**").permitAll()
                                         .anyRequest()
                                         .authenticated())
                 .addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class)

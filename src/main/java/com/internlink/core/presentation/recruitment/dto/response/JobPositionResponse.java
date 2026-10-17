@@ -23,6 +23,10 @@ public class JobPositionResponse {
     private UUID id;
     private UUID companyId;
     private String companyName;
+    private com.internlink.core.presentation.company.dto.response.CompanySummaryResponse company;
+    private boolean useCompanyLocation;
+    private String mapEmbedUrl;
+    private String mapsUrl;
     private UUID termId;
     private String termName;
     private String termStatus;

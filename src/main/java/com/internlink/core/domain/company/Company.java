@@ -37,6 +37,21 @@ public class Company extends BaseEntity {
     @Column(name = "address", columnDefinition = "jsonb", nullable = false)
     private Map<String, Object> address;
 
+    @Column(columnDefinition = "text")
+    private String description;
+    @Column(name = "employee_range", length = 100)
+    private String employeeRange;
+    @Column(name = "logo_url", columnDefinition = "text")
+    private String logoUrl;
+    @Column(name = "cover_image_url", columnDefinition = "text")
+    private String coverImageUrl;
+    @Column(name = "office_address", length = 1000)
+    private String officeAddress;
+    @Column(name = "map_embed_url", columnDefinition = "text")
+    private String mapEmbedUrl;
+    @Column(name = "maps_url", columnDefinition = "text")
+    private String mapsUrl;
+
     @Enumerated(EnumType.STRING)
     @Builder.Default
     @Column(name = "verification_status", nullable = false, length = 30)

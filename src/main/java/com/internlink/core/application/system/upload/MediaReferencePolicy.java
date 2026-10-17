@@ -18,6 +18,18 @@ public class MediaReferencePolicy {
             Pattern.compile(
                     "/api/v1/(?:public/)?media/([a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12})");
 
+    public void company(UUID company, String logo, String cover) {
+        requireCompanyImage(logo, MediaPurpose.COMPANY_LOGO, company);
+        requireCompanyImage(cover, MediaPurpose.COMPANY_COVER, company);
+    }
+
+    private void requireCompanyImage(String url, MediaPurpose purpose, UUID company) {
+        if (url == null || url.isBlank()) return;
+        if (!URL.matcher(url).matches())
+            throw new BadRequestException("Vui lòng tải ảnh công ty lên hệ thống.");
+        require(url, purpose, company);
+    }
+
     public void job(
             UUID company,
             String banner,
