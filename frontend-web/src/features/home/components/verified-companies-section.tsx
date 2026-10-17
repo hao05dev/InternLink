@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { ArrowRight, Building2 } from "lucide-react";
-import { Company } from "@/features/companies/types/company.types";
+import type { PublicCompany } from "@/features/companies/types/public-company.types";
 
 interface VerifiedCompaniesSectionProps {
-  companies: Array<Partial<Company> & { id: string; name?: string; companyName?: string }>;
+  companies: PublicCompany[];
 }
 
 export function VerifiedCompaniesSection({ companies }: VerifiedCompaniesSectionProps) {
@@ -22,7 +22,7 @@ export function VerifiedCompaniesSection({ companies }: VerifiedCompaniesSection
           {companies.slice(0, 6).map((company) => (
             <li key={company.id} className="flex min-w-0 max-w-full items-start gap-2 text-sm text-slate-600">
               <Building2 aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-              <span className="min-w-0 break-words">{company.companyName || company.name || "Doanh nghiệp đối tác"}</span>
+              <Link href={`/companies/${company.id}`} className="min-w-0 break-words hover:text-sky-700">{company.companyName || "Doanh nghiệp đối tác"}</Link>
             </li>
           ))}
         </ul>

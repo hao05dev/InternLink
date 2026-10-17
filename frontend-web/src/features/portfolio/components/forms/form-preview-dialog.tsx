@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 
 interface FormPreviewDialogProps {
   open: boolean;
-  previewNode: RefObject<HTMLDivElement | null>;
+  previewNode: RefObject<HTMLDivElement>;
   onClose: () => void;
 }
 

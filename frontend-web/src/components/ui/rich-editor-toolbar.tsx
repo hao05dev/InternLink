@@ -51,6 +51,7 @@ interface RichEditorToolbarProps {
     isUploadingImage: boolean;
     onInsertTemplate: () => void;
     showTemplateButton?: boolean;
+    allowImages?: boolean;
     disabled?: boolean;
 }
 
@@ -65,6 +66,7 @@ export function RichEditorToolbar({
     isUploadingImage,
     onInsertTemplate,
     showTemplateButton = true,
+    allowImages = true,
     disabled = false,
 }: RichEditorToolbarProps) {
     return (
@@ -227,7 +229,7 @@ export function RichEditorToolbar({
                 </button>
 
                 {/* Image Upload Trigger */}
-                <button
+                {allowImages && (<button
                     type="button"
                     onClick={onTriggerImageUpload}
                     className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-200 hover:text-slate-900 transition cursor-pointer disabled:opacity-40"
@@ -239,7 +241,7 @@ export function RichEditorToolbar({
                     ) : (
                         <ImageIcon className="w-4 h-4" />
                     )}
-                </button>
+                </button>)}
 
                 {/* 1-Click Template Button */}
                 {showTemplateButton && (

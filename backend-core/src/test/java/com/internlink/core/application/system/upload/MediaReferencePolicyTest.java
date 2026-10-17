@@ -11,6 +11,23 @@ import java.util.*;
 
 class MediaReferencePolicyTest {
     @Test
+    void companyImagesRequireManagedMatchingPurposeAndCompany() {
+        var assets = mock(MediaAssetRepository.class);
+        var policy = new MediaReferencePolicy(assets);
+        var company = UUID.randomUUID();
+        var logo = new MediaAssetRepository.Asset(UUID.randomUUID(), UUID.randomUUID(),
+                MediaPurpose.COMPANY_LOGO, company, null, "key", "logo.png", "image/png", 10, "sum");
+        when(assets.get(logo.id())).thenReturn(logo);
+        assertThatCode(() -> policy.company(company, logo.url(), null)).doesNotThrowAnyException();
+        assertThatThrownBy(() -> policy.company(UUID.randomUUID(), logo.url(), null))
+                .hasMessageContaining("đúng doanh nghiệp");
+        assertThatThrownBy(() -> policy.company(company, null, logo.url()))
+                .hasMessageContaining("mục đích");
+        assertThatThrownBy(() -> policy.company(company, "https://example.com/logo.png", null))
+                .hasMessageContaining("tải ảnh công ty");
+    }
+
+    @Test
     void rejectsBrowserOnlyReferencesAndCrossCompanyAssets() {
         var assets = mock(MediaAssetRepository.class);
         var policy = new MediaReferencePolicy(assets);

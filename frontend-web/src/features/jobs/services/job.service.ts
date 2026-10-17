@@ -24,6 +24,9 @@ export interface JobFormPayload {
     title: string;
     workFormat: string;
     location: string;
+    useCompanyLocation?: boolean;
+    mapEmbedUrl?: string;
+    mapsUrl?: string;
     vacancies: number;
     description: string;
     applicationDeadline?: string;
@@ -44,6 +47,7 @@ export interface JobFormPayload {
 }
 
 export const jobService = {
+    getManagedJobById: async (id: string): Promise<JobPosition> => (await apiClient.get<JobPosition>(`/api/v1/jobs/${id}`)).data,
     getAllJobs: async (params?: JobSearchParams): Promise<JobPosition[]> => {
         const queryParams = new URLSearchParams();
         if (params?.keyword) queryParams.append("keyword", params.keyword.trim());

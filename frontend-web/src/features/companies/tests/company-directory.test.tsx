@@ -52,6 +52,7 @@ describe('CompanyDirectoryView', () => {
                     companyName: 'FPT Software Cần Thơ',
                     industry: 'Công nghệ thông tin',
                     verificationStatus: 'VERIFIED',
+                    officeAddress: 'Số 1 Nguyễn Văn Cừ, An Bình, Ninh Kiều, Cần Thơ',
                     address: {
                         street: 'Số 1 Nguyễn Văn Cừ',
                         ward: 'An Bình',

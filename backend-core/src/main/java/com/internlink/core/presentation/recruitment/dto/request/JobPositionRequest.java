@@ -42,8 +42,11 @@ public class JobPositionRequest {
     @NotNull(message = "Hình thức làm việc không được để trống")
     private WorkFormat workFormat;
 
-    @NotBlank(message = "Địa điểm làm việc không được để trống")
+    @Size(max = 1000)
     private String location;
+    private boolean useCompanyLocation;
+    @Size(max = 8192) private String mapEmbedUrl;
+    @Size(max = 8192) private String mapsUrl;
 
     private OffsetDateTime applicationDeadline;
 

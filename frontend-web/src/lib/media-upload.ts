@@ -1,5 +1,7 @@
 import { apiClient } from "./api-client";
 export type MediaPurpose =
+  | "COMPANY_LOGO"
+  | "COMPANY_COVER"
   | "JOB_BANNER"
   | "JOB_IMAGE"
   | "JOB_ATTACHMENT"

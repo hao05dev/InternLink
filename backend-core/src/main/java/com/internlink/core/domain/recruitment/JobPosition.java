@@ -48,8 +48,14 @@ public class JobPosition extends BaseEntity {
     @Column(name = "work_format", nullable = false, length = 30)
     private WorkFormat workFormat;
 
-    @Column(name = "location", nullable = false)
+    @Column(name = "location", nullable = false, length = 1000)
     private String location;
+    @Column(name = "use_company_location", nullable = false)
+    private boolean useCompanyLocation;
+    @Column(name = "map_embed_url", columnDefinition = "text")
+    private String mapEmbedUrl;
+    @Column(name = "maps_url", columnDefinition = "text")
+    private String mapsUrl;
 
     @Column(name = "application_deadline")
     private OffsetDateTime applicationDeadline;

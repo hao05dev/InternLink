@@ -12,6 +12,7 @@ export interface ApiFieldError {
 
 export interface ApiResponse<T> {
     success: boolean;
+    error_code?: string;
     code?: number;
     message?: string;
     data: T;

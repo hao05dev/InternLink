@@ -1,8 +1,10 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useModalInteraction } from "./hooks/use-modal-interaction";
 
 export interface ModalProps {
     isOpen: boolean;
@@ -25,21 +27,11 @@ export function Modal({
 }: ModalProps) {
     const titleId = React.useId();
     const descriptionId = React.useId();
-    React.useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === "Escape") onClose();
-        };
-        if (isOpen) {
-            document.body.style.overflow = "hidden";
-            window.addEventListener("keydown", handleKeyDown);
-        }
-        return () => {
-            document.body.style.overflow = "unset";
-            window.removeEventListener("keydown", handleKeyDown);
-        };
-    }, [isOpen, onClose]);
+    const [mounted, setMounted] = React.useState(false);
+    React.useEffect(() => { setMounted(true); }, []);
+    const dialogRef = useModalInteraction(isOpen && mounted, onClose);
 
-    if (!isOpen) return null;
+    if (!isOpen || !mounted) return null;
 
     const maxWidthClasses = {
         sm: "max-w-sm",
@@ -50,8 +42,10 @@ export function Modal({
         "4xl": "max-w-4xl",
     };
 
-    return (
+    return createPortal(
         <div 
+            ref={dialogRef}
+            tabIndex={-1}
             className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200"
             role="dialog"
             aria-modal="true"
@@ -92,6 +86,6 @@ export function Modal({
                     {children}
                 </div>
             </div>
-        </div>
+        </div>, document.body
     );
 }

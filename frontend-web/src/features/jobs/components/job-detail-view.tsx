@@ -1,16 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useJobDetail } from "../hooks/use-job-detail";
+import { usePublicCompany } from "@/features/companies/hooks/use-public-company";
+import { CompanyIntroductionSection } from "@/features/companies/components/public/company-introduction-section";
+import { JobLocationSection } from "./detail/job-location-section";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Briefcase } from "lucide-react";
-import { jobService } from "@/features/jobs/services/job.service";
-import { JobPosition } from "@/features/jobs/types/job.types";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/features/auth/hooks/use-auth";
 import { PublicShell } from "@/components/layouts/public-shell";
-import { apiClient } from "@/lib/api-client";
-import { StudentProfile } from "@/features/profiles/types/profile.types";
 import { MediaRichContent } from "@/components/ui/media-rich-content";
 
 // Focused Subcomponents
@@ -21,63 +19,13 @@ import { JobProgramsSection } from "./detail/job-programs-section";
 import { JobLearningOutcomesSection } from "./detail/job-learning-outcomes-section";
 import { JobAttachmentsSection } from "./detail/job-attachments-section";
 import { JobDetailSidebar } from "./detail/job-detail-sidebar";
-import { JobApplyModal } from "./detail/job-apply-modal";
+import { JobApplyModal } from "./modals/job-apply-modal";
 
 export default function JobDetailView({ id }: { id: string }) {
   const router = useRouter();
-  const { user, isAuthenticated } = useAuth();
-  const [job, setJob] = useState<JobPosition | null>(null);
-  const [relatedJobs, setRelatedJobs] = useState<JobPosition[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isApplied, setIsApplied] = useState(false);
-  const [showApplyModal, setShowApplyModal] = useState(false);
-  const [studentProfile, setStudentProfile] = useState<StudentProfile | null>(
-    null
-  );
-
-  const jobId = id;
-
-  useEffect(() => {
-    let mounted = true;
-    setLoading(true);
-    jobService
-      .getJobById(jobId)
-      .then((data) => {
-        if (mounted) {
-          setJob(data);
-          jobService.getPublicJobs().then((all) => {
-            if (mounted) {
-              setRelatedJobs(all.filter((j) => j.id !== jobId).slice(0, 3));
-            }
-          });
-          setLoading(false);
-        }
-      })
-      .catch(() => {
-        if (mounted) setLoading(false);
-      });
-
-    if (isAuthenticated && user?.role === "STUDENT") {
-      apiClient
-        .get<StudentProfile>("/api/v1/students/me/profile")
-        .then((res) => {
-          if (mounted && res.data) {
-            setStudentProfile(res.data);
-          }
-        })
-        .catch(() => {});
-
-      jobService.getMyApplications().then((apps) => {
-        if (mounted && apps.some((a) => a.jobId === jobId)) {
-          setIsApplied(true);
-        }
-      }).catch(() => {});
-    }
-
-    return () => {
-      mounted = false;
-    };
-  }, [jobId, isAuthenticated, user?.role]);
+  const { job, relatedJobs, loading, user, isAuthenticated, isApplied, setIsApplied,
+    showApplyModal, setShowApplyModal, studentProfile } = useJobDetail(id);
+  const companyProfile = usePublicCompany(job?.company?.publicProfile ? job.companyId : undefined);
 
   if (loading) {
     return (
@@ -177,6 +125,8 @@ export default function JobDetailView({ id }: { id: string }) {
                 </div>
               </div>
 
+              {companyProfile.company && <CompanyIntroductionSection description={companyProfile.company.description} />}
+              <JobLocationSection job={job} />
               {/* Modular Sections */}
               <JobBenefitsSection benefits={job.benefits} />
               <JobSkillsSection skills={job.skills} />

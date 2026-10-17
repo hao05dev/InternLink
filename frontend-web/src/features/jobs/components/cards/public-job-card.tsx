@@ -1,4 +1,5 @@
 "use client";
+import { CompanyLogo } from "@/features/companies/components/company-logo";
 
 import Link from "next/link";
 import { Building2, MapPin, Users, Calendar, ChevronRight } from "lucide-react";
@@ -59,8 +60,8 @@ export function PublicJobCard({ job, isActive }: PublicJobCardProps) {
             <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
                 <div className="flex items-start gap-3.5 sm:gap-4 min-w-0 flex-1">
                     {/* Company Logo */}
-                    <div className="w-12 h-12 rounded-2xl bg-white border border-slate-200/80 flex items-center justify-center p-2 shrink-0 shadow-2xs">
-                        <Building2 className={`w-6 h-6 ${isActive ? "text-sky-700" : "text-slate-500"}`} />
+                    <div className="shrink-0">
+                        <CompanyLogo src={job.company?.logoUrl} name={job.companyName} />
                     </div>
 
                     <div className="space-y-1.5 min-w-0 flex-1">

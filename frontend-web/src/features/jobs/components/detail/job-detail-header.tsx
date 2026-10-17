@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { CompanyLogo } from "@/features/companies/components/company-logo";
 import { useState } from "react";
 import {
   Building2,
@@ -72,12 +74,12 @@ export function JobDetailHeader({
       {/* Company info & Share */}
       <div className="flex items-start justify-between gap-4 mb-4">
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl bg-sky-50 border border-sky-100 flex items-center justify-center p-3 shrink-0 shadow-2xs">
-            <Building2 className="w-9 h-9 text-sky-700" />
+          <div className="shrink-0">
+            <CompanyLogo src={job.company?.logoUrl} name={job.companyName} />
           </div>
           <div>
             <h2 className="text-base sm:text-lg font-bold text-slate-800 flex items-center gap-2">
-              <span>{job.companyName || "Doanh nghiệp tiếp nhận"}</span>
+              {job.company?.publicProfile ? <Link href={`/companies/${job.companyId}`} className="hover:text-sky-700">{job.companyName}</Link> : <span>{job.companyName || "Doanh nghiệp tiếp nhận"}</span>}
               <Badge
                 variant="outline"
                 className="bg-sky-50 text-sky-700 border-sky-200 text-[10px] py-0 px-2 rounded-full"

@@ -4,6 +4,7 @@ import { JobDetailActionBar } from "../components/detail/job-detail-action-bar";
 import { JobPosition } from "../types/job.types";
 
 const mockJob: JobPosition = {
+  description: "Mô tả vị trí",
   id: "job-123",
   title: "Frontend React Intern",
   companyId: "company-999",

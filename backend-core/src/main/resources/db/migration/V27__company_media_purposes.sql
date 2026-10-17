@@ -1,0 +1,5 @@
+ALTER TABLE media_assets DROP CONSTRAINT media_assets_purpose_check;
+ALTER TABLE media_assets ADD CONSTRAINT media_assets_purpose_check CHECK (
+ purpose IN ('JOB_BANNER','JOB_IMAGE','JOB_ATTACHMENT','POST_COVER','POST_IMAGE',
+ 'POST_ATTACHMENT','PORTFOLIO_IMAGE','COMPANY_LOGO','COMPANY_COVER')
+);

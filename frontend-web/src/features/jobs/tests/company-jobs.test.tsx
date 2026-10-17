@@ -42,6 +42,7 @@ vi.mock('@/lib/api-client', () => ({
 describe('Company Jobs Management & Full-Page Form', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        localStorage.clear();
         (apiClient.get as any).mockImplementation((url: string) => {
             if (url === '/api/v1/jobs') {
                 return Promise.resolve({
@@ -78,6 +79,7 @@ describe('Company Jobs Management & Full-Page Form', () => {
                     data: [{ id: 'term-1', name: 'Học kỳ 1 (2026-2027)', status: 'ACTIVE' }],
                 });
             }
+            if (url === '/api/v1/companies/me/profile') return Promise.resolve({ data: { id: 'comp-1', companyName: 'FPT', verificationStatus: 'VERIFIED' } });
             if (url.includes('/api/v1/departments') || url.includes('/api/v1/companies')) {
                 return Promise.resolve({
                     data: [{ id: 'dept-1', name: 'Khoa Công Nghệ Thông Tin' }],
@@ -152,7 +154,9 @@ describe('Company Jobs Management & Full-Page Form', () => {
         const descTextarea = screen.getByPlaceholderText(/Mô tả các đầu việc chính/i);
         fireEvent.change(descTextarea, { target: { value: 'Mô tả chi tiết công việc' } });
 
+        fireEvent.change(screen.getByLabelText(/Địa điểm làm việc cụ thể/i), { target: { value: 'Cần Thơ' } });
         const saveDraftBtn = screen.getByRole('button', { name: /Lưu bản nháp/i });
+        await waitFor(() => expect(saveDraftBtn).toBeEnabled());
         fireEvent.click(saveDraftBtn);
 
         await waitFor(() => {
@@ -177,7 +181,7 @@ describe('Company Jobs Management & Full-Page Form', () => {
         render(<CompanyJobFormView mode="create" />);
 
         await waitFor(() => {
-            expect(screen.getByText(/Hệ thống đã tự động khôi phục bản nháp/i)).toBeInTheDocument();
+            expect(screen.getByText(/Đã khôi phục bản nháp/i)).toBeInTheDocument();
         });
 
         const titleInput = screen.getByLabelText(/Tiêu đề vị trí thực tập \*/i) as HTMLInputElement;

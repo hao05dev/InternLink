@@ -13,6 +13,10 @@ export interface JobPosition {
     id: string;
     companyId: string;
     companyName: string;
+    company?: import("@/features/companies/types/public-company.types").CompanySummary;
+    useCompanyLocation?: boolean;
+    mapEmbedUrl?: string | null;
+    mapsUrl?: string | null;
     companyLogo?: string;
     companyScale?: string;
     companyIndustry?: string;

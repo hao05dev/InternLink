@@ -47,4 +47,13 @@ class BackendCoreApplicationTest {
         mockMvc.perform(get("/api/v1/notifications/unread-count"))
             .andExpect(status().isUnauthorized());
     }
+
+    @Test
+    void companyPublicEndpointsAreAnonymousButManagementRequiresAuthentication() throws Exception {
+        mockMvc.perform(get("/api/v1/companies/public")).andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/companies/public/{id}", java.util.UUID.randomUUID()))
+            .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/v1/companies/me/profile")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/companies")).andExpect(status().isUnauthorized());
+    }
 }

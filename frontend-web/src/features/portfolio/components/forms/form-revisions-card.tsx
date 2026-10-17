@@ -11,7 +11,7 @@ interface FormRevisionsCardProps {
   current: FormView;
   overview: Overview;
   busy: boolean;
-  signedInput: RefObject<HTMLInputElement | null>;
+  signedInput: RefObject<HTMLInputElement>;
   onUpload: (file?: File) => Promise<void>;
   onExportDocx: (revisionId?: string, showPreview?: boolean) => Promise<void>;
 }

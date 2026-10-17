@@ -8,6 +8,7 @@ import { Save, Send, ArrowLeft } from 'lucide-react';
 interface JobFormActionsProps {
     isSubmitting: boolean;
     isTermClosed?: boolean;
+    disabled?: boolean;
     onSaveDraft: () => void;
     onSubmitReview?: () => void;
     mode?: 'create' | 'edit';
@@ -16,6 +17,7 @@ interface JobFormActionsProps {
 export function JobFormActions({
     isSubmitting,
     isTermClosed,
+    disabled,
     onSaveDraft,
     onSubmitReview,
     mode = 'create',
@@ -35,7 +37,7 @@ export function JobFormActions({
                     variant="secondary"
                     onClick={onSaveDraft}
                     isLoading={isSubmitting}
-                    disabled={isSubmitting || isTermClosed}
+                    disabled={disabled || isSubmitting || isTermClosed}
                     title={isTermClosed ? 'Kỳ thực tập đã kết thúc (CLOSED)' : undefined}
                     className="gap-1.5 text-xs w-full sm:w-auto"
                 >
@@ -49,7 +51,7 @@ export function JobFormActions({
                         variant="primary"
                         onClick={onSubmitReview}
                         isLoading={isSubmitting}
-                        disabled={isSubmitting || isTermClosed}
+                        disabled={disabled || isSubmitting || isTermClosed}
                         title={isTermClosed ? 'Kỳ thực tập đã kết thúc (CLOSED)' : undefined}
                         className="gap-1.5 text-xs w-full sm:w-auto"
                     >

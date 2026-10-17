@@ -40,7 +40,7 @@ public class MediaAccessPolicy {
     }
 
     public UUID requireUpload(User user, MediaPurpose purpose, UUID context, String scope) {
-        if (purpose.job()) {
+        if (purpose.job() || purpose.company()) {
             if (context == null || !companies.existsById(context))
                 throw new BadRequestException("Chọn doanh nghiệp trước khi tải ảnh/tệp");
             ResourceAuthorization.require(
@@ -111,8 +111,9 @@ public class MediaAccessPolicy {
         if (assets.publicReference(asset)) return true;
         if (user == null) return false;
         if (user.getId().equals(asset.owner()) || ResourceAuthorization.isAdmin(user)) return true;
-        if (asset.purpose().job() && ResourceAuthorization.representsCompany(user, asset.context()))
+        if ((asset.purpose().job() || asset.purpose().company()) && ResourceAuthorization.representsCompany(user, asset.context()))
             return true;
+        if (asset.purpose().company()) return false;
         return (user.getRole() == UserRole.FACULTY_ADMIN || user.getRole() == UserRole.BLOG_MANAGER)
                 && user.getDepartment() != null
                 && assets.departmentReference(asset, user.getDepartment().getId());

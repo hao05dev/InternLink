@@ -23,7 +23,7 @@ import java.util.*;
         showSql = false,
         properties = {"spring.flyway.enabled=true", "spring.jpa.hibernate.ddl-auto=validate"})
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import({MediaAssetRepository.class, UploadTicketRepository.class})
+@Import({MediaAssetRepository.class, CompanyMediaReferenceRepository.class, UploadTicketRepository.class})
 @EnabledIfEnvironmentVariable(named = "INTERNLINK_TEST_PG_URL", matches = ".+")
 class MediaAssetPostgresTest {
     @DynamicPropertySource
@@ -47,6 +47,28 @@ class MediaAssetPostgresTest {
     @Autowired JpaUserRepository users;
     @Autowired MediaAssetRepository assets;
     @Autowired UploadTicketRepository tickets;
+
+    @Test
+    void companyLogoIsPublicOnlyWhileReferencedByAVerifiedCompany() {
+        var company = companies.findAll().getFirst();
+        var owner = users.findAll().getFirst();
+        var asset = new MediaAssetRepository.Asset(UUID.randomUUID(), owner.getId(),
+                MediaPurpose.COMPANY_LOGO, company.getId(), null,
+                "internlink/media/test/" + UUID.randomUUID() + ".png", "logo.png", "image/png", 3, "sum");
+        assets.insert(asset);
+        assertThat(assets.publicReference(asset)).isFalse();
+        company.setLogoUrl(asset.url());
+        company.setVerificationStatus(VerificationStatus.VERIFIED);
+        companies.saveAndFlush(company);
+        assertThat(assets.publicReference(asset)).isTrue();
+        company.setVerificationStatus(VerificationStatus.PENDING);
+        companies.saveAndFlush(company);
+        assertThat(assets.publicReference(asset)).isFalse();
+        company.setVerificationStatus(VerificationStatus.VERIFIED);
+        company.setLogoUrl(null);
+        companies.saveAndFlush(company);
+        assertThat(assets.publicReference(asset)).isFalse();
+    }
 
     @Test
     void bannerBecomesPublicOnlyWhileBoundJobIsApprovedAndCannotBePurgedAsAnOrphan() {

@@ -26,6 +26,7 @@ public class CompanyController {
     private final CompanyService companyService;
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN', 'FACULTY_ADMIN')")
     public ResponseEntity<ApiResponse<List<CompanyResponse>>> getAllCompanies(
         @RequestParam(required = false) VerificationStatus status
     ) {
@@ -36,6 +37,7 @@ public class CompanyController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<CompanyResponse>> getCompanyById(@PathVariable UUID id) {
         CompanyResponse company = companyService.getCompanyById(id);
         return ResponseEntity.ok(ApiResponse.success(company));

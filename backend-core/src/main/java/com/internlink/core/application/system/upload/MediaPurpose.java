@@ -1,6 +1,8 @@
 package com.internlink.core.application.system.upload;
 
 public enum MediaPurpose {
+    COMPANY_LOGO("logos"),
+    COMPANY_COVER("covers"),
     JOB_BANNER("banners"),
     JOB_IMAGE("inline"),
     JOB_ATTACHMENT("attachments"),
@@ -16,6 +18,10 @@ public enum MediaPurpose {
 
     public String folder() {
         return folder;
+    }
+
+    public boolean company() {
+        return name().startsWith("COMPANY_");
     }
 
     public boolean job() {

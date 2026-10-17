@@ -6,7 +6,7 @@ import { JobSearchBanner } from "./public-search/job-search-banner";
 import { JobSearchFilterSidebar } from "./public-search/job-search-filter-sidebar";
 import { JobSearchQuickChips } from "./public-search/job-search-quick-chips";
 import { JobSearchEmptyState } from "./public-search/job-search-empty-state";
-import { PublicJobCard } from "./public-search/public-job-card";
+import { PublicJobCard } from "./cards/public-job-card";
 
 export default function JobSearchView() {
     const {

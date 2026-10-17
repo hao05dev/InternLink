@@ -9,8 +9,8 @@ import { Info, AlertCircle } from 'lucide-react';
 import { StipendInputField } from './stipend-input-field';
 
 interface JobBasicInfoSectionProps {
-    terms: any[];
-    departments: any[];
+    terms: import("../../../types/job-form.types").JobTerm[];
+    departments: import("../../../types/job-form.types").JobDepartment[];
     selectedTermId: string;
     onTermChange: (id: string) => void;
     selectedDeptId: string;
@@ -19,8 +19,6 @@ interface JobBasicInfoSectionProps {
     onTitleChange: (val: string) => void;
     workFormat: string;
     onWorkFormatChange: (val: string) => void;
-    location: string;
-    onLocationChange: (val: string) => void;
     vacancies: string;
     onVacanciesChange: (val: string) => void;
     stipendAmount: string;
@@ -41,8 +39,6 @@ export function JobBasicInfoSection({
     onTitleChange,
     workFormat,
     onWorkFormatChange,
-    location,
-    onLocationChange,
     vacancies,
     onVacanciesChange,
     stipendAmount,
@@ -126,13 +122,7 @@ export function JobBasicInfoSection({
                     />
                 </div>
 
-                <Input
-                    label="Địa điểm làm việc cụ thể *"
-                    value={location}
-                    onChange={(e) => onLocationChange(e.target.value)}
-                    placeholder="VD: KDC Nam Long, P. Hưng Thạnh, Q. Cái Răng, TP. Cần Thơ"
-                    required
-                />
+
             </CardContent>
         </Card>
     );
