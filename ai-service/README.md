@@ -21,7 +21,9 @@ ai-service/
 │   ├── config.py               # import tương thích cho Settings
 │   └── routers/                # chuyển tiếp router cũ sang api/v1/routes
 ├── tests/                      # contract, ranking, evidence, provider, metric
+├── demo/                       # Streamlit workbench độc lập và 6 tin tuyển dụng mẫu
 ├── requirements.txt            # phần lõi chạy không cần cloud SDK
+├── requirements-demo.txt       # phần lõi + Streamlit + HTTP client
 ├── requirements-gemini.txt     # phần lõi + google-genai
 ├── requirements-dev.txt        # phần lõi + công cụ kiểm thử
 ├── pyproject.toml              # metadata, cấu hình pytest
@@ -43,6 +45,11 @@ python -m venv .venv
 ```
 
 Backend đang mặc định gọi cổng **8001**. Mở Swagger tại [API docs](http://127.0.0.1:8001/docs). Không ghi đè file .env đang có; đối chiếu các biến mới trong .env.example. Các biến DB cũ được bỏ qua vì dịch vụ này chưa sở hữu cơ sở dữ liệu.
+
+Để demo riêng AI service mà chưa cần frontend/backend chính, cài
+`requirements-demo.txt`, giữ FastAPI ở cổng 8001 rồi chạy
+`.venv/Scripts/python.exe -m streamlit run demo/app.py`. Xem hướng dẫn và phạm vi
+tại [demo/README.md](demo/README.md).
 
 Mặc định EXTRACTION_PROVIDER=rules và EMBEDDING_PROVIDER=disabled: chạy được không có API key. Có key trong .env không tự bật việc gửi CV ra ngoài. Để dùng Gemini, cài requirements-gemini.txt, chọn provider=gemini và đặt rõ LLM_MODEL / EMBEDDING_MODEL còn hoạt động; EMBEDDING_DIMENSION phải được model hỗ trợ. Không có model mặc định có thể âm thầm hết hạn.
 

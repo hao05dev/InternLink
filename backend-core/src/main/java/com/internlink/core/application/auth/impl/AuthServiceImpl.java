@@ -60,6 +60,8 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final NotificationService notificationService;
     private final TokenRevocationService tokenRevocationService;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.internlink.core.application.auth.RefreshTokenService refreshTokenService;
 
     private static final int MAX_FAILED_ATTEMPTS = 5;
     private static final long LOCKOUT_DURATION_MINUTES = 15;
@@ -110,6 +112,10 @@ public class AuthServiceImpl implements AuthService {
             String token = jwtUtil.generateToken(principal);
             ResponseCookie cookie = cookieUtils.createAccessTokenCookie(token, jwtUtil.getExpirationMs());
             response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+
+            if (refreshTokenService != null) {
+                refreshTokenService.createSessionAndToken(user, null, response);
+            }
 
             return AuthResponse.builder()
                 .userId(principal.getId())
@@ -202,6 +208,10 @@ public class AuthServiceImpl implements AuthService {
         ResponseCookie cookie = cookieUtils.createAccessTokenCookie(token, jwtUtil.getExpirationMs());
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 
+        if (refreshTokenService != null) {
+            refreshTokenService.createSessionAndToken(savedUser, null, response);
+        }
+
         return AuthResponse.builder()
             .userId(savedUser.getId())
             .email(savedUser.getEmail())
@@ -219,6 +229,9 @@ public class AuthServiceImpl implements AuthService {
                 String jti = jwtUtil.getJtiFromToken(token);
                 Date expiryDate = jwtUtil.getExpirationDateFromToken(token);
                 tokenRevocationService.revokeToken(jti, expiryDate);
+            }
+            if (refreshTokenService != null) {
+                refreshTokenService.revokeSession(request, response);
             }
         }
         ResponseCookie deleteCookie = cookieUtils.deleteAccessTokenCookie();

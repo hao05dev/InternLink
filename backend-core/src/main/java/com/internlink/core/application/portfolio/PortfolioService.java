@@ -73,7 +73,7 @@ public class PortfolioService {
                     .PlacementWorkflowNotificationHelper
             notifications;
 
-    public static final List<String> KINDS = List.of("M01", "M02", "M03", "M04", "M05");
+    public static final List<String> KINDS = List.of("M01", "M02", "M03", "M04", "M05", "FORM04");
 
     public record Save(Integer version, @NotNull Map<String, Object> content) {}
 

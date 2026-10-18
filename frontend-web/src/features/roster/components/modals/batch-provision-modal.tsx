@@ -68,7 +68,7 @@ export function BatchProvisionModal({
                             </p>
                             <ul className="text-xs text-sky-800 list-disc list-inside space-y-1">
                                 <li>
-                                    <strong>Nếu sinh viên chưa có tài khoản:</strong> Khởi tạo tài khoản mới với vai trò <code>STUDENT</code>, mật khẩu mặc định <code>Internlink@&lt;6 số cuối MSSV&gt;</code> và yêu cầu đổi mật khẩu ở lần đăng nhập đầu tiên.
+                                    <strong>Nếu sinh viên chưa có tài khoản:</strong> Khởi tạo tài khoản mới với vai trò <code>STUDENT</code>, sinh mật khẩu ngẫu nhiên bảo mật, tự động gửi thư kích hoạt qua Email sinh viên và yêu cầu đổi mật khẩu ở lần đăng nhập đầu tiên.
                                 </li>
                                 <li>
                                     <strong>Nếu email sinh viên đã tồn tại trên hệ thống:</strong> Tự động liên kết hồ sơ thực tập với tài khoản có sẵn.
@@ -84,7 +84,7 @@ export function BatchProvisionModal({
                             <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2.5 text-xs text-amber-900">
                                 <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                                 <span>
-                                    Sau khi cấp tài khoản hàng loạt thành công, bạn có thể tải về file Excel danh sách tài khoản và mật khẩu khởi tạo để gửi cho sinh viên.
+                                    Sau khi cấp tài khoản hàng loạt thành công, hệ thống sẽ tự động gửi email kèm mật khẩu ngẫu nhiên cho từng sinh viên. Bạn cũng có thể tải về file Excel danh sách mật khẩu dự phòng để lưu trữ.
                                 </span>
                             </div>
                         )}

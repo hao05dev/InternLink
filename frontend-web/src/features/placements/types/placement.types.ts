@@ -50,6 +50,13 @@ export interface InternshipPlacement {
     previousCompanyName?: string;
     createdAt?: string;
     updatedAt?: string;
+    hasOfficeRoom?: boolean;
+    hasComputer?: boolean;
+    hoursPerDay?: number;
+    daysPerWeek?: number;
+    hasReferralLetter?: boolean;
+    waiverReason?: string;
+    alternativeProofUrl?: string;
 }
 
 export interface SelfPlacementSubmitPayload {

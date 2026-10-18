@@ -21,6 +21,14 @@ export const getCurrentUser = async (): Promise<UserSummary> => {
     return response.data;
 };
 
+export const changePassword = async (payload: {
+    currentPassword: string;
+    newPassword: string;
+    confirmPassword: string;
+}): Promise<void> => {
+    await apiClient.post("/api/v1/auth/change-password", payload);
+};
+
 export const getSessionUser = async (): Promise<UserSummary | null> => {
     try {
         const response: ApiResponse<UserSummary | null> = await apiClient.get("/api/v1/auth/session");
@@ -48,5 +56,6 @@ export const authService = {
     registerCompany,
     logout,
     getCurrentUser,
+    changePassword,
     getSessionUser,
 };

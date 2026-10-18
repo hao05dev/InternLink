@@ -11,6 +11,10 @@ export interface RosterStudent {
     eligibilityNote?: string;
     claimedUserId?: string;
     claimedAt?: string;
+    assignedLecturerId?: string;
+    lecturerCode?: string;
+    lecturerName?: string;
+    lecturerEmail?: string;
     createdAt?: string;
 }
 

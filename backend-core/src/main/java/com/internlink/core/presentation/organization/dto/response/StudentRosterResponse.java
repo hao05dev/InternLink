@@ -8,8 +8,6 @@ import lombok.NoArgsConstructor;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
-
-
 @Data
 @Builder
 @NoArgsConstructor
@@ -31,6 +29,10 @@ public class StudentRosterResponse {
     private String eligibilityNote;
     private UUID claimedUserId;
     private OffsetDateTime claimedAt;
+    private UUID assignedLecturerId;
+    private String lecturerCode;
+    private String lecturerName;
+    private String lecturerEmail;
     private OffsetDateTime createdAt;
     private String defaultPassword; // Only returned when newly provisioned
 }

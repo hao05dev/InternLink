@@ -178,6 +178,7 @@ export default function FormPanel({
           busy={busy}
           draftSaving={draft.saving}
           uploadCount={uploadCount}
+          termId={overview.placement.termId}
           onPreview={() => void exportDocx(undefined, true)}
           onDownload={() => void exportDocx()}
         />

@@ -1,251 +1,230 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select } from '@/components/ui/select';
-import { Building2, Edit3, Send, UserCheck } from 'lucide-react';
-import { InternshipPlacement } from '../../types/placement.types';
+import { Edit3, Send } from 'lucide-react';
+import { PlacementCompanyFields } from './self-placement/placement-company-fields';
+import { PlacementMentorFields } from './self-placement/placement-mentor-fields';
+import { PlacementFacilitiesFields } from './self-placement/placement-facilities-fields';
+import { PlacementReferralWaiverCard } from './self-placement/placement-referral-waiver-card';
+import { TemplateQuickDownload } from '@/features/organization/components/templates/template-quick-download';
+import type { InternshipPlacement } from '../../types/placement.types';
 
-interface SelfPlacementFormProps {
-    placement: InternshipPlacement | null;
-    terms: Array<{ id: string; code: string; termName: string }>;
-    selectedTermId: string;
-    setSelectedTermId: (v: string) => void;
-    companyName: string;
-    setCompanyName: (v: string) => void;
-    companyTaxCode: string;
-    setCompanyTaxCode: (v: string) => void;
-    companyAddress: string;
-    setCompanyAddress: (v: string) => void;
-    companyWebsite: string;
-    setCompanyWebsite: (v: string) => void;
-    jobTitle: string;
-    setJobTitle: (v: string) => void;
-    jobDescription: string;
-    setJobDescription: (v: string) => void;
-    mentorName: string;
-    setMentorName: (v: string) => void;
-    mentorEmail: string;
-    setMentorEmail: (v: string) => void;
-    mentorPhone: string;
-    setMentorPhone: (v: string) => void;
-    startDate: string;
-    setStartDate: (v: string) => void;
-    endDate: string;
-    setEndDate: (v: string) => void;
-    acceptanceLetterUrl: string;
-    setAcceptanceLetterUrl: (v: string) => void;
-    isSubmitting: boolean;
-    onSubmit: (e: React.FormEvent) => void;
+export interface SelfPlacementFormProps {
+  placement: InternshipPlacement | null;
+  terms: Array<{ id: string; code: string; termName: string }>;
+  selectedTermId: string;
+  setSelectedTermId: (v: string) => void;
+  companyName: string;
+  setCompanyName: (v: string) => void;
+  companyTaxCode: string;
+  setCompanyTaxCode: (v: string) => void;
+  companyAddress: string;
+  setCompanyAddress: (v: string) => void;
+  companyWebsite: string;
+  setCompanyWebsite: (v: string) => void;
+  jobTitle: string;
+  setJobTitle: (v: string) => void;
+  jobDescription: string;
+  setJobDescription: (v: string) => void;
+  mentorName: string;
+  setMentorName: (v: string) => void;
+  mentorEmail: string;
+  setMentorEmail: (v: string) => void;
+  mentorPhone: string;
+  setMentorPhone: (v: string) => void;
+  startDate: string;
+  setStartDate: (v: string) => void;
+  endDate: string;
+  setEndDate: (v: string) => void;
+  acceptanceLetterUrl: string;
+  setAcceptanceLetterUrl: (v: string) => void;
+  isSubmitting: boolean;
+  onSubmit: (e: React.FormEvent) => void;
+  // Optional extension fields for Form 04 and Referral Waiver
+  hasOfficeRoom?: boolean;
+  setHasOfficeRoom?: (v: boolean) => void;
+  hasComputer?: boolean;
+  setHasComputer?: (v: boolean) => void;
+  hoursPerDay?: number;
+  setHoursPerDay?: (v: number) => void;
+  daysPerWeek?: number;
+  setDaysPerWeek?: (v: number) => void;
+  hasReferralLetter?: boolean;
+  setHasReferralLetter?: (v: boolean) => void;
+  waiverReason?: string;
+  setWaiverReason?: (v: string) => void;
+  alternativeProofUrl?: string;
+  setAlternativeProofUrl?: (v: string) => void;
 }
 
-export function SelfPlacementForm({
-    placement,
-    terms,
-    selectedTermId,
-    setSelectedTermId,
-    companyName,
-    setCompanyName,
-    companyTaxCode,
-    setCompanyTaxCode,
-    companyAddress,
-    setCompanyAddress,
-    companyWebsite,
-    setCompanyWebsite,
-    jobTitle,
-    setJobTitle,
-    jobDescription,
-    setJobDescription,
-    mentorName,
-    setMentorName,
-    mentorEmail,
-    setMentorEmail,
-    mentorPhone,
-    setMentorPhone,
-    startDate,
-    setStartDate,
-    endDate,
-    setEndDate,
-    acceptanceLetterUrl,
-    setAcceptanceLetterUrl,
-    isSubmitting,
-    onSubmit,
-}: SelfPlacementFormProps) {
-    return (
-        <Card className="border-slate-200 shadow-xs">
-            <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                    <Edit3 className="w-4 h-4 text-sky-600" />
-                    <span>{placement?.status === 'REJECTED' ? 'Cập Nhật & Nộp Lại Phiếu Tiếp Nhận' : 'Thông Tin Đơn Vị Tiếp Nhận'}</span>
-                </CardTitle>
-                <CardDescription className="text-xs">
-                    Vui lòng điền chính xác thông tin doanh nghiệp và người hướng dẫn để Khoa thẩm định chuyên ngành.
-                </CardDescription>
-            </CardHeader>
+export function SelfPlacementForm(props: SelfPlacementFormProps) {
+  const [internalHasRoom, setInternalHasRoom] = useState(true);
+  const [internalHasPc, setInternalHasPc] = useState(true);
+  const [internalHours, setInternalHours] = useState(8);
+  const [internalDays, setInternalDays] = useState(5);
+  const [internalReferral, setInternalReferral] = useState(true);
+  const [internalWaiverReason, setInternalWaiverReason] = useState('ALREADY_EMPLOYED');
+  const [internalAlternativeProof, setInternalAlternativeProof] = useState('');
 
-            <CardContent>
-                <form onSubmit={onSubmit} className="space-y-4">
-                    {/* Semester Selection */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <Select
-                            label="Học kỳ thực tập"
-                            id="termSelect"
-                            value={selectedTermId}
-                            onChange={(e) => setSelectedTermId(e.target.value)}
-                            options={terms.map((t) => ({
-                                value: t.id,
-                                label: `${t.code} (${t.termName})`,
-                            }))}
-                            required
-                        />
-                        <Input
-                            label="Vị trí thực tập (Job Title)"
-                            id="jobTitle"
-                            value={jobTitle}
-                            onChange={(e) => setJobTitle(e.target.value)}
-                            placeholder="VD: Java Backend Intern / React Native Developer"
-                            required
-                        />
-                    </div>
+  const hasRoom = props.hasOfficeRoom ?? internalHasRoom;
+  const setRoom = props.setHasOfficeRoom ?? setInternalHasRoom;
+  const hasPc = props.hasComputer ?? internalHasPc;
+  const setPc = props.setHasComputer ?? setInternalHasPc;
+  const hours = props.hoursPerDay ?? internalHours;
+  const setHours = props.setHoursPerDay ?? setInternalHours;
+  const days = props.daysPerWeek ?? internalDays;
+  const setDays = props.setDaysPerWeek ?? setInternalDays;
 
-                    {/* Company Information */}
-                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3">
-                        <h3 className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
-                            <Building2 className="w-3.5 h-3.5 text-sky-600" />
-                            <span>Thông tin Doanh nghiệp tiếp nhận</span>
-                        </h3>
+  const hasRef = props.hasReferralLetter ?? internalReferral;
+  const setRef = props.setHasReferralLetter ?? setInternalReferral;
+  const reason = props.waiverReason ?? internalWaiverReason;
+  const setReason = props.setWaiverReason ?? setInternalWaiverReason;
+  const altProof = props.alternativeProofUrl ?? internalAlternativeProof;
+  const setAltProof = props.setAlternativeProofUrl ?? setInternalAlternativeProof;
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <Input
-                                label="Tên Doanh nghiệp / Công ty"
-                                id="companyName"
-                                value={companyName}
-                                onChange={(e) => setCompanyName(e.target.value)}
-                                placeholder="VD: Công ty TNHH Phần mềm ABC"
-                                required
-                            />
-                            <Input
-                                label="Mã số thuế doanh nghiệp"
-                                id="companyTaxCode"
-                                value={companyTaxCode}
-                                onChange={(e) => setCompanyTaxCode(e.target.value)}
-                                placeholder="VD: 1801234567"
-                            />
-                            <div className="sm:col-span-2">
-                                <Input
-                                    label="Địa chỉ trụ sở / Chi nhánh làm việc"
-                                    id="companyAddress"
-                                    value={companyAddress}
-                                    onChange={(e) => setCompanyAddress(e.target.value)}
-                                    placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành"
-                                    required
-                                />
-                            </div>
-                            <div className="sm:col-span-2">
-                                <Input
-                                    label="Website / Fanpage Doanh nghiệp"
-                                    id="companyWebsite"
-                                    value={companyWebsite}
-                                    onChange={(e) => setCompanyWebsite(e.target.value)}
-                                    placeholder="https://company.vn"
-                                />
-                            </div>
-                        </div>
-                    </div>
+  return (
+    <Card className="border-slate-200 shadow-xs">
+      <CardHeader>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Edit3 className="w-4 h-4 text-sky-600" />
+              <span>{props.placement?.status === 'REJECTED' ? 'Cập Nhật & Nộp Lại Phiếu Tiếp Nhận' : 'Thông Tin Đơn Vị Tiếp Nhận'}</span>
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Vui lòng điền chính xác thông tin doanh nghiệp và người hướng dẫn để Khoa thẩm định chuyên ngành.
+            </CardDescription>
+          </div>
 
-                    {/* Mentor Information */}
-                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3">
-                        <h3 className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
-                            <UserCheck className="w-3.5 h-3.5 text-sky-600" />
-                            <span>Người hướng dẫn trực tiếp tại Doanh nghiệp (Mentor)</span>
-                        </h3>
+          <TemplateQuickDownload
+            reportType="FORM_04_RECEPTION_8W"
+            label="Tải file Mẫu 04 gốc (.doc)"
+            variant="pill"
+          />
+        </div>
+      </CardHeader>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                            <Input
-                                label="Họ tên Người hướng dẫn"
-                                id="mentorName"
-                                value={mentorName}
-                                onChange={(e) => setMentorName(e.target.value)}
-                                placeholder="VD: Nguyễn Văn Mentor"
-                                required
-                            />
-                            <Input
-                                label="Email Người hướng dẫn"
-                                id="mentorEmail"
-                                type="email"
-                                value={mentorEmail}
-                                onChange={(e) => setMentorEmail(e.target.value)}
-                                placeholder="mentor@company.com"
-                                required
-                            />
-                            <Input
-                                label="Số điện thoại Người hướng dẫn"
-                                id="mentorPhone"
-                                value={mentorPhone}
-                                onChange={(e) => setMentorPhone(e.target.value)}
-                                placeholder="0901234567"
-                                required
-                            />
-                        </div>
-                    </div>
+      <CardContent>
+        <form onSubmit={props.onSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Select
+              label="Học kỳ thực tập"
+              id="termSelect"
+              value={props.selectedTermId}
+              onChange={(e) => props.setSelectedTermId(e.target.value)}
+              options={props.terms.map((t) => ({
+                value: t.id,
+                label: `${t.code} (${t.termName})`,
+              }))}
+              required
+            />
+            <Input
+              label="Vị trí thực tập (Job Title)"
+              id="jobTitle"
+              value={props.jobTitle}
+              onChange={(e) => props.setJobTitle(e.target.value)}
+              placeholder="VD: Java Backend Intern / React Native Developer"
+              required
+            />
+          </div>
 
-                    {/* Job Description & Duration */}
-                    <div className="space-y-3">
-                        <Textarea
-                            label="Mô tả tóm tắt nội dung công việc thực tập"
-                            id="jobDescription"
-                            value={jobDescription}
-                            onChange={(e) => setJobDescription(e.target.value)}
-                            placeholder="Nêu rõ các module, công nghệ sử dụng và nhiệm vụ được phân công trong đợt thực tập..."
-                            rows={3}
-                            required
-                        />
+          <PlacementCompanyFields
+            companyName={props.companyName}
+            setCompanyName={props.setCompanyName}
+            companyTaxCode={props.companyTaxCode}
+            setCompanyTaxCode={props.setCompanyTaxCode}
+            companyAddress={props.companyAddress}
+            setCompanyAddress={props.setCompanyAddress}
+            companyWebsite={props.companyWebsite}
+            setCompanyWebsite={props.setCompanyWebsite}
+          />
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <Input
-                                label="Ngày bắt đầu làm việc"
-                                id="startDate"
-                                type="date"
-                                value={startDate}
-                                onChange={(e) => setStartDate(e.target.value)}
-                                required
-                            />
-                            <Input
-                                label="Ngày kết thúc dự kiến"
-                                id="endDate"
-                                type="date"
-                                value={endDate}
-                                onChange={(e) => setEndDate(e.target.value)}
-                                required
-                            />
-                        </div>
+          <PlacementMentorFields
+            mentorName={props.mentorName}
+            setMentorName={props.setMentorName}
+            mentorEmail={props.mentorEmail}
+            setMentorEmail={props.setMentorEmail}
+            mentorPhone={props.mentorPhone}
+            setMentorPhone={props.setMentorPhone}
+          />
 
-                        <Input
-                            label="Link đính kèm Giấy tiếp nhận thực tập (Google Drive / Cloudinary)"
-                            id="acceptanceLetterUrl"
-                            value={acceptanceLetterUrl}
-                            onChange={(e) => setAcceptanceLetterUrl(e.target.value)}
-                            placeholder="https://drive.google.com/... hoặc link ảnh/PDF có mộc công ty"
-                        />
-                    </div>
+          <PlacementFacilitiesFields
+            hasOfficeRoom={hasRoom}
+            setHasOfficeRoom={setRoom}
+            hasComputer={hasPc}
+            setHasComputer={setPc}
+            hoursPerDay={hours}
+            setHoursPerDay={setHours}
+            daysPerWeek={days}
+            setDaysPerWeek={setDays}
+          />
 
-                    {/* Submit Button */}
-                    <div className="flex justify-end pt-3 border-t border-slate-100">
-                        <Button
-                            type="submit"
-                            variant="primary"
-                            isLoading={isSubmitting}
-                            className="gap-2"
-                        >
-                            <Send className="w-4 h-4" />
-                            <span>{placement?.status === 'REJECTED' ? 'Cập nhật & Nộp lại đơn' : 'Gửi Phiếu Đăng Ký'}</span>
-                        </Button>
-                    </div>
-                </form>
-            </CardContent>
-        </Card>
-    );
+          <PlacementReferralWaiverCard
+            hasReferralLetter={hasRef}
+            setHasReferralLetter={setRef}
+            waiverReason={reason}
+            setWaiverReason={setReason}
+            alternativeProofUrl={altProof}
+            setAlternativeProofUrl={setAltProof}
+          />
+
+          <div className="space-y-3">
+            <Textarea
+              label="Mô tả tóm tắt nội dung công việc thực tập"
+              id="jobDescription"
+              value={props.jobDescription}
+              onChange={(e) => props.setJobDescription(e.target.value)}
+              placeholder="Nêu rõ các module, công nghệ sử dụng và nhiệm vụ được phân công trong đợt thực tập..."
+              rows={3}
+              required
+            />
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Input
+                label="Ngày bắt đầu làm việc"
+                id="startDate"
+                type="date"
+                value={props.startDate}
+                onChange={(e) => props.setStartDate(e.target.value)}
+                required
+              />
+              <Input
+                label="Ngày kết thúc dự kiến"
+                id="endDate"
+                type="date"
+                value={props.endDate}
+                onChange={(e) => props.setEndDate(e.target.value)}
+                required
+              />
+            </div>
+
+            <Input
+              label="Link đính kèm Giấy tiếp nhận thực tập / Mẫu 04 có mộc đỏ (Google Drive / Cloudinary)"
+              id="acceptanceLetterUrl"
+              value={props.acceptanceLetterUrl}
+              onChange={(e) => props.setAcceptanceLetterUrl(e.target.value)}
+              placeholder="https://drive.google.com/... hoặc link ảnh/PDF có mộc công ty"
+            />
+          </div>
+
+          <div className="flex justify-end pt-3 border-t border-slate-100">
+            <Button
+              type="submit"
+              variant="primary"
+              isLoading={props.isSubmitting}
+              className="gap-2"
+            >
+              <Send className="w-4 h-4" />
+              <span>{props.placement?.status === 'REJECTED' ? 'Cập nhật & Nộp lại đơn' : 'Gửi Phiếu Đăng Ký'}</span>
+            </Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
+  );
 }

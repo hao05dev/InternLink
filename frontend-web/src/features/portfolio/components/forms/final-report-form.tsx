@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import RichEditor from "../../rich-editor";
+import { TemplateQuickDownload } from "@/features/organization/components/templates/template-quick-download";
 import { SECTION_TITLES, fieldClass } from "../../types";
 import type { FormContent, Overview } from "../../types";
 import { escape, plain } from "./form-utils";
@@ -94,6 +95,15 @@ export function ReportEditor({
             <option value="A4">A4</option>
           </select>
         </label>
+        <div className="pt-2 border-t">
+          <TemplateQuickDownload
+            reportType="M05_REPORT_GUIDELINE"
+            termId={overview.placement.termId}
+            label="Tải file M-TT-05 gốc (.doc)"
+            variant="pill"
+            className="w-full justify-center"
+          />
+        </div>
       </aside>
       <div className="space-y-4 rounded-xl border bg-white p-4 sm:p-6">
         <details>

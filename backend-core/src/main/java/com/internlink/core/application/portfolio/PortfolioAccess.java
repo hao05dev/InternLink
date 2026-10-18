@@ -19,7 +19,7 @@ public final class PortfolioAccess {
         return switch(f.getKind()) {
             case "M01","M02","M03" -> mentor(a,f.getPlacement());
             case "M04" -> lecturer(a,f.getPlacement());
-            case "M05" -> student(a,f.getPlacement());
+            case "M05","FORM04" -> student(a,f.getPlacement());
             default -> false;
         };
     }

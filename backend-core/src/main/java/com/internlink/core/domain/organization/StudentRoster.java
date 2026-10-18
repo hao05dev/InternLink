@@ -7,8 +7,6 @@ import jakarta.persistence.*;
 import lombok.*;
 import java.time.OffsetDateTime;
 
-
-
 @Entity
 @Table(name = "student_rosters", uniqueConstraints = {
     @UniqueConstraint(name = "uq_student_rosters_term_student", columnNames = {"term_id", "student_code"})
@@ -60,4 +58,17 @@ public class StudentRoster extends BaseEntity {
 
     @Column(name = "claimed_at")
     private OffsetDateTime claimedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "assigned_lecturer_id")
+    private User assignedLecturer;
+
+    @Column(name = "lecturer_code", length = 50)
+    private String lecturerCode;
+
+    @Column(name = "lecturer_name", length = 150)
+    private String lecturerName;
+
+    @Column(name = "lecturer_email", length = 150)
+    private String lecturerEmail;
 }

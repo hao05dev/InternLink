@@ -57,6 +57,7 @@ export const facultyNav: PortalRoleConfig = {
                 href: "/faculty/internship-record",
               },
               { label: "Bảng điểm & Đánh giá", href: "/faculty/evaluations" },
+              { label: "Biểu mẫu thực tập (R2)", href: "/faculty/templates" },
             ],
           },
         ],

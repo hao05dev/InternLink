@@ -20,12 +20,16 @@ public class PortfolioDocxExporter {
     public static final String MIME="application/vnd.openxmlformats-officedocument.wordprocessingml.document";
     private static final String W="http://schemas.openxmlformats.org/wordprocessingml/2006/main";
     private static final DateTimeFormatter DATE=DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
     public byte[] export(String kind,Map<String,Object> content,Map<String,Object> meta,boolean draft) {
         try {
             WordprocessingMLPackage pkg=WordprocessingMLPackage.createPackage();
             configure(pkg,"M05".equals(kind)&&!"A4".equals(content.get("paperSize")));
-            if("M05".equals(kind))report(pkg,content,meta,draft);
-            else {
+            if("M05".equals(kind)) {
+                report(pkg,content,meta,draft);
+            } else if("FORM04".equals(kind) || "04".equals(kind)) {
+                receptionForm(pkg, content, meta);
+            } else {
                 append(pkg,"<p style='text-align:right'>M-TT-"+kind.substring(1)+"</p>"+(draft?"<p style='text-align:right'>BẢN NHÁP</p>":""));
                 String title=switch(kind){case "M01"->"PHIẾU GIAO VIỆC CHO SINH VIÊN THỰC TẬP THỰC TẾ";case "M02"->"PHIẾU THEO DÕI SINH VIÊN THỰC TẬP THỰC TẾ";case "M03"->"PHIẾU ĐÁNH GIÁ KẾT QUẢ THỰC TẬP";default->"PHIẾU ĐÁNH GIÁ BÁO CÁO KẾT QUẢ THỰC TẬP";};
                 append(pkg,"<h2 style='text-align:center'>"+title+"</h2><p style='text-align:center'><b>"+escape(meta.get("termName"))+"</b></p>"+identity(meta));
@@ -40,6 +44,31 @@ public class PortfolioDocxExporter {
             ByteArrayOutputStream out=new ByteArrayOutputStream();pkg.save(out);return out.toByteArray();
         }catch(Exception ex){throw new IllegalStateException("Không thể tạo file Word. Nội dung đã lưu vẫn được giữ lại.",ex);}
     }
+
+    private void receptionForm(WordprocessingMLPackage pkg, Map<String, Object> c, Map<String, Object> m) throws Exception {
+        int weeks = m.get("weekCount") != null ? number(m.get("weekCount")).intValue() : 8;
+        append(pkg, "<p style='text-align:right'>04-Phiếu nhận SV (" + weeks + " tuần)</p>");
+        append(pkg, "<h2 style='text-align:center'>PHIẾU TIẾP NHẬN SINH VIÊN THỰC TẬP THỰC TẾ</h2><p style='text-align:center'><b>" + escape(m.get("termName")) + "</b></p>");
+        append(pkg, "<p>Thời gian thực tập: từ ngày <b>" + date(m.get("startDate")) + "</b> đến <b>" + date(m.get("endDate")) + "</b> (" + weeks + " tuần)</p>");
+        append(pkg, "<p>Tên cơ quan: <b>" + escape(m.get("companyName")) + "</b></p>");
+        append(pkg, "<p>Địa chỉ: " + escape(c.get("companyAddress") != null ? c.get("companyAddress") : m.get("companyAddress")) + "</p>");
+        append(pkg, "<p>Số điện thoại cơ quan: " + escape(c.get("companyPhone") != null ? c.get("companyPhone") : m.get("companyPhone")) + "</p>");
+        append(pkg, "<p>Họ tên cán bộ phụ trách: <b>" + escape(m.get("mentorName")) + "</b> — Điện thoại: " + escape(m.get("mentorPhone")) + " — Email: " + escape(m.get("mentorEmail")) + "</p>");
+        
+        boolean hasRoom = Boolean.TRUE.equals(c.get("hasOfficeRoom"));
+        boolean hasPc = Boolean.TRUE.equals(c.get("hasComputer"));
+        append(pkg, "<p>Cơ quan có điều kiện cho SV thực tập gồm: Phòng làm việc: " + (hasRoom ? "☑ Có  ☐ Không" : "☐ Có  ☑ Không") + " | Máy tính: " + (hasPc ? "☑ Có  ☐ Không" : "☐ Có  ☑ Không") + "</p>");
+        append(pkg, "<p><b>Đồng ý tiếp nhận sinh viên:</b></p>");
+        append(pkg, "<p>Họ và tên: <b>" + escape(m.get("studentName")) + "</b> — MSSV: <b>" + escape(m.get("studentCode")) + "</b> — Khóa: " + escape(m.get("cohort")) + " — Ngành: " + escape(m.get("programName")) + "</p>");
+        append(pkg, "<p><b>Nội dung công việc dự kiến:</b></p><p>" + escape(c.get("jobDescription") != null ? string(c, "jobDescription") : (m.get("jobTitle") != null ? String.valueOf(m.get("jobTitle")) : "Theo phân công của cơ quan tiếp nhận")) + "</p>");
+        
+        String hours = c.get("hoursPerDay") != null ? String.valueOf(c.get("hoursPerDay")) : "8";
+        String days = c.get("daysPerWeek") != null ? String.valueOf(c.get("daysPerWeek")) : "5";
+        append(pkg, "<p>Dự kiến số ngày SV sẽ có mặt tại nơi thực tập (Tối thiểu 24 giờ/tuần): <b>" + hours + "</b> giờ/ngày, <b>" + days + "</b> ngày/tuần.</p>");
+        append(pkg, "<p><i>Lưu ý: Công việc được thực hiện trong " + weeks + " tuần. Sinh viên nộp lại phiếu này tại văn phòng khoa trước khi bắt đầu thực tập.</i></p>");
+        signatures(pkg, "FORM04", c, m);
+    }
+
     private void configure(WordprocessingMLPackage pkg,boolean letter)throws Exception {
         var section=pkg.getDocumentModel().getSections().get(0).getSectPr();
         var size=new SectPr.PgSz();size.setW(BigInteger.valueOf(letter?12240:11906));size.setH(BigInteger.valueOf(letter?15840:16838));section.setPgSz(size);
@@ -52,6 +81,7 @@ public class PortfolioDocxExporter {
         var relationship=pkg.getMainDocumentPart().addTargetPart(footer);var ref=new FooterReference();ref.setType(HdrFtrRef.DEFAULT);ref.setId(relationship.getId());section.getEGHdrFtrReferences().add(ref);
         var settings=pkg.getMainDocumentPart().getDocumentSettingsPart();if(settings!=null){var on=new BooleanDefaultTrue();on.setVal(true);settings.getJaxbElement().setUpdateFields(on);}
     }
+
     private void append(WordprocessingMLPackage pkg,String html)throws Exception {
         var importer=new XHTMLImporterImpl(pkg);
         String xhtml="<html xmlns='http://www.w3.org/1999/xhtml'><head><style>body{font-family:'Times New Roman';font-size:13pt;}p{margin:0 0 6pt 0;line-height:1.3;}h1,h2,h3{font-family:'Times New Roman';color:#000;font-weight:bold;}h1{font-size:16pt;}h2{font-size:14pt;}h3{font-size:13pt;}table{border-collapse:collapse;width:100%;}td,th{border:1px solid #000;padding:5pt;vertical-align:top;font-size:12pt;}th{text-align:center;font-weight:bold;}img{max-width:460px;}a{color:#000;}</style></head><body>"+html+"</body></html>";
@@ -68,9 +98,11 @@ public class PortfolioDocxExporter {
         }
         pkg.getMainDocumentPart().getContent().addAll(converted);
     }
+
     private String identity(Map<String,Object> m) {
         return "<p>Họ và tên sinh viên: <b>"+escape(m.get("studentName"))+"</b> — MSSV: "+escape(m.get("studentCode"))+"</p><p>Cơ quan thực tập: "+escape(m.get("companyName"))+"</p><p>Cán bộ hướng dẫn: "+escape(m.get("mentorName"))+"</p><p>Thời gian thực tập: từ "+date(m.get("startDate"))+" đến "+date(m.get("endDate"))+"</p>";
     }
+
     private void weeklyTable(WordprocessingMLPackage pkg,String kind,Map<String,Object> c,Map<String,Object> m)throws Exception {
         boolean follow="M02".equals(kind);
         StringBuilder html=new StringBuilder("<table><thead><tr><th style='width:13%'>Tuần</th><th>Nội dung công việc được giao</th>");
@@ -85,6 +117,7 @@ public class PortfolioDocxExporter {
         }
         append(pkg,html.append("</tbody></table>").toString());
     }
+
     private void assessment(WordprocessingMLPackage pkg,Map<String,Object> c,Map<String,Object> m)throws Exception {
         append(pkg,"<p>Điện thoại: "+escape(m.get("mentorPhone"))+" — Email: "+escape(m.get("mentorEmail"))+"</p>");
         var scores=map(c.get("scores"));boolean remote=Boolean.TRUE.equals(c.get("remote"));java.math.BigDecimal total=java.math.BigDecimal.ZERO;
@@ -102,22 +135,47 @@ public class PortfolioDocxExporter {
         for(String label:TRAINING)html.append("<p>").append(selected.contains(label)?"☒ ":"☐ ").append(label).append("</p>");
         html.append("<p><b>3. Đề xuất góp ý của cơ quan về chương trình đào tạo</b></p>").append(RichText.clean(string(c,"suggestions")));append(pkg,html.toString());
     }
+
     private void lecturerTable(WordprocessingMLPackage pkg,Map<String,Object> c,Map<String,Object> m,boolean blank)throws Exception {
         StringBuilder html=new StringBuilder("<p>Giảng viên chấm báo cáo: "+escape(m.get("lecturerName"))+"</p><table><thead><tr><th>Nội dung đánh giá theo phương án được duyệt</th><th>Trọng số</th><th>Điểm (0–10)</th></tr></thead><tbody>");
         var scores=map(c.get("scores"));List<?> components=m.get("components") instanceof List<?> l?l:List.of();
-        for(Object value:components) {var part=map(value);html.append("<tr><td>").append(escape(part.get("name"))).append("</td><td>").append(number(part.get("weight")).multiply(java.math.BigDecimal.valueOf(100)).stripTrailingZeros().toPlainString()).append("%</td><td>").append(blank?"":escape(scores.get(String.valueOf(part.get("code"))))).append("</td></tr>");}
+        java.math.BigDecimal total = java.math.BigDecimal.ZERO;
+        for(Object value:components) {
+            var part=map(value);
+            String scStr = scores.get(String.valueOf(part.get("code"))) != null ? String.valueOf(scores.get(String.valueOf(part.get("code")))) : "";
+            if(!blank && !scStr.isBlank()){
+                try {
+                    java.math.BigDecimal val = new java.math.BigDecimal(scStr);
+                    java.math.BigDecimal wt = number(part.get("weight"));
+                    total = total.add(val.multiply(wt));
+                } catch(Exception ignored){}
+            }
+            html.append("<tr><td>").append(escape(part.get("name"))).append("</td><td>").append(number(part.get("weight")).multiply(java.math.BigDecimal.valueOf(100)).stripTrailingZeros().toPlainString()).append("%</td><td>").append(blank?"":escape(scStr)).append("</td></tr>");
+        }
         if(components.isEmpty())html.append("<tr><td colspan='3'>Chưa có phương án đánh giá được duyệt cho học phần.</td></tr>");
+        html.append("<tr><td><b>TỔNG CỘNG</b></td><td>100%</td><td>").append(blank?"":total.setScale(2, java.math.RoundingMode.HALF_UP).toPlainString()).append("</td></tr>");
+        
+        var penalties = c.get("penalties") != null ? number(c.get("penalties")) : java.math.BigDecimal.ZERO;
+        html.append("<tr><td><b>Điểm trừ</b> (Không họp PB: -1đ; Trễ M01: -1đ)</td><td></td><td>").append(blank?"":(penalties.compareTo(java.math.BigDecimal.ZERO) > 0 ? "-" + penalties.toPlainString() : "0")).append("</td></tr>");
+        java.math.BigDecimal remaining = total.subtract(penalties).max(java.math.BigDecimal.ZERO);
+        html.append("<tr><td><b>ĐIỂM CÒN LẠI</b></td><td></td><td><b>").append(blank?"":remaining.setScale(2, java.math.RoundingMode.HALF_UP).toPlainString()).append("</b></td></tr>");
         html.append("</tbody></table><p>Nguồn phương án: ").append(escape(m.get("schemeReference"))).append("</p><p>Nhận xét:</p>").append(blank?"":RichText.clean(string(c,"comment")));
         append(pkg,html.toString());
     }
+
     private void signatures(WordprocessingMLPackage pkg,String kind,Map<String,Object> c,Map<String,Object> m)throws Exception {
         append(pkg,"<p style='text-align:right'>"+escape(string(c,"place"))+", ngày …… tháng …… năm ……</p>");
+        if("FORM04".equals(kind)){
+            append(pkg,"<table style='border:0'><tr><td style='border:0;width:50%'></td><td style='border:0;text-align:center;width:50%'><b>Thủ trưởng đơn vị</b><br/>(Ký tên và đóng dấu)<p> </p><p> </p></td></tr></table>");
+            return;
+        }
         if("M04".equals(kind)){append(pkg,"<p style='text-align:right'><b>GIẢNG VIÊN CHẤM BÁO CÁO</b></p><p style='text-align:right'>(Ký và ghi rõ họ tên)</p>");return;}
         String html="<table><tr><td style='text-align:center'><b>Xác nhận của cơ quan<br/>Thủ trưởng</b><br/>(Ký tên, đóng dấu)<p> </p><p> </p></td>";
         if("M01".equals(kind))html+="<td style='text-align:center'><b>Sinh viên</b><br/>(Ký tên và ghi họ tên)<p> </p><p> </p></td>";
         html+="<td style='text-align:center'><b>Cán bộ hướng dẫn</b><br/>(Ký tên và ghi họ tên)<p> </p><p> </p></td></tr></table>";
         append(pkg,html.replace("<table>","<table style='border:0'>").replace("<td style='", "<td style='border:0;"));
     }
+
     private void report(WordprocessingMLPackage pkg,Map<String,Object> c,Map<String,Object> m,boolean draft)throws Exception {
         append(pkg,"<p style='text-align:center'>BỘ GIÁO DỤC VÀ ĐÀO TẠO</p><p style='text-align:center'><b>ĐẠI HỌC CẦN THƠ<br/>"+escape(m.get("departmentName"))+"</b></p><p> </p><p> </p><h1 style='text-align:center'>BÁO CÁO THỰC TẬP DOANH NGHIỆP</h1><p style='text-align:center'>NGÀNH "+escape(m.get("programName"))+"</p><p style='text-align:center'>MÃ HỌC PHẦN: "+escape(m.get("courseCode"))+"</p><p style='text-align:center'>TÊN HỌC PHẦN: "+escape(string(c,"courseName"))+"</p><p> </p><p> </p>"+identity(m)+"<p>Giảng viên phụ trách: "+escape(m.get("lecturerName"))+"</p><p>Khóa: "+escape(m.get("cohort"))+"</p>"+(draft?"<p style='text-align:center'>BẢN NHÁP</p>":""));
         sectionBreak(pkg,NumberFormat.LOWER_ROMAN,true);var sections=map(c.get("sections"));heading(pkg,SECTION_TITLES.get(0));append(pkg,RichText.clean(string(sections,"thanks")));
@@ -127,6 +185,7 @@ public class PortfolioDocxExporter {
         sectionBreak(pkg,NumberFormat.DECIMAL,false);
         for(int i=1;i<SECTION_KEYS.size();i++) {if(i>1)pageBreak(pkg);heading(pkg,SECTION_TITLES.get(i));append(pkg,RichText.clean(string(sections,SECTION_KEYS.get(i))));}
     }
+
     private void heading(WordprocessingMLPackage pkg,String title){pkg.getMainDocumentPart().addStyledParagraphOfText("Heading1",title);}
     private void normalizeStyles(WordprocessingMLPackage pkg) {
         for(var style:pkg.getMainDocumentPart().getStyleDefinitionsPart().getJaxbElement().getStyle()) {
@@ -139,7 +198,6 @@ public class PortfolioDocxExporter {
         }
     }
     private void compactAssessment(WordprocessingMLPackage pkg) {
-        // The original M03 is a one-page form; reduce cell padding while allowing long comments to flow.
         var margins=pkg.getMainDocumentPart().getJaxbElement().getBody().getSectPr().getPgMar();margins.setTop(BigInteger.valueOf(1134));margins.setBottom(BigInteger.valueOf(1134));
         for(Object raw:pkg.getMainDocumentPart().getContent())compactNode(raw);
     }

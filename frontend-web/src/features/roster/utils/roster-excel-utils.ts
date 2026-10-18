@@ -12,6 +12,9 @@ export interface StudentRosterImportPayload {
     classCode?: string;
     eligibilityStatus: 'ELIGIBLE' | 'INELIGIBLE';
     eligibilityNote?: string;
+    lecturerCode?: string;
+    lecturerName?: string;
+    lecturerEmail?: string;
 }
 
 export interface ParsedRosterRow {
@@ -27,6 +30,9 @@ export interface ParsedRosterRow {
     classCode?: string;
     eligibilityStatus: 'ELIGIBLE' | 'INELIGIBLE';
     eligibilityNote?: string;
+    lecturerCode?: string;
+    lecturerName?: string;
+    lecturerEmail?: string;
     isValid: boolean;
     errors: string[];
 }
@@ -39,9 +45,6 @@ export interface ParseRosterResult {
     errorCount: number;
 }
 
-/**
- * Chuẩn hóa tên cột header để nhận diện linh hoạt
- */
 function normalizeHeader(header: string): string {
     return header
         .normalize('NFD')
@@ -52,14 +55,7 @@ function normalizeHeader(header: string): string {
         .replace(/[^a-z0-9]/g, '');
 }
 
-/**
- * Tạo và tải về file Excel mẫu
- */
 export function downloadRosterTemplate(programs: AcademicProgramOption[] = []) {
-    const samplePrograms = programs.length > 0 
-        ? programs.map(p => `${p.code} (${p.name})`).join(', ')
-        : 'CNTT, KTPM, HTTT, KHMT, MMT, ATTT';
-
     const templateData = [
         {
             'MSSV (*)': 'B2100001',
@@ -70,40 +66,37 @@ export function downloadRosterTemplate(programs: AcademicProgramOption[] = []) {
             'Mã lớp': 'DI2196A1',
             'Mã học phần (*)': 'CT250',
             'Trạng thái': 'ELIGIBLE',
+            'Mã GVHD': 'CB001',
+            'Họ tên GVHD': 'TS. Nguyễn Văn Hướng Dẫn',
+            'Email GVHD': 'lecturer@ctu.edu.vn',
             'Ghi chú': 'Đủ điều kiện tín chỉ',
         },
         {
             'MSSV (*)': 'B2100002',
             'Họ và tên (*)': 'Trần Thị Bình',
-            'Email': '', // để trống để test tính năng tự động tạo email
+            'Email': '',
             'Mã ngành (*)': programs[1]?.code || programs[0]?.code || 'KTPM',
             'Khóa học (*)': 'Khóa 47',
             'Mã lớp': 'DI2196A2',
             'Mã học phần (*)': 'CT250',
             'Trạng thái': 'ELIGIBLE',
+            'Mã GVHD': 'CB002',
+            'Họ tên GVHD': 'ThS. Trần Giảng Viên',
+            'Email GVHD': 'tgvien@ctu.edu.vn',
             'Ghi chú': '',
         }
     ];
 
     const worksheet = XLSX.utils.json_to_sheet(templateData);
-
-    // Thiết lập độ rộng cột
     worksheet['!cols'] = [
-        { wch: 14 }, // MSSV
-        { wch: 24 }, // Họ tên
-        { wch: 34 }, // Email
-        { wch: 15 }, // Mã ngành
-        { wch: 14 }, // Khóa học
-        { wch: 14 }, // Lớp
-        { wch: 16 }, // Mã học phần
-        { wch: 14 }, // Trạng thái
-        { wch: 25 }, // Ghi chú
+        { wch: 14 }, { wch: 22 }, { wch: 30 }, { wch: 14 }, { wch: 12 },
+        { wch: 12 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 24 },
+        { wch: 26 }, { wch: 20 },
     ];
 
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'DanhSachSinhVien');
 
-    // Thêm sheet hướng dẫn mã ngành có sẵn
     if (programs.length > 0) {
         const guideData = programs.map(p => ({
             'Mã ngành': p.code,
@@ -117,29 +110,19 @@ export function downloadRosterTemplate(programs: AcademicProgramOption[] = []) {
     XLSX.writeFile(workbook, 'Mau_Import_Sinh_Vien_Thuc_Tap.xlsx');
 }
 
-/**
- * Đọc và parse dữ liệu từ file Excel / CSV
- */
 export async function parseRosterExcelFile(
     file: File,
     programs: AcademicProgramOption[]
 ): Promise<ParseRosterResult> {
     const data = await file.arrayBuffer();
     const workbook = XLSX.read(data, { type: 'array' });
-
-    if (workbook.SheetNames.length === 0) {
-        throw new Error('Tệp Excel không chứa trang tính (sheet) nào.');
-    }
+    if (workbook.SheetNames.length === 0) throw new Error('Tệp Excel không chứa trang tính (sheet) nào.');
 
     const firstSheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[firstSheetName];
     const rawRows: Record<string, unknown>[] = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+    if (!rawRows || rawRows.length === 0) throw new Error('Tệp Excel không có dữ liệu sinh viên.');
 
-    if (!rawRows || rawRows.length === 0) {
-        throw new Error('Tệp Excel không có dữ liệu sinh viên.');
-    }
-
-    // Tạo Map để tra cứu ngành học
     const programMap = new Map<string, AcademicProgramOption>();
     for (const p of programs) {
         programMap.set(p.code.toUpperCase().trim(), p);
@@ -151,7 +134,6 @@ export async function parseRosterExcelFile(
     const validPayloads: StudentRosterImportPayload[] = [];
     const seenStudentCodes = new Set<string>();
 
-    // Chuẩn hóa Header mapping
     const rawKeys = Object.keys(rawRows[0] || {});
     const headerMapping: Record<string, string> = {};
 
@@ -159,6 +141,12 @@ export async function parseRosterExcelFile(
         const norm = normalizeHeader(key);
         if (norm.includes('mssv') || norm.includes('studentcode') || norm.includes('masv') || norm.includes('maso')) {
             headerMapping['studentCode'] = key;
+        } else if (norm.includes('emailgv') || norm.includes('lectureremail') || norm.includes('emailgiangvien')) {
+            headerMapping['lecturerEmail'] = key;
+        } else if (norm.includes('magv') || norm.includes('lecturercode') || norm.includes('macanbo')) {
+            headerMapping['lecturerCode'] = key;
+        } else if (norm.includes('tengv') || norm.includes('lecturername') || norm.includes('gvhd') || norm.includes('tengiangvien')) {
+            headerMapping['lecturerName'] = key;
         } else if (norm.includes('hoten') || norm.includes('fullname') || norm.includes('ten') || norm.includes('sinhvien')) {
             headerMapping['fullName'] = key;
         } else if (norm.includes('email') || norm.includes('officialemail')) {
@@ -179,10 +167,9 @@ export async function parseRosterExcelFile(
     }
 
     rawRows.forEach((row, index) => {
-        const rowNumber = index + 2; // Dòng 1 là header
+        const rowNumber = index + 2;
         const errors: string[] = [];
 
-        // Lấy dữ liệu theo header mapping
         const rawCode = String(row[headerMapping['studentCode']] ?? '').trim().toUpperCase();
         const rawFullName = String(row[headerMapping['fullName']] ?? '').trim();
         let rawEmail = String(row[headerMapping['officialEmail']] ?? '').trim();
@@ -192,102 +179,65 @@ export async function parseRosterExcelFile(
         const rawCourse = String(row[headerMapping['internshipCourseCode']] ?? '').trim();
         const rawStatus = String(row[headerMapping['eligibilityStatus']] ?? '').trim().toUpperCase();
         const rawNote = String(row[headerMapping['eligibilityNote']] ?? '').trim();
+        const rawLecCode = String(row[headerMapping['lecturerCode']] ?? '').trim();
+        const rawLecName = String(row[headerMapping['lecturerName']] ?? '').trim();
+        const rawLecEmail = String(row[headerMapping['lecturerEmail']] ?? '').trim();
 
-        // 1. Validate MSSV
-        if (!rawCode) {
-            errors.push('Thiếu MSSV');
-        } else if (seenStudentCodes.has(rawCode)) {
-            errors.push(`MSSV ${rawCode} bị trùng lặp`);
-        } else {
-            seenStudentCodes.add(rawCode);
-        }
+        if (!rawCode) errors.push('Thiếu MSSV');
+        else if (seenStudentCodes.has(rawCode)) errors.push(`MSSV ${rawCode} bị trùng lặp`);
+        else seenStudentCodes.add(rawCode);
 
-        // 2. Validate Họ tên
-        if (!rawFullName) {
-            errors.push('Thiếu Họ và tên');
-        }
+        if (!rawFullName) errors.push('Thiếu Họ và tên');
 
-        // 3. Tự sinh Email nếu trống
         if (!rawEmail && rawFullName && rawCode) {
             rawEmail = deriveEmail(rawFullName, rawCode);
         } else if (rawEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawEmail)) {
             errors.push('Email không đúng định dạng');
         }
 
-        // 4. Validate Ngành học
         let matchedProgram: AcademicProgramOption | undefined;
         if (!rawProgram) {
             errors.push('Thiếu Mã ngành');
         } else {
-            matchedProgram = programMap.get(rawProgram.toUpperCase()) || 
-                             programMap.get(normalizeHeader(rawProgram));
-            if (!matchedProgram) {
-                errors.push(`Không tìm thấy ngành "${rawProgram}" trong khoa`);
-            }
+            matchedProgram = programMap.get(rawProgram.toUpperCase()) || programMap.get(normalizeHeader(rawProgram));
+            if (!matchedProgram) errors.push(`Không tìm thấy ngành "${rawProgram}" trong khoa`);
         }
 
-        // 5. Tự sinh Khóa học nếu trống
-        if (!rawYear && rawCode) {
-            rawYear = deriveAcademicYear(rawCode) || 'Khóa 47';
-        }
-
-        // 6. Validate Mã học phần
+        if (!rawYear && rawCode) rawYear = deriveAcademicYear(rawCode) || 'Khóa 47';
         const internshipCourseCode = rawCourse || 'CT250';
-
-        // 7. Validate Trạng thái điều kiện
         const eligibilityStatus: 'ELIGIBLE' | 'INELIGIBLE' = 
-            rawStatus.includes('INELIGIBLE') || rawStatus.includes('KHONG') 
-                ? 'INELIGIBLE' 
-                : 'ELIGIBLE';
+            rawStatus.includes('INELIGIBLE') || rawStatus.includes('KHONG') ? 'INELIGIBLE' : 'ELIGIBLE';
 
         const isValid = errors.length === 0 && !!matchedProgram;
 
         const parsedRow: ParsedRosterRow = {
-            rowNumber,
-            studentCode: rawCode,
-            fullName: rawFullName,
-            officialEmail: rawEmail,
-            programCode: rawProgram,
-            programName: matchedProgram?.name,
-            programId: matchedProgram?.id,
-            academicYear: rawYear,
-            internshipCourseCode,
-            classCode: rawClass || undefined,
-            eligibilityStatus,
-            eligibilityNote: rawNote || undefined,
-            isValid,
-            errors,
+            rowNumber, studentCode: rawCode, fullName: rawFullName, officialEmail: rawEmail,
+            programCode: rawProgram, programName: matchedProgram?.name, programId: matchedProgram?.id,
+            academicYear: rawYear, internshipCourseCode, classCode: rawClass || undefined,
+            eligibilityStatus, eligibilityNote: rawNote || undefined,
+            lecturerCode: rawLecCode || undefined, lecturerName: rawLecName || undefined,
+            lecturerEmail: rawLecEmail || undefined, isValid, errors,
         };
 
         parsedRows.push(parsedRow);
 
         if (isValid && matchedProgram) {
             validPayloads.push({
-                programId: matchedProgram.id,
-                studentCode: rawCode,
-                fullName: rawFullName,
-                officialEmail: rawEmail,
-                academicYear: rawYear,
-                internshipCourseCode,
-                classCode: rawClass || undefined,
-                eligibilityStatus,
-                eligibilityNote: rawNote || undefined,
+                programId: matchedProgram.id, studentCode: rawCode, fullName: rawFullName,
+                officialEmail: rawEmail, academicYear: rawYear, internshipCourseCode,
+                classCode: rawClass || undefined, eligibilityStatus, eligibilityNote: rawNote || undefined,
+                lecturerCode: rawLecCode || undefined, lecturerName: rawLecName || undefined,
+                lecturerEmail: rawLecEmail || undefined,
             });
         }
     });
 
     return {
-        rows: parsedRows,
-        validPayloads,
-        totalRows: parsedRows.length,
-        validCount: validPayloads.length,
-        errorCount: parsedRows.length - validPayloads.length,
+        rows: parsedRows, validPayloads, totalRows: parsedRows.length,
+        validCount: validPayloads.length, errorCount: parsedRows.length - validPayloads.length,
     };
 }
 
-/**
- * Xuất danh sách tài khoản đã cấp phát ra file Excel
- */
 export function downloadProvisionedAccountsExcel(
     accounts: { studentCode: string; fullName: string; officialEmail: string; defaultPassword?: string; isNewlyCreated: boolean }[],
     termName: string = 'KyThucTap'
@@ -297,18 +247,13 @@ export function downloadProvisionedAccountsExcel(
         'MSSV': acc.studentCode,
         'Họ và tên': acc.fullName,
         'Email đăng nhập': acc.officialEmail,
-        'Mật khẩu khởi tạo': acc.defaultPassword || '(Tài khoản đã có từ trước)',
-        'Loại': acc.isNewlyCreated ? 'Tạo mới' : 'Liên kết tài khoản cũ',
+        'Mật khẩu tạm thời (đã gửi mail)': acc.defaultPassword || '(Tài khoản đã có từ trước)',
+        'Trạng thái': acc.isNewlyCreated ? 'Tạo mới (đã gửi mail mật khẩu ngẫu nhiên)' : 'Liên kết tài khoản cũ',
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(data);
     worksheet['!cols'] = [
-        { wch: 6 },
-        { wch: 14 },
-        { wch: 26 },
-        { wch: 34 },
-        { wch: 22 },
-        { wch: 22 },
+        { wch: 6 }, { wch: 14 }, { wch: 26 }, { wch: 34 }, { wch: 32 }, { wch: 36 },
     ];
 
     const workbook = XLSX.utils.book_new();

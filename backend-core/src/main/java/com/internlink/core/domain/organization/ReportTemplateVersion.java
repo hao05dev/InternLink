@@ -23,6 +23,14 @@ public class ReportTemplateVersion extends BaseEntity {
     @JoinColumn(name = "department_id")
     private Department department;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "program_id")
+    private AcademicProgram program;
+
+    @Builder.Default
+    @Column(name = "program_code", nullable = false, length = 30)
+    private String programCode = "DEFAULT";
+
     @Column(nullable = false)
     private String title;
 

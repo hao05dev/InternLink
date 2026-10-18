@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { UserRole } from "@/features/auth/types/auth.types";
 import { RoleGuard } from "@/features/auth/components/role-guard";
+import { ForceChangePasswordModal } from "@/features/auth/components/modals/force-change-password-modal";
 import { PORTAL_NAV_MAP } from "./portal-nav-config";
 import { PortalSidebar } from "./portal-sidebar";
 import { PortalTopbar } from "./portal-topbar";
@@ -33,6 +34,7 @@ export function PortalLayout({ portalRole, children }: PortalLayoutProps) {
 
   return (
     <RoleGuard allowedRoles={[portalRole]}>
+      <ForceChangePasswordModal />
       <div className="min-h-screen lg:h-screen lg:overflow-hidden bg-slate-50 flex">
         {/* Mobile Backdrop che mờ khi mở menu trên điện thoại */}
         {sidebarOpen && (

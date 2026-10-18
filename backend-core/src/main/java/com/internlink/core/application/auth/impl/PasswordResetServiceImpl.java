@@ -1,0 +1,117 @@
+package com.internlink.core.application.auth.impl;
+
+import com.internlink.core.application.auth.PasswordResetService;
+import com.internlink.core.application.system.notification.EmailOutboxService;
+import com.internlink.core.domain.auth.PasswordResetToken;
+import com.internlink.core.domain.auth.User;
+import com.internlink.core.infrastructure.persistence.jpa.JpaAuthSessionFamilyRepository;
+import com.internlink.core.infrastructure.persistence.jpa.JpaPasswordResetTokenRepository;
+import com.internlink.core.infrastructure.persistence.jpa.JpaUserRepository;
+import com.internlink.core.infrastructure.security.TokenCryptoUtils;
+import com.internlink.core.presentation.auth.dto.request.ForgotPasswordRequest;
+import com.internlink.core.presentation.auth.dto.request.ResetPasswordRequest;
+import com.internlink.core.shared.exception.BadRequestException;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.OffsetDateTime;
+
+/**
+ * Đảm nhiệm duy nhất 1 nhiệm vụ: Cấp phát token khôi phục và đặt lại mật khẩu an toàn.
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class PasswordResetServiceImpl implements PasswordResetService {
+
+    private final JpaUserRepository userRepository;
+    private final JpaPasswordResetTokenRepository tokenRepository;
+    private final JpaAuthSessionFamilyRepository sessionFamilyRepository;
+    private final TokenCryptoUtils cryptoUtils;
+    private final PasswordEncoder passwordEncoder;
+    private final EmailOutboxService emailOutboxService;
+
+    @Value("${internlink.email.public-base-url:http://localhost:3000}")
+    private String publicBaseUrl;
+
+    private static final long RESET_TOKEN_TTL_MINUTES = 60;
+
+    @Override
+    @Transactional
+    public void forgotPassword(ForgotPasswordRequest request) {
+        String cleanEmail = request.getEmail().trim().toLowerCase();
+        var userOpt = userRepository.findByEmail(cleanEmail);
+
+        if (userOpt.isEmpty()) {
+            // Không ném lỗi ra ngoài để chống tấn công dò tìm tài khoản (account enumeration)
+            log.info("Yêu cầu quên mật khẩu cho email không tồn tại: [{}]", cleanEmail);
+            return;
+        }
+
+        User user = userOpt.get();
+        if (!Boolean.TRUE.equals(user.getIsActive())) {
+            log.warn("Yêu cầu quên mật khẩu từ tài khoản bị khóa: [{}]", cleanEmail);
+            return;
+        }
+
+        String rawToken = cryptoUtils.generateSecureRandomToken();
+        String tokenHash = cryptoUtils.hashToken(rawToken);
+        OffsetDateTime expiresAt = OffsetDateTime.now().plusMinutes(RESET_TOKEN_TTL_MINUTES);
+
+        PasswordResetToken resetToken = PasswordResetToken.builder()
+                .user(user)
+                .tokenHash(tokenHash)
+                .expiresAt(expiresAt)
+                .build();
+        tokenRepository.save(resetToken);
+
+        String resetUrl = publicBaseUrl + "/reset-password?token=" + rawToken;
+        String emailBody = String.format(
+                "Xin chào %s,\n\nBạn vừa gửi yêu cầu đặt lại mật khẩu tại hệ thống InternLink.\n" +
+                "Vui lòng nhấn vào liên kết bên dưới để tạo mật khẩu mới (Liên kết có hiệu lực trong %d phút):\n%s\n\n" +
+                "Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email.",
+                user.getFullName(), RESET_TOKEN_TTL_MINUTES, resetUrl
+        );
+
+        emailOutboxService.enqueueNotice(
+                user.getEmail(),
+                "InternLink - Yêu cầu đặt lại mật khẩu",
+                emailBody,
+                "PASSWORD_RESET",
+                "pwd-reset:" + tokenHash
+        );
+        log.info("Đã tạo mã đặt lại mật khẩu cho user [{}]", user.getId());
+    }
+
+    @Override
+    @Transactional
+    public void resetPassword(ResetPasswordRequest request) {
+        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+            throw new BadRequestException("Mật khẩu xác nhận không khớp với mật khẩu mới");
+        }
+
+        String tokenHash = cryptoUtils.hashToken(request.getToken());
+        PasswordResetToken resetToken = tokenRepository.findValidToken(tokenHash, OffsetDateTime.now())
+                .orElseThrow(() -> new BadRequestException("Mã xác thực đặt lại mật khẩu không hợp lệ hoặc đã hết hạn"));
+
+        User user = resetToken.getUser();
+        OffsetDateTime now = OffsetDateTime.now();
+
+        user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        user.setPasswordChangedAt(now);
+        user.setMustChangePassword(false);
+        user.setFailedLoginAttempts(0);
+        user.setLockedUntil(null);
+        userRepository.save(user);
+
+        resetToken.setUsedAt(now);
+        tokenRepository.save(resetToken);
+
+        sessionFamilyRepository.revokeAllActiveFamiliesByUserId(user.getId(), now, "PASSWORD_RESET");
+        log.info("Người dùng [{}] đã đặt lại mật khẩu thành công qua email token", user.getId());
+    }
+}

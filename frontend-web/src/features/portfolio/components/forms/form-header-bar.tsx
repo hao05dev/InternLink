@@ -3,6 +3,7 @@
 import { Download, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatePill } from "../journal/journal-state-pill";
+import { TemplateQuickDownload } from "@/features/organization/components/templates/template-quick-download";
 import { FORM_NAMES } from "../../types";
 import type { FormView } from "../../types";
 
@@ -12,6 +13,7 @@ interface FormHeaderBarProps {
   busy: boolean;
   draftSaving: boolean;
   uploadCount: number;
+  termId?: string;
   onPreview: () => void;
   onDownload: () => void;
 }
@@ -22,6 +24,7 @@ export function FormHeaderBar({
   busy,
   draftSaving,
   uploadCount,
+  termId,
   onPreview,
   onDownload,
 }: FormHeaderBarProps) {
@@ -45,27 +48,36 @@ export function FormHeaderBar({
         </div>
       </div>
 
-      {current.canRead && (
-        <div className="flex flex-wrap gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={isActionDisabled}
-            onClick={onPreview}
-          >
-            <Eye className="mr-2 h-4 w-4" />
-            Xem trước DOCX
-          </Button>
-          <Button
-            size="sm"
-            disabled={isActionDisabled}
-            onClick={onDownload}
-          >
-            <Download className="mr-2 h-4 w-4" />
-            Tải DOCX
-          </Button>
-        </div>
-      )}
+      <div className="flex flex-wrap items-center gap-2">
+        <TemplateQuickDownload
+          reportType={form.kind === "M05" ? "M05_REPORT_GUIDELINE" : form.kind}
+          termId={termId}
+          label={`Tải mẫu gốc ${form.kind} (.doc)`}
+          variant="pill"
+        />
+
+        {current.canRead && (
+          <>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={isActionDisabled}
+              onClick={onPreview}
+            >
+              <Eye className="mr-2 h-4 w-4" />
+              Xem trước DOCX
+            </Button>
+            <Button
+              size="sm"
+              disabled={isActionDisabled}
+              onClick={onDownload}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Tải DOCX
+            </Button>
+          </>
+        )}
+      </div>
     </div>
   );
 }

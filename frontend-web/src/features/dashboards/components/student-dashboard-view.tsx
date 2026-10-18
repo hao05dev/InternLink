@@ -15,6 +15,7 @@ import { apiClient } from "@/lib/api-client";
 import { AcademicHeroBanner } from "./academic-hero-banner";
 import { AcademicStatCard } from "./academic-stat-card";
 import { AcademicAiInsightCard } from "./academic-ai-insight-card";
+import { StudentAssignedLecturerCard } from "./cards/student-assigned-lecturer-card";
 
 export default function StudentDashboardView() {
     const { user } = useAuth();
@@ -291,8 +292,11 @@ export default function StudentDashboardView() {
                     </Card>
                 </div>
 
-                {/* Cột phải (4 cols): Việc cần làm & AI Insights & Hỗ trợ học vụ */}
+                {/* Cột phải (4 cols): Giảng viên hướng dẫn & Việc cần làm & AI Insights & Hỗ trợ học vụ */}
                 <div className="lg:col-span-4 space-y-6">
+                    {/* Thẻ Giảng viên hướng dẫn phân công */}
+                    <StudentAssignedLecturerCard fallbackLecturerName={placement?.lecturerName} />
+
                     {/* Thẻ Việc cần làm (To-do / Deadlines Checklist) như mẫu HCMUE PLUS */}
                     <Card className="rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-card">
                         <CardHeader className="pb-3 border-b border-slate-100 flex flex-row items-center justify-between">
