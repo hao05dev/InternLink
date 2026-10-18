@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS auth_session_families (
     revoke_reason VARCHAR(100),
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    version BIGINT NOT NULL DEFAULT 0
+    version INT NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_auth_session_user ON auth_session_families(user_id);
@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
     replaced_by_id UUID REFERENCES refresh_tokens(id),
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    version BIGINT NOT NULL DEFAULT 0
+    version INT NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_family ON refresh_tokens(family_id);
@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS password_reset_tokens (
     used_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    version BIGINT NOT NULL DEFAULT 0
+    version INT NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_password_reset_hash ON password_reset_tokens(token_hash);

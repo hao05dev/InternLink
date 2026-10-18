@@ -10,8 +10,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.util.UUID;
 
-
-
 @Data
 @Builder
 @NoArgsConstructor
@@ -43,4 +41,10 @@ public class StudentRosterImportItem {
     private EligibilityStatus eligibilityStatus = EligibilityStatus.ELIGIBLE;
 
     private String eligibilityNote;
+
+    private String lecturerCode;
+
+    private String lecturerName;
+
+    private String lecturerEmail;
 }

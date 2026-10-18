@@ -1,0 +1,156 @@
+package com.internlink.core.application.auth;
+
+import com.internlink.core.application.auth.impl.PasswordResetServiceImpl;
+import com.internlink.core.application.system.notification.EmailOutboxService;
+import com.internlink.core.domain.auth.PasswordResetToken;
+import com.internlink.core.domain.auth.User;
+import com.internlink.core.infrastructure.persistence.jpa.JpaAuthSessionFamilyRepository;
+import com.internlink.core.infrastructure.persistence.jpa.JpaPasswordResetTokenRepository;
+import com.internlink.core.infrastructure.persistence.jpa.JpaUserRepository;
+import com.internlink.core.infrastructure.security.TokenCryptoUtils;
+import com.internlink.core.presentation.auth.dto.request.ForgotPasswordRequest;
+import com.internlink.core.presentation.auth.dto.request.ResetPasswordRequest;
+import com.internlink.core.shared.exception.BadRequestException;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.util.ReflectionTestUtils;
+
+import java.time.OffsetDateTime;
+import java.util.Optional;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+class PasswordResetServiceTest {
+
+    @Mock
+    private JpaUserRepository userRepository;
+
+    @Mock
+    private JpaPasswordResetTokenRepository tokenRepository;
+
+    @Mock
+    private JpaAuthSessionFamilyRepository sessionFamilyRepository;
+
+    @Mock
+    private TokenCryptoUtils cryptoUtils;
+
+    @Mock
+    private PasswordEncoder passwordEncoder;
+
+    @Mock
+    private EmailOutboxService emailOutboxService;
+
+    private PasswordResetServiceImpl service;
+
+    @BeforeEach
+    void setUp() {
+        service = new PasswordResetServiceImpl(
+                userRepository,
+                tokenRepository,
+                sessionFamilyRepository,
+                cryptoUtils,
+                passwordEncoder,
+                emailOutboxService
+        );
+        ReflectionTestUtils.setField(service, "publicBaseUrl", "http://localhost:3000");
+    }
+
+    @Test
+    void shouldCreateResetTokenAndEnqueueEmailOnForgotPassword() {
+        User user = User.builder()
+                .email("student@internlink.vn")
+                .fullName("Nguyen Van A")
+                .isActive(true)
+                .build();
+        user.setId(UUID.randomUUID());
+
+        when(userRepository.findByEmail("student@internlink.vn")).thenReturn(Optional.of(user));
+        when(cryptoUtils.generateSecureRandomToken()).thenReturn("raw-token-123");
+        when(cryptoUtils.hashToken("raw-token-123")).thenReturn("hashed-token-123");
+
+        service.forgotPassword(ForgotPasswordRequest.builder().email("student@internlink.vn").build());
+
+        verify(tokenRepository).save(any(PasswordResetToken.class));
+        verify(emailOutboxService).enqueueNotice(
+                eq("student@internlink.vn"),
+                eq("InternLink - Yêu cầu đặt lại mật khẩu"),
+                contains("http://localhost:3000/reset-password?token=raw-token-123"),
+                eq("PASSWORD_RESET"),
+                eq("pwd-reset:hashed-token-123")
+        );
+    }
+
+    @Test
+    void shouldSilentIgnoreWhenEmailDoesNotExistOnForgotPassword() {
+        when(userRepository.findByEmail("unknown@internlink.vn")).thenReturn(Optional.empty());
+
+        service.forgotPassword(ForgotPasswordRequest.builder().email("unknown@internlink.vn").build());
+
+        verify(tokenRepository, never()).save(any());
+        verify(emailOutboxService, never()).enqueueNotice(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void shouldResetPasswordSuccessfullyWithValidToken() {
+        User user = User.builder()
+                .email("student@internlink.vn")
+                .passwordHash("old-hash")
+                .failedLoginAttempts(3)
+                .lockedUntil(OffsetDateTime.now().plusMinutes(10))
+                .build();
+        user.setId(UUID.randomUUID());
+
+        PasswordResetToken resetToken = PasswordResetToken.builder()
+                .user(user)
+                .tokenHash("hash-abc")
+                .expiresAt(OffsetDateTime.now().plusMinutes(30))
+                .build();
+
+        when(cryptoUtils.hashToken("raw-token")).thenReturn("hash-abc");
+        when(tokenRepository.findValidToken(eq("hash-abc"), any())).thenReturn(Optional.of(resetToken));
+        when(passwordEncoder.encode("NewSecret123")).thenReturn("new-encoded-hash");
+
+        ResetPasswordRequest request = ResetPasswordRequest.builder()
+                .token("raw-token")
+                .newPassword("NewSecret123")
+                .confirmPassword("NewSecret123")
+                .build();
+
+        service.resetPassword(request);
+
+        assertThat(user.getPasswordHash()).isEqualTo("new-encoded-hash");
+        assertThat(user.getFailedLoginAttempts()).isEqualTo(0);
+        assertThat(user.getLockedUntil()).isNull();
+        assertThat(resetToken.getUsedAt()).isNotNull();
+
+        verify(userRepository).save(user);
+        verify(tokenRepository).save(resetToken);
+        verify(sessionFamilyRepository).revokeAllActiveFamiliesByUserId(eq(user.getId()), any(), eq("PASSWORD_RESET"));
+    }
+
+    @Test
+    void shouldRejectResetPasswordWhenTokenIsInvalidOrExpired() {
+        when(cryptoUtils.hashToken("expired-token")).thenReturn("expired-hash");
+        when(tokenRepository.findValidToken(eq("expired-hash"), any())).thenReturn(Optional.empty());
+
+        ResetPasswordRequest request = ResetPasswordRequest.builder()
+                .token("expired-token")
+                .newPassword("NewSecret123")
+                .confirmPassword("NewSecret123")
+                .build();
+
+        assertThatThrownBy(() -> service.resetPassword(request))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("không hợp lệ hoặc đã hết hạn");
+    }
+}

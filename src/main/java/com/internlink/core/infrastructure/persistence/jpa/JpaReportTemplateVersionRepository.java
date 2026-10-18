@@ -13,6 +13,22 @@ import java.util.UUID;
 public interface JpaReportTemplateVersionRepository extends JpaRepository<ReportTemplateVersion, UUID> {
     List<ReportTemplateVersion> findByTermIdAndIsActiveTrue(UUID termId);
     List<ReportTemplateVersion> findByTermIdAndDepartmentIdAndIsActiveTrue(UUID termId, UUID departmentId);
+    List<ReportTemplateVersion> findByTermIdOrderByCreatedAtDesc(UUID termId);
+    List<ReportTemplateVersion> findByTermIdAndDepartmentIdOrderByCreatedAtDesc(UUID termId, UUID departmentId);
+    List<ReportTemplateVersion> findByTermIdAndReportTypeOrderByVersionNumberDesc(UUID termId, ReportTemplateType reportType);
+
+    Optional<ReportTemplateVersion> findFirstByTermIdAndReportTypeAndProgramCodeAndIsActiveTrueOrderByVersionNumberDesc(
+            UUID termId, ReportTemplateType reportType, String programCode);
+
+    Optional<ReportTemplateVersion> findFirstByTermIdAndReportTypeAndProgramCodeOrderByVersionNumberDesc(
+            UUID termId, ReportTemplateType reportType, String programCode);
+
     Optional<ReportTemplateVersion> findFirstByTermIdAndReportTypeAndIsActiveTrueOrderByVersionNumberDesc(
             UUID termId, ReportTemplateType reportType);
+
+    Optional<ReportTemplateVersion> findFirstByTermIdAndReportTypeOrderByVersionNumberDesc(
+            UUID termId, ReportTemplateType reportType);
+
+    Optional<ReportTemplateVersion> findFirstByTermIdAndDepartmentIdAndReportTypeOrderByVersionNumberDesc(
+            UUID termId, UUID departmentId, ReportTemplateType reportType);
 }

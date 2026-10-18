@@ -15,4 +15,5 @@ public interface StudentRosterService {
     StudentRosterResponse provisionAccount(UUID rosterId);
     BatchProvisionResponse batchProvisionEligibleAccounts(UUID termId);
     IneligibleNoticeResponse notifyIneligibleStudents(UUID termId, IneligibleNoticeRequest request);
+    StudentRosterResponse getMySupervisionInfo(UUID studentUserId, String email);
 }

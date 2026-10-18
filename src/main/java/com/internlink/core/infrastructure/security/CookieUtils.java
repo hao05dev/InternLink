@@ -18,30 +18,40 @@ import java.util.Optional;
 public class CookieUtils {
 
     public static final String ACCESS_TOKEN_COOKIE_NAME = "access_token";
+    public static final String REFRESH_TOKEN_COOKIE_NAME = "refresh_token";
 
     private final CookieProperties cookieProperties;
 
     public ResponseCookie createAccessTokenCookie(String token, long maxAgeMillis) {
-        var builder = ResponseCookie.from(ACCESS_TOKEN_COOKIE_NAME, token)
-                .httpOnly(true)
-                .secure(cookieProperties.isSecure())
-                .path(cookieProperties.getPath())
-                .maxAge(maxAgeMillis / 1000)
-                .sameSite(cookieProperties.getSameSite());
-
-        if (StringUtils.hasText(cookieProperties.getDomain())) {
-            builder.domain(cookieProperties.getDomain());
-        }
-
-        return builder.build();
+        return buildCookie(ACCESS_TOKEN_COOKIE_NAME, token, maxAgeMillis / 1000);
     }
 
     public ResponseCookie deleteAccessTokenCookie() {
-        var builder = ResponseCookie.from(ACCESS_TOKEN_COOKIE_NAME, "")
+        return buildCookie(ACCESS_TOKEN_COOKIE_NAME, "", 0);
+    }
+
+    public ResponseCookie createRefreshTokenCookie(String token, long maxAgeSeconds) {
+        return buildCookie(REFRESH_TOKEN_COOKIE_NAME, token, maxAgeSeconds);
+    }
+
+    public ResponseCookie deleteRefreshTokenCookie() {
+        return buildCookie(REFRESH_TOKEN_COOKIE_NAME, "", 0);
+    }
+
+    public Optional<String> extractTokenFromCookie(HttpServletRequest request) {
+        return extractNamedCookie(request, ACCESS_TOKEN_COOKIE_NAME);
+    }
+
+    public Optional<String> extractRefreshTokenFromCookie(HttpServletRequest request) {
+        return extractNamedCookie(request, REFRESH_TOKEN_COOKIE_NAME);
+    }
+
+    private ResponseCookie buildCookie(String name, String value, long maxAgeSeconds) {
+        var builder = ResponseCookie.from(name, value)
                 .httpOnly(true)
                 .secure(cookieProperties.isSecure())
                 .path(cookieProperties.getPath())
-                .maxAge(0)
+                .maxAge(maxAgeSeconds)
                 .sameSite(cookieProperties.getSameSite());
 
         if (StringUtils.hasText(cookieProperties.getDomain())) {
@@ -51,12 +61,12 @@ public class CookieUtils {
         return builder.build();
     }
 
-    public Optional<String> extractTokenFromCookie(HttpServletRequest request) {
-        if (request.getCookies() == null) {
+    private Optional<String> extractNamedCookie(HttpServletRequest request, String name) {
+        if (request == null || request.getCookies() == null) {
             return Optional.empty();
         }
         return Arrays.stream(request.getCookies())
-                .filter(c -> ACCESS_TOKEN_COOKIE_NAME.equals(c.getName()))
+                .filter(c -> name.equals(c.getName()))
                 .map(Cookie::getValue)
                 .filter(val -> !val.isBlank())
                 .findFirst();

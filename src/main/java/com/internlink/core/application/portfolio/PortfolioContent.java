@@ -71,6 +71,15 @@ public final class PortfolioContent {
             Object feedback=raw.get("trainingFeedback");
             out.put("trainingFeedback",feedback instanceof List<?> list?list.stream().map(String::valueOf).filter(TRAINING::contains).distinct().toList():List.of());
         }
+        if("FORM04".equals(kind)) {
+            out.put("hasOfficeRoom", Boolean.TRUE.equals(raw.get("hasOfficeRoom")));
+            out.put("hasComputer", Boolean.TRUE.equals(raw.get("hasComputer")));
+            out.put("hoursPerDay", raw.get("hoursPerDay") != null ? number(raw.get("hoursPerDay")) : BigDecimal.valueOf(8));
+            out.put("daysPerWeek", raw.get("daysPerWeek") != null ? number(raw.get("daysPerWeek")) : BigDecimal.valueOf(5));
+            out.put("jobDescription", RichText.clean(string(raw, "jobDescription")));
+            out.put("companyAddress", string(raw, "companyAddress"));
+            out.put("companyPhone", string(raw, "companyPhone"));
+        }
         out.put("place",limit(string(raw,"place"),100));
         return canonical(out);
     }

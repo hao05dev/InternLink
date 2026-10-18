@@ -19,11 +19,10 @@ public interface JpaStudentRosterRepository extends JpaRepository<StudentRoster,
     boolean existsByTermIdAndStudentCode(UUID termId, String studentCode);
     boolean existsByProgram_Id(UUID programId);
 
-    /**
-     * Tìm roster record của sinh viên trong kỳ thực tập bằng user ID.
-     * Liên kết qua claimed_user_id — sinh viên phải đã "claim" roster của mình.
-     */
     @Query("SELECT r FROM StudentRoster r WHERE r.term.id = :termId AND r.claimedUser.id = :userId")
     Optional<StudentRoster> findByTermIdAndClaimedUserId(@Param("termId") UUID termId,
                                                           @Param("userId") UUID userId);
+
+    Optional<StudentRoster> findFirstByClaimedUserIdOrderByCreatedAtDesc(UUID userId);
+    Optional<StudentRoster> findFirstByOfficialEmailOrderByCreatedAtDesc(String officialEmail);
 }

@@ -1,18 +1,20 @@
 package com.internlink.core.presentation.organization.controller;
 
-import com.internlink.core.application.organization.StudentRosterService;
 import com.internlink.core.application.organization.GoogleSheetRosterService;
-import com.internlink.core.shared.api.ApiResponse;
+import com.internlink.core.application.organization.StudentRosterService;
+import com.internlink.core.infrastructure.security.CustomUserDetail;
 import com.internlink.core.presentation.organization.dto.request.IneligibleNoticeRequest;
 import com.internlink.core.presentation.organization.dto.request.StudentRosterImportItem;
 import com.internlink.core.presentation.organization.dto.response.BatchProvisionResponse;
 import com.internlink.core.presentation.organization.dto.response.IneligibleNoticeResponse;
 import com.internlink.core.presentation.organization.dto.response.StudentRosterResponse;
+import com.internlink.core.shared.api.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -90,5 +92,14 @@ public class StudentRosterController {
         String msg = String.format("Đã gửi thông báo cho %d sinh viên chưa đủ điều kiện (%d emails, %d thông báo hệ thống)",
                 response.getTotalIneligible(), response.getEmailsSent(), response.getNotificationsCreated());
         return ResponseEntity.ok(ApiResponse.success(msg, response));
+    }
+
+    @GetMapping("/my-supervision")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ResponseEntity<ApiResponse<StudentRosterResponse>> getMySupervisionInfo(
+            @AuthenticationPrincipal CustomUserDetail principal
+    ) {
+        StudentRosterResponse response = rosterService.getMySupervisionInfo(principal.getId(), principal.getEmail());
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 }
