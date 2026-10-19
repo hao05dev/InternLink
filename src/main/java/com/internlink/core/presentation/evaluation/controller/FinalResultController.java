@@ -111,4 +111,17 @@ public class FinalResultController {
         BatchPublishResultResponse response = finalResultService.publishBatchResults(termId, request, userDetail.getId());
         return ResponseEntity.ok(ApiResponse.success("Thực hiện công bố điểm hàng loạt thành công", response));
     }
+
+    /**
+     * Tổng hợp điểm hàng loạt cho toàn bộ sinh viên đã đủ điều kiện trong kỳ.
+     */
+    @PostMapping("/term/{termId}/finalize-batch")
+    @PreAuthorize("hasRole('FACULTY_ADMIN')")
+    public ResponseEntity<ApiResponse<com.internlink.core.presentation.evaluation.dto.response.BatchFinalizeResponse>> finalizeBatchResults(
+        @PathVariable UUID termId,
+        @AuthenticationPrincipal CustomUserDetail userDetail
+    ) {
+        var response = finalResultService.batchFinalizeTerm(termId, userDetail.getId());
+        return ResponseEntity.ok(ApiResponse.success("Thực hiện tổng hợp điểm hàng loạt thành công", response));
+    }
 }
