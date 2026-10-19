@@ -84,6 +84,9 @@ public class PortfolioMetadataHelper {
                             m.put(
                                     "programName",
                                     r.getProgram() == null ? "" : r.getProgram().getName());
+                            m.put(
+                                    "programCode",
+                                    r.getProgram() == null ? "DEFAULT" : r.getProgram().getCode());
                             m.put("courseCode", Objects.toString(r.getInternshipCourseCode(), ""));
                         });
 

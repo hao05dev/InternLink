@@ -71,4 +71,13 @@ public interface FinalResultService {
      * @return Kết quả đánh giá sau khi tổng hợp
      */
     FinalResultResponse quickFinalizePlacement(UUID placementId, UUID facultyAdminId);
+
+    /**
+     * Tổng hợp điểm toàn bộ sinh viên đã đủ điều kiện trong học kỳ (dành cho Quản lý Khoa).
+     *
+     * @param termId         ID kỳ thực tập
+     * @param facultyAdminId ID người dùng Quản lý Khoa
+     * @return Kết quả tổng hợp hàng loạt
+     */
+    com.internlink.core.presentation.evaluation.dto.response.BatchFinalizeResponse batchFinalizeTerm(UUID termId, UUID facultyAdminId);
 }

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Award, FileSpreadsheet, Send } from 'lucide-react';
+import { Award, FileSpreadsheet, Send, Calculator } from 'lucide-react';
 
 interface FacultyEvaluationsHeaderProps {
     filteredCount: number;
@@ -10,6 +10,7 @@ interface FacultyEvaluationsHeaderProps {
     isLoadingData: boolean;
     onExportExcel: () => void;
     onOpenBatchPublish: () => void;
+    onBatchFinalize?: () => void;
 }
 
 export function FacultyEvaluationsHeader({
@@ -18,6 +19,7 @@ export function FacultyEvaluationsHeader({
     isLoadingData,
     onExportExcel,
     onOpenBatchPublish,
+    onBatchFinalize,
 }: FacultyEvaluationsHeaderProps) {
     return (
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -34,6 +36,18 @@ export function FacultyEvaluationsHeader({
             </div>
 
             <div className="flex flex-wrap items-center gap-2.5">
+                {onBatchFinalize && (
+                    <Button
+                        onClick={onBatchFinalize}
+                        disabled={isLoadingData || filteredCount === 0}
+                        variant="outline"
+                        className="border-sky-200 text-sky-700 hover:bg-sky-50 font-medium text-xs gap-1.5"
+                    >
+                        <Calculator className="w-3.5 h-3.5" />
+                        <span>Tổng hợp điểm toàn kỳ</span>
+                    </Button>
+                )}
+
                 <Button
                     onClick={onExportExcel}
                     disabled={isLoadingData || filteredCount === 0}

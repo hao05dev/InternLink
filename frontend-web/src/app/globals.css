@@ -7,6 +7,11 @@
   --background-rgb: 248, 250, 252;
 }
 
+.dark {
+  --foreground-rgb: 248, 250, 252;
+  --background-rgb: 2, 6, 23;
+}
+
 body {
   color: rgb(var(--foreground-rgb));
   background: rgb(var(--background-rgb));
@@ -28,8 +33,16 @@ body {
   border-radius: 9999px;
 }
 
+.dark ::-webkit-scrollbar-thumb {
+  background: #334155;
+}
+
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #475569;
 }
 
 /* ── Surface & Card Utilities ── */
@@ -41,16 +54,33 @@ body {
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.dark .modern-card {
+  background: #0f172a;
+  border: 1px solid rgba(51, 65, 85, 0.7);
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.3);
+}
+
 .modern-card:hover {
   border-color: rgba(14, 165, 233, 0.35);
   box-shadow: 0 10px 24px -4px rgba(2, 132, 199, 0.08), 0 2px 6px -2px rgba(15, 23, 42, 0.02);
   transform: translateY(-2px);
 }
 
+.dark .modern-card:hover {
+  border-color: rgba(56, 189, 248, 0.35);
+  box-shadow: 0 10px 24px -4px rgba(2, 132, 199, 0.15), 0 2px 6px -2px rgba(0, 0, 0, 0.2);
+}
+
 .glass-panel {
   background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+.dark .glass-panel {
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(51, 65, 85, 0.6);
 }
 
 .tabular-numbers {

@@ -47,6 +47,7 @@ export default function FacultyEvaluationsView() {
         handleQuickFinalize,
         handlePublishSingle,
         handleBatchPublish,
+        handleBatchFinalize,
         handleExportExcel,
     } = useFacultyEvaluations();
 
@@ -78,6 +79,7 @@ export default function FacultyEvaluationsView() {
                 isLoadingData={isLoadingData}
                 onExportExcel={handleExportExcel}
                 onOpenBatchPublish={() => setIsBatchPublishModalOpen(true)}
+                onBatchFinalize={handleBatchFinalize}
             />
 
             {/* Notification alert */}

@@ -8,6 +8,7 @@ from statistics import mean
 from app.evaluation.metrics import mrr, ndcg_at_k, precision_at_k, recall_at_k
 from app.evaluation.retrieval import bm25_scores, jaccard
 from app.schemas.matching import JobDTO, StudentProfileDTO
+from app.services.ltr_ranking_service import LTRRankingService
 from app.services.ranking_service import RankingService
 
 
@@ -39,8 +40,10 @@ def evaluate(dataset):
             "Skill_Only": [row.skill_score for row in ranked],
         }
         if all(row.semantic_available for row in ranked):
+            ltr_ranked = [LTRRankingService().rank_job_for_student(student, job) for job in jobs]
             methods["Dense_Semantic"] = [row.semantic_score for row in ranked]
             methods["Hybrid"] = [row.final_score for row in ranked]
+            methods["Proposed_LTR_ML"] = [row.final_score for row in ltr_ranked]
         for method, scores in methods.items():
             order = sorted(range(len(jobs)), key=lambda index: (-scores[index], jobs[index].id))
             relevance = [truth[jobs[index].id] for index in order]

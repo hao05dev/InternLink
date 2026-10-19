@@ -41,7 +41,14 @@ export default function LecturerGradingTable({ placements }: LecturerGradingTabl
                 <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
                   <td className="px-4 py-3.5">
                     <p className="font-semibold text-slate-900">{p.studentName}</p>
-                    <p className="text-xs text-slate-500">{p.studentCode || 'Chưa cập nhật MSSV'}</p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className="text-xs text-slate-500">{p.studentCode || 'Chưa cập nhật MSSV'}</span>
+                      {p.programName && (
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-100 text-slate-700 font-medium border border-slate-200">
+                          {p.programName}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3.5">
                     <div className="flex items-center gap-1.5 text-slate-800">

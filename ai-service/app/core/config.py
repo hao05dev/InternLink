@@ -13,7 +13,8 @@ class Settings(BaseSettings):
     APP_NAME: str = "InternLink AI Service"
     PORT: int = Field(default=8001, ge=1, le=65535)
     EXTRACTION_PROVIDER: Literal["rules", "gemini"] = "rules"
-    EMBEDDING_PROVIDER: Literal["disabled", "gemini", "local_e5"] = "disabled"
+    EMBEDDING_PROVIDER: Literal["disabled", "gemini", "local_e5", "local_dense"] = "disabled"
+    MATCHING_ALGORITHM: Literal["heuristic", "ltr_ml"] = "heuristic"
     SERVICE_API_KEY: SecretStr = SecretStr("")
     LOCAL_MODEL_PATH: str = ""
     LOCAL_MODEL_REVISION: str = ""

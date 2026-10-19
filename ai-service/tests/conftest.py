@@ -10,18 +10,26 @@ from app.main import create_app
 @pytest.fixture(autouse=True)
 def no_network(monkeypatch):
     original_connect = socket.socket.connect
+    original_create_connection = socket.create_connection
 
-    def blocked(*args, **kwargs):
+    def is_loopback(address):
+        if isinstance(address, tuple) and address:
+            host = str(address[0]).lower()
+            return host in ("127.0.0.1", "::1", "localhost", "testserver")
+        return False
+
+    def local_connect(sock, address):
+        if is_loopback(address):
+            return original_connect(sock, address)
         raise AssertionError("Tests must not contact external services")
 
-    def local_only(sock, address):
-        # Windows asyncio uses a loopback socket pair for its own wake-up pipe.
-        if isinstance(address, tuple) and address[0] in ("127.0.0.1", "::1"):
-            return original_connect(sock, address)
-        return blocked()
+    def local_create_connection(address, *args, **kwargs):
+        if is_loopback(address):
+            return original_create_connection(address, *args, **kwargs)
+        raise AssertionError("Tests must not contact external services")
 
-    monkeypatch.setattr(socket, "create_connection", blocked)
-    monkeypatch.setattr(socket.socket, "connect", local_only)
+    monkeypatch.setattr(socket, "create_connection", local_create_connection)
+    monkeypatch.setattr(socket.socket, "connect", local_connect)
 
 
 @pytest.fixture

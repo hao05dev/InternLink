@@ -35,7 +35,7 @@ export function PortalLayout({ portalRole, children }: PortalLayoutProps) {
   return (
     <RoleGuard allowedRoles={[portalRole]}>
       <ForceChangePasswordModal />
-      <div className="min-h-screen lg:h-screen lg:overflow-hidden bg-slate-50 flex">
+      <div className="min-h-screen lg:h-screen lg:overflow-hidden bg-slate-50 dark:bg-slate-950 flex transition-colors">
         {/* Mobile Backdrop che mờ khi mở menu trên điện thoại */}
         {sidebarOpen && (
           <div
@@ -60,7 +60,7 @@ export function PortalLayout({ portalRole, children }: PortalLayoutProps) {
           />
 
           {/* Vùng hiển thị nội dung trang (Page Content) */}
-          <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto min-w-0">
+          <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto min-w-0 bg-slate-50 dark:bg-slate-950">
             <div className="max-w-7xl mx-auto w-full min-w-0">{children}</div>
           </main>
         </div>

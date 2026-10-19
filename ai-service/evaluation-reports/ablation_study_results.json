@@ -1,0 +1,66 @@
+{
+  "split": "test",
+  "provenance": "InternLink Academic Benchmark (Curated Multi-Domain IT Internship Dataset)",
+  "synthetic": false,
+  "query_count": 4,
+  "gain": "2^relevance-1",
+  "relevant_threshold": 1,
+  "semantic_policy": "only queries with real compatible supplied vectors",
+  "results": {
+    "Jaccard": {
+      "evaluated_queries": 4,
+      "metrics": {
+        "nDCG@5": 0.9191184910432462,
+        "P@5": 0.6,
+        "Recall@5": 0.9375,
+        "MRR": 1.0
+      }
+    },
+    "BM25": {
+      "evaluated_queries": 4,
+      "metrics": {
+        "nDCG@5": 0.9504521455345061,
+        "P@5": 0.6,
+        "Recall@5": 0.9375,
+        "MRR": 1.0
+      }
+    },
+    "Skill_Only": {
+      "evaluated_queries": 4,
+      "metrics": {
+        "nDCG@5": 0.9981186568186995,
+        "P@5": 0.65,
+        "Recall@5": 1.0,
+        "MRR": 1.0
+      }
+    },
+    "Dense_Semantic": {
+      "evaluated_queries": 4,
+      "metrics": {
+        "nDCG@5": 0.9086285203740732,
+        "P@5": 0.55,
+        "Recall@5": 0.8333333333333333,
+        "MRR": 1.0
+      }
+    },
+    "Hybrid": {
+      "evaluated_queries": 4,
+      "metrics": {
+        "nDCG@5": 0.9912710946768091,
+        "P@5": 0.65,
+        "Recall@5": 1.0,
+        "MRR": 1.0
+      }
+    },
+    "Proposed_LTR_ML": {
+      "evaluated_queries": 4,
+      "metrics": {
+        "nDCG@5": 0.9981186568186995,
+        "P@5": 0.65,
+        "Recall@5": 1.0,
+        "MRR": 1.0
+      }
+    }
+  },
+  "dataset_sha256": "83dcf2608965a02423785fc5b1e6a2ff7f8e5758fbf0953c472820a6945d86a9"
+}

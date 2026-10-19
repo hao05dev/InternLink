@@ -219,6 +219,23 @@ export function useFacultyEvaluations() {
         }
     };
 
+    const handleBatchFinalize = async () => {
+        if (!selectedTermId) return;
+        setIsProcessing(true);
+        try {
+            const res = await apiClient.post<{ finalizedCount: number; skippedCount: number }>(
+                `/api/v1/final-results/term/${selectedTermId}/finalize-batch`
+            );
+            const count = res.data?.finalizedCount || 0;
+            setMessage({ type: 'success', text: `Đã tổng hợp điểm thành công cho ${count} sinh viên đủ điều kiện.` });
+            await loadEvaluationSummary(selectedTermId);
+        } catch {
+            setMessage({ type: 'error', text: 'Có lỗi xảy ra khi tổng hợp điểm học phần.' });
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
     const handlePublishSingle = async (placementId: string) => {
         setIsProcessing(true);
         try {
@@ -328,6 +345,7 @@ export function useFacultyEvaluations() {
         openDetailModal,
         closeDetailModal,
         handleQuickFinalize,
+        handleBatchFinalize,
         handlePublishSingle,
         handleBatchPublish,
         handleExportExcel,
