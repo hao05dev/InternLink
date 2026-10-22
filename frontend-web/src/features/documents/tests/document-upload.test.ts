@@ -92,4 +92,25 @@ describe("document upload", () => {
     );
     expect(apiClient.post).toHaveBeenCalledTimes(1);
   });
+  it("forces backend proxy upload for encrypted sensitive document types even if direct upload is enabled", async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({
+      success: true,
+      data: { directUpload: true, maxBytes: 1000 },
+    });
+    vi.mocked(apiClient.upload).mockResolvedValue({
+      success: true,
+      data: { id: "encrypted-doc" },
+    });
+    await uploadDocument(
+      new File(["content"], "agreement.pdf", { type: "application/pdf" }),
+      "AGREEMENT",
+      "agreement-123",
+      "AGREEMENT",
+    );
+    expect(apiClient.upload).toHaveBeenCalledWith(
+      "/api/v1/documents/upload?contextType=AGREEMENT&contextId=agreement-123&docType=AGREEMENT",
+      expect.any(FormData),
+    );
+    expect(apiClient.post).not.toHaveBeenCalled();
+  });
 });

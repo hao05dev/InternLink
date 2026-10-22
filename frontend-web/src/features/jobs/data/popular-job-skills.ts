@@ -1,0 +1,16 @@
+export const POPULAR_JOB_SKILLS = [
+  "Java",
+  "Spring Boot",
+  "React",
+  "TypeScript",
+  "JavaScript",
+  "Node.js",
+  "Python",
+  "SQL",
+  "PostgreSQL",
+  "Docker",
+  "Git",
+  "RESTful API",
+  "CI/CD",
+  "Tailwind CSS",
+] as const;

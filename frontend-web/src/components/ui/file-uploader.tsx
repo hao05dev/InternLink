@@ -6,7 +6,6 @@ import {
   UploadCloud,
   FileText,
   Image as ImageIcon,
-  X,
   CheckCircle2,
   AlertCircle,
   Link as LinkIcon,
@@ -14,6 +13,7 @@ import {
   FileSpreadsheet,
   FileArchive,
 } from "lucide-react";
+import { FileUploaderItemList } from "./file-uploader-item-list";
 
 export interface UploadedFileItem {
   id: string;
@@ -132,23 +132,6 @@ export function FileUploader({
 
   const handleRemove = (id: string) => {
     onChange(value.filter((f) => f.id !== id));
-  };
-
-  const renderFileIcon = (type?: UploadedFileItem["fileType"]) => {
-    switch (type) {
-      case "IMAGE":
-        return <ImageIcon className="w-4 h-4 text-emerald-600 shrink-0" />;
-      case "PDF":
-        return <FileText className="w-4 h-4 text-rose-600 shrink-0" />;
-      case "DOCX":
-        return <FileText className="w-4 h-4 text-blue-600 shrink-0" />;
-      case "XLSX":
-        return <FileSpreadsheet className="w-4 h-4 text-teal-600 shrink-0" />;
-      case "ZIP":
-        return <FileArchive className="w-4 h-4 text-amber-600 shrink-0" />;
-      default:
-        return <FileCode className="w-4 h-4 text-slate-600 shrink-0" />;
-    }
   };
 
   return (
@@ -275,40 +258,7 @@ export function FileUploader({
       )}
 
       {/* Uploaded File List */}
-      {value.length > 0 && (
-        <div className="space-y-1.5 pt-1">
-          {value.map((file) => (
-            <div
-              key={file.id}
-              className="flex items-center justify-between gap-3 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs"
-            >
-              <div className="flex items-center gap-2 min-w-0 flex-1">
-                {renderFileIcon(file.fileType)}
-                <span
-                  className="font-semibold text-slate-800 truncate"
-                  title={file.fileName}
-                >
-                  {file.fileName}
-                </span>
-                {file.fileSize && (
-                  <span className="text-[10px] text-slate-400 shrink-0 font-medium">
-                    ({file.fileSize})
-                  </span>
-                )}
-              </div>
-
-              <button
-                type="button"
-                onClick={() => handleRemove(file.id)}
-                className="p-1 rounded-full text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer shrink-0"
-                aria-label="Xóa tệp"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
+      <FileUploaderItemList files={value} onRemove={handleRemove} />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 {
-  "split": "test",
-  "provenance": "InternLink Academic Benchmark (Curated Multi-Domain IT Internship Dataset)",
+  "split": "synthetic",
+  "provenance": "Handwritten developer smoke fixture; not real students or independent expert labels.",
   "queries": [
     {
       "domain": "Java Backend",
@@ -145,7 +145,7 @@
           0.0,
           -0.166667
         ],
-        "embedding_model": "local-dense-semantic-v1"
+        "embedding_model": "local-hashing-baseline-v1"
       },
       "jobs": [
         {
@@ -293,7 +293,7 @@
             -0.053916,
             -0.053916
           ],
-          "embedding_model": "local-dense-semantic-v1"
+          "embedding_model": "local-hashing-baseline-v1"
         },
         {
           "id": "job_java_core_intern",
@@ -438,7 +438,7 @@
             0.0,
             0.084819
           ],
-          "embedding_model": "local-dense-semantic-v1"
+          "embedding_model": "local-hashing-baseline-v1"
         },
         {
           "id": "job_fullstack_java_react",
@@ -583,7 +583,7 @@
             0.0,
             -0.107676
           ],
-          "embedding_model": "local-dense-semantic-v1"
+          "embedding_model": "local-hashing-baseline-v1"
         },
         {
           "id": "job_dotnet_backend",
@@ -728,7 +728,7 @@
             0.0,
             -0.084819
           ],
-          "embedding_model": "local-dense-semantic-v1"
+          "embedding_model": "local-hashing-baseline-v1"
         },
         {
           "id": "job_frontend_vue",
@@ -873,7 +873,7 @@
             -0.142857,
             -0.071429
           ],
-          "embedding_model": "local-dense-semantic-v1"
+          "embedding_model": "local-hashing-baseline-v1"
         },
         {
           "id": "job_qa_tester",
@@ -1018,7 +1018,7 @@
             0.0,
             0.0
           ],
-          "embedding_model": "local-dense-semantic-v1"
+          "embedding_model": "local-hashing-baseline-v1"
         }
       ],
       "judgments": {
@@ -1173,7 +1173,7 @@
           -0.184289,
           -0.06143
         ],
-        "embedding_model": "local-dense-semantic-v1"
+        "embedding_model": "local-hashing-baseline-v1"
       },
       "jobs": [
         {
@@ -1320,7 +1320,7 @@
             -0.100377,
             -0.050189
           ],
-          "embedding_model": "local-dense-semantic-v1"
+          "embedding_model": "local-hashing-baseline-v1"
         },
         {
           "id": "job_nextjs_web_intern",
@@ -1465,7 +1465,7 @@
             0.0,
             0.077152
           ],
-          "embedding_model": "local-dense-semantic-v1"
+          "embedding_model": "local-hashing-baseline-v1"
         },
         {
           "id": "job_ui_ux_frontend",
@@ -1610,7 +1610,7 @@
             -0.066965,
             0.066965
           ],
-          "embedding_model": "local-dense-semantic-v1"
+          "embedding_model": "local-hashing-baseline-v1"
         },
         {
           "id": "job_mobile_flutter_cross",
@@ -1755,7 +1755,7 @@
             0.074125,
             0.14825
           ],
-          "embedding_model": "local-dense-semantic-v1"
+          "embedding_model": "local-hashing-baseline-v1"
         },
         {
           "id": "job_python_data_intern",
@@ -1900,7 +1900,7 @@
             -0.073521,
             0.0
           ],
-          "embedding_model": "local-dense-semantic-v1"
+          "embedding_model": "local-hashing-baseline-v1"
         },
         {
           "id": "job_sysadmin_linux",
@@ -2044,7 +2044,7 @@
             -0.090909,
             0.0
           ],
-          "embedding_model": "local-dense-semantic-v1"
+          "embedding_model": "local-hashing-baseline-v1"
         }
       ],
       "judgments": {
@@ -2199,7 +2199,7 @@
           0.0,
           0.072169
         ],
-        "embedding_model": "local-dense-semantic-v1"
+        "embedding_model": "local-hashing-baseline-v1"
       },
       "jobs": [
         {
@@ -2346,7 +2346,7 @@
             0.068199,
             0.0
           ],
-          "embedding_model": "local-dense-semantic-v1"
+          "embedding_model": "local-hashing-baseline-v1"
         },
         {
           "id": "job_react_native_intern",
@@ -2491,7 +2491,7 @@
             -0.059761,
             0.0
           ],
-          "embedding_model": "local-dense-semantic-v1"
+          "embedding_model": "local-hashing-baseline-v1"
         },
         {
           "id": "job_android_native_kotlin",
@@ -2636,7 +2636,7 @@
             0.185695,
             0.061898
           ],
-          "embedding_model": "local-dense-semantic-v1"
+          "embedding_model": "local-hashing-baseline-v1"
         },
         {
           "id": "job_php_backend_intern",
@@ -2781,7 +2781,7 @@
             -0.062994,
             0.125988
           ],
-          "embedding_model": "local-dense-semantic-v1"
+          "embedding_model": "local-hashing-baseline-v1"
         },
         {
           "id": "job_embedded_iot",
@@ -2926,7 +2926,7 @@
             0.08165,
             0.0
           ],
-          "embedding_model": "local-dense-semantic-v1"
+          "embedding_model": "local-hashing-baseline-v1"
         },
         {
           "id": "job_seo_content",
@@ -3070,7 +3070,7 @@
             0.079556,
             0.0
           ],
-          "embedding_model": "local-dense-semantic-v1"
+          "embedding_model": "local-hashing-baseline-v1"
         }
       ],
       "judgments": {
@@ -3226,7 +3226,7 @@
           -0.128831,
           -0.128831
         ],
-        "embedding_model": "local-dense-semantic-v1"
+        "embedding_model": "local-hashing-baseline-v1"
       },
       "jobs": [
         {
@@ -3373,7 +3373,7 @@
             0.0,
             -0.054965
           ],
-          "embedding_model": "local-dense-semantic-v1"
+          "embedding_model": "local-hashing-baseline-v1"
         },
         {
           "id": "job_data_engineer_intern",
@@ -3519,7 +3519,7 @@
             0.0,
             0.0
           ],
-          "embedding_model": "local-dense-semantic-v1"
+          "embedding_model": "local-hashing-baseline-v1"
         },
         {
           "id": "job_bi_analyst_intern",
@@ -3664,7 +3664,7 @@
             -0.066815,
             0.0
           ],
-          "embedding_model": "local-dense-semantic-v1"
+          "embedding_model": "local-hashing-baseline-v1"
         },
         {
           "id": "job_devops_cloud_intern",
@@ -3809,7 +3809,7 @@
             0.087039,
             0.0
           ],
-          "embedding_model": "local-dense-semantic-v1"
+          "embedding_model": "local-hashing-baseline-v1"
         },
         {
           "id": "job_game_unity_intern",
@@ -3953,7 +3953,7 @@
             -0.074125,
             0.0
           ],
-          "embedding_model": "local-dense-semantic-v1"
+          "embedding_model": "local-hashing-baseline-v1"
         },
         {
           "id": "job_sales_it_intern",
@@ -4097,7 +4097,7 @@
             0.0,
             0.0
           ],
-          "embedding_model": "local-dense-semantic-v1"
+          "embedding_model": "local-hashing-baseline-v1"
         }
       ],
       "judgments": {

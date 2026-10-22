@@ -68,6 +68,42 @@ class EmbeddingResponse(BaseModel):
     dimension: int
     embedding: list[float]
     model: str
+    model_revision: str
+    task: Literal["retrieval_query", "retrieval_document"]
+    source_hash: str = Field(pattern=r"^[a-f0-9]{64}$")
+    chunk_policy: str
+
+
+class BatchEmbeddingItem(EmbeddingRequest):
+    id: Identifier
+
+
+class BatchEmbeddingRequest(BaseModel):
+    items: list[BatchEmbeddingItem] = Field(min_length=1, max_length=128)
+
+    @model_validator(mode="after")
+    def unique_items_and_bounded_text(self):
+        if len({item.id for item in self.items}) != len(self.items):
+            raise ValueError("Duplicate embedding item IDs are not allowed")
+        if sum(len(item.text) for item in self.items) > 500_000:
+            raise ValueError("Batch embedding text exceeds 500,000 characters")
+        return self
+
+
+class BatchEmbeddingResult(EmbeddingResponse):
+    id: Identifier
+
+
+class BatchEmbeddingResponse(BaseModel):
+    results: list[BatchEmbeddingResult]
+
+
+class EmbeddingInfoResponse(BaseModel):
+    enabled: bool
+    model: str | None = None
+    model_revision: str | None = None
+    dimension: int
+    chunk_policy: str | None = None
 
 
 class MatchResult(BaseModel):
@@ -78,6 +114,9 @@ class MatchResult(BaseModel):
     match_percentage: float
     skill_score: float
     semantic_score: float
+    mandatory_score: float = 0.0
+    optional_score: float = 0.0
+    score_label: str = "Chưa đủ dữ liệu"
     # Retained for the v1 Java mapper; excluded from the formula.
     academic_score: float = 0.0
     matched_skills: list[str]
@@ -87,6 +126,8 @@ class MatchResult(BaseModel):
     score_available: bool
     semantic_available: bool
     algorithm_version: str = "skill-semantic-v2"
+    effective_weights: dict[str, float] = Field(default_factory=dict)
+    component_availability: dict[str, bool] = Field(default_factory=dict)
     warnings: list[str] = Field(default_factory=list)
 
 

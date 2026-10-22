@@ -9,6 +9,8 @@ class LocalE5Provider:
     def __init__(self, path: str, revision: str):
         self.path = Path(path)
         self.model_name = f"local-e5:{revision}"
+        self.model_revision = revision
+        self.chunk_policy = "e5-token-mean-450-v1"
         self._model = None
         self._lock = Lock()
 
@@ -32,3 +34,6 @@ class LocalE5Provider:
             raise
         except Exception:
             raise ProviderUnavailable("local_embedding_failed") from None
+
+    def embed_batch(self, texts, task):
+        return [self.embed(text, task) for text in texts]

@@ -48,6 +48,8 @@ public class DocumentUploadService {
     }
 
     public DocumentUploadResponse.Ticket initiate(DocumentUploadRequest request) {
+        if (DocumentEncryptionPolicy.isEncryptedType(request.documentType()))
+            throw new BadRequestException("Tài liệu nhạy cảm (" + request.documentType() + ") bắt buộc phải upload qua API proxy để thực hiện mã hóa an toàn");
         if (!capabilities().directUpload())
             throw new BadRequestException("Upload trực tiếp R2 chưa bật");
         return new TransactionTemplate(transactions)

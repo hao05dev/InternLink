@@ -6,6 +6,7 @@ import { Building2, MapPin, Users, Calendar, ChevronRight } from "lucide-react";
 import { JobPosition, WorkFormat } from "@/features/jobs/types/job.types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { JobMatchBadge } from "./job-match-badge";
 
 interface PublicJobCardProps {
     job: JobPosition;
@@ -97,6 +98,18 @@ export function PublicJobCard({ job, isActive }: PublicJobCardProps) {
 
                         {/* Badges row */}
                         <div className="flex flex-wrap items-center gap-2 pt-1">
+                            {(job.matchScore !== undefined || job.scoreLabel) && (
+                                <JobMatchBadge
+                                    matchScore={job.matchScore}
+                                    scoreLabel={job.scoreLabel}
+                                    scoreFormatted={job.scoreFormatted}
+                                    mandatoryScore={job.mandatoryScore}
+                                    optionalScore={job.optionalScore}
+                                    eligibilityStatus={job.eligibilityStatus}
+                                    eligibilityReason={job.eligibilityReason}
+                                    compact={true}
+                                />
+                            )}
                             {getWorkFormatBadge(job.workFormat)}
                             <Badge variant="success" className="bg-emerald-50 text-emerald-700 border-emerald-200 font-bold rounded-full px-2.5">
                                 {formatCurrency(job.stipendAmount)}

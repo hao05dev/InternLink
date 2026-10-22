@@ -18,6 +18,11 @@ type DocumentType =
   | "ACCEPTANCE_LETTER"
   | "EXTERNAL_EVALUATION";
 export type UploadedDocument = { id: string };
+const ENCRYPTED_DOC_TYPES = new Set<DocumentType>([
+  "AGREEMENT",
+  "EXTERNAL_EVALUATION",
+  "EVIDENCE",
+]);
 const mime: Record<string, string> = {
   pdf: "application/pdf",
   png: "image/png",
@@ -41,7 +46,7 @@ export async function uploadDocument(
     throw new Error("Tệp rỗng hoặc vượt giới hạn upload.");
   const mimeType =
     mime[file.name.split(".").pop()?.toLowerCase() ?? ""] ?? file.type;
-  if (!capabilities.data.directUpload) {
+  if (!capabilities.data.directUpload || ENCRYPTED_DOC_TYPES.has(documentType)) {
     const form = new FormData();
     form.append(
       "file",

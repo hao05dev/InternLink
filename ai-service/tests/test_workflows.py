@@ -4,10 +4,10 @@ import json
 import zipfile
 from pathlib import Path
 import pytest
-from fastapi.testclient import TestClient
 from pydantic import SecretStr
 from pypdf import PdfWriter
 from app.main import create_app
+from tests.conftest import make_in_process_client
 from app.evaluation.runner import evaluate
 from app.evaluation.retrieval import bm25_scores, jaccard
 from app.schemas.matching import StudentProfileDTO, JobDTO
@@ -124,11 +124,11 @@ def test_local_embedding_does_not_download_missing_weights(tmp_path):
 
 def test_service_key_protects_inference_but_not_liveness(config):
     config.SERVICE_API_KEY = SecretStr("test-service-key")
-    with TestClient(create_app(config)) as client:
-        assert client.get("/").status_code == 200
-        assert client.post("/api/v1/skills/extract", json={"text": "Java"}).status_code == 401
-        assert client.post("/api/v1/skills/extract", json={"text": "Java"},
-                           headers={"X-InternLink-AI-Key": "test-service-key"}).status_code == 200
+    client = make_in_process_client(create_app(config))
+    assert client.get("/").status_code == 200
+    assert client.post("/api/v1/skills/extract", json={"text": "Java"}).status_code == 401
+    assert client.post("/api/v1/skills/extract", json={"text": "Java"},
+                       headers={"X-InternLink-AI-Key": "test-service-key"}).status_code == 200
 
 
 def test_real_text_baselines():

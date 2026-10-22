@@ -89,6 +89,21 @@ public class AiMatchingMapper {
         return BigDecimal.ZERO;
     }
 
+    public BigDecimal extractBigDecimal(Map<String, Object> map, String key) {
+        if (map == null) return null;
+        Object val = map.get(key);
+        if (val instanceof Number num) {
+            return BigDecimal.valueOf(num.doubleValue());
+        }
+        if (val instanceof String text) {
+            try {
+                return new BigDecimal(text);
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        return null;
+    }
+
     @SuppressWarnings("unchecked")
     public List<String> extractStringList(Object obj) {
         if (obj instanceof List<?> list) {

@@ -32,9 +32,30 @@ def test_cloud_provider_requires_explicit_model():
                  GEMINI_API_KEY="test-key", LLM_MODEL="")
 
 
+def test_cloud_embedding_requires_immutable_revision():
+    with pytest.raises(ValidationError, match="EMBEDDING_MODEL_REVISION"):
+        Settings(
+            _env_file=None,
+            EXTRACTION_PROVIDER="rules",
+            EMBEDDING_PROVIDER="gemini",
+            GEMINI_API_KEY="test-key",
+            EMBEDDING_MODEL="test-embedding",
+            EMBEDDING_MODEL_REVISION="",
+        )
+
+
 def test_offline_defaults_ignore_legacy_key(config):
     assert config.EXTRACTION_PROVIDER == "rules"
     assert config.EMBEDDING_PROVIDER == "disabled"
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [("EMBEDDING_PROVIDER", "local_dense"), ("MATCHING_ALGORITHM", "ltr_ml")],
+)
+def test_untrained_baselines_cannot_be_enabled_for_online_inference(field, value):
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, **{field: value})
 
 
 def test_gemini_adapter_contract_with_mock_sdk(config, monkeypatch):

@@ -459,5 +459,25 @@
       "ielts",
       "tiếng anh"
     ]
+  },
+  {
+    "id": "SK-CRITICAL-THINKING",
+    "name": "Tư duy phản biện (Critical Thinking)",
+    "category": "SoftSkill",
+    "synonyms": [
+      "critical thinking",
+      "tư duy phản biện"
+    ]
+  },
+  {
+    "id": "SK-PROFESSIONALISM",
+    "name": "Tác phong chuyên nghiệp (Professionalism)",
+    "category": "SoftSkill",
+    "synonyms": [
+      "professionalism",
+      "work ethic",
+      "đạo đức nghề nghiệp",
+      "tác phong chuyên nghiệp"
+    ]
   }
 ]

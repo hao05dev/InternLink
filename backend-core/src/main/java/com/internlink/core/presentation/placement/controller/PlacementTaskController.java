@@ -15,6 +15,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @RestController
@@ -77,5 +78,17 @@ public class PlacementTaskController {
     ) {
         PlacementTaskResponse response = taskService.reviewTask(id, userDetail.getId(), status, mentorFeedback, progressPercent);
         return ResponseEntity.ok(ApiResponse.success("Đánh giá nhiệm vụ thành công", response));
+    }
+
+    @PatchMapping("/{id}/reopen")
+    @PreAuthorize("hasAnyRole('COMPANY_MENTOR', 'ADMIN')")
+    public ResponseEntity<ApiResponse<PlacementTaskResponse>> reopenTask(
+        @PathVariable UUID id,
+        @AuthenticationPrincipal CustomUserDetail userDetail,
+        @RequestParam(required = false) String reasonNote,
+        @RequestParam(required = false) OffsetDateTime newDueAt
+    ) {
+        PlacementTaskResponse response = taskService.reopenTask(id, userDetail.getId(), reasonNote, newDueAt);
+        return ResponseEntity.ok(ApiResponse.success("Mở lại nhiệm vụ thành công", response));
     }
 }

@@ -58,4 +58,14 @@ export interface JobPosition {
         fileType?: string;
     }>;
     createdAt?: string;
+    // Explainable AI Matching
+    matchScore?: number;
+    scoreLabel?: string;
+    scoreFormatted?: string;
+    mandatoryScore?: number;
+    optionalScore?: number;
+    eligibilityStatus?: string;
+    eligibilityReason?: string;
+    matchedSkills?: string[];
+    missingSkills?: string[];
 }

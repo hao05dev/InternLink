@@ -35,6 +35,10 @@ class RankingService:
         skill, matched, missing = self.calculate_skill_score(
             student.skill_ids, job.mandatory_skill_ids, job.optional_skill_ids,
         )
+        student_set, mandatory_set = set(student.skill_ids), set(job.mandatory_skill_ids)
+        optional_set = set(job.optional_skill_ids) - mandatory_set
+        mandatory_score = round(len(student_set & mandatory_set) / len(mandatory_set), 4) if mandatory_set else 0.0
+        optional_score = round(len(student_set & optional_set) / len(optional_set), 4) if optional_set else 0.0
         warnings = []
         skill_available = bool(student.skill_ids) and bool(job.mandatory_skill_ids or job.optional_skill_ids)
         if not student.skill_ids:
@@ -52,31 +56,55 @@ class RankingService:
                 semantic_available = True
         if not semantic_available:
             warnings.append("semantic_unavailable")
+        warnings.append("preferences_not_evaluated")
         if skill_available and semantic_available:
             # Renormalize the existing skill/semantic weights; academic defaults removed.
             score, mode = (0.55 * skill + 0.35 * semantic) / 0.9, "hybrid"
+            effective_weights = {"skill": round(0.55 / 0.9, 4), "semantic": round(0.35 / 0.9, 4)}
         elif skill_available:
             score, mode = skill, "skill_only"
+            effective_weights = {"skill": 1.0}
         elif semantic_available:
             score, mode = semantic, "semantic_only"
+            effective_weights = {"semantic": 1.0}
         else:
             score, mode = 0.0, "insufficient_data"
+            effective_weights = {}
 
         if mode == "insufficient_data":
+            score_label = "Chưa đủ dữ liệu"
             recommendation = "Chưa đủ dữ liệu để tính điểm phù hợp; hãy bổ sung hồ sơ hoặc yêu cầu vị trí."
-        elif not job.mandatory_skill_ids:
-            recommendation = "JD chưa có kỹ năng bắt buộc để đối chiếu; điểm hiện tại chỉ mang tính tham khảo."
-        elif not student.skill_ids:
-            recommendation = "Hồ sơ chưa có kỹ năng đã xác nhận; cần rà soát trước khi đối chiếu yêu cầu."
-        elif missing:
-            recommendation = "Chưa thấy minh chứng đã xác nhận cho các kỹ năng: " + ", ".join(missing) + "."
         else:
-            recommendation = "Các kỹ năng bắt buộc đã có trong hồ sơ xác nhận; cần xem thêm điều kiện của vị trí."
+            if score >= 0.75:
+                score_label = "Cao"
+            elif score >= 0.45:
+                score_label = "Vừa"
+            else:
+                score_label = "Thấp"
+
+            if not job.mandatory_skill_ids:
+                recommendation = "JD chưa có kỹ năng bắt buộc để đối chiếu; điểm hiện tại chỉ mang tính tham khảo."
+            elif not student.skill_ids:
+                recommendation = "Hồ sơ chưa có kỹ năng đã xác nhận; cần rà soát trước khi đối chiếu yêu cầu."
+            elif missing:
+                recommendation = "Chưa thấy minh chứng đã xác nhận cho các kỹ năng: " + ", ".join(missing) + "."
+            else:
+                recommendation = "Các kỹ năng bắt buộc đã có trong hồ sơ xác nhận; cần xem thêm điều kiện của vị trí."
+
         return MatchResult(
             job_id=job.id, job_title=job.title, company_name=job.company_name,
             final_score=round(score, 4), match_percentage=round(score * 100, 1),
             skill_score=round(skill, 4), semantic_score=round(semantic, 4),
+            mandatory_score=mandatory_score, optional_score=optional_score,
+            score_label=score_label,
             matched_skills=matched, missing_skills=missing, recommendation=recommendation,
             mode=mode, score_available=mode != "insufficient_data",
-            semantic_available=semantic_available, warnings=warnings,
+            semantic_available=semantic_available,
+            effective_weights=effective_weights,
+            component_availability={
+                "skill": skill_available,
+                "semantic": semantic_available,
+                "preference": False,
+            },
+            warnings=warnings,
         )

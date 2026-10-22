@@ -127,7 +127,7 @@ public class AiServiceClient {
         result.put("warnings", value(ranking, "warnings", List.of()));
         Map<String, Object> explanation = new HashMap<>();
         for (String key : List.of("final_score", "skill_score", "semantic_score", "preference_score", "academic_score",
-                "recommendation", "constraints", "effective_weights")) {
+                "recommendation", "constraints", "effective_weights", "component_availability")) {
             if (ranking.get(key) != null) explanation.put(key, ranking.get(key));
         }
         result.put("explanation", explanation);

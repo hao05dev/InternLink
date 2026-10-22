@@ -110,7 +110,7 @@ internlink.sql
 **/hs_err_pid*
 **/.factorypath
 **/.apt_generated/
-
+IMPLEMENTATION_ROADMAP.md
 # --------------------------------------------------------------------
 # 7. AI Service - Python / FastAPI (ai-service)
 # --------------------------------------------------------------------

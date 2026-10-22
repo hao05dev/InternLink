@@ -5,11 +5,9 @@ from fastapi import Depends, Request
 
 from app.core.config import Settings
 from app.providers.gemini import GeminiEmbeddingProvider, GeminiSkillExtractionProvider
-from app.providers.local_dense import LocalDenseSemanticProvider
 from app.providers.local_e5 import LocalE5Provider
 from app.services.embedding_service import EmbeddingService
 from app.services.matching_service import MatchingService
-from app.services.ltr_ranking_service import LTRRankingService
 from app.services.ranking_service import RankingService
 from app.services.skill_service import SkillService
 from app.services.taxonomy_service import TaxonomyService
@@ -30,9 +28,9 @@ def build_services(settings: Settings) -> Services:
     embedding = GeminiEmbeddingProvider(settings) if settings.EMBEDDING_PROVIDER == "gemini" else None
     if settings.EMBEDDING_PROVIDER == "local_e5":
         embedding = LocalE5Provider(settings.LOCAL_MODEL_PATH, settings.LOCAL_MODEL_REVISION)
-    elif settings.EMBEDDING_PROVIDER == "local_dense":
-        embedding = LocalDenseSemanticProvider(dimension=settings.EMBEDDING_DIMENSION)
-    ranking = LTRRankingService() if settings.MATCHING_ALGORITHM == "ltr_ml" else RankingService()
+    # Only the audited deterministic ranker is available online. Weighted
+    # feature experiments remain in the offline evaluation package.
+    ranking = RankingService()
     return Services(
         settings=settings, taxonomy=taxonomy,
         skills=SkillService(taxonomy, extraction),

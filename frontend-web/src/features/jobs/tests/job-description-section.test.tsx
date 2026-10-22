@@ -32,10 +32,17 @@ describe("JobDescriptionSection Component", () => {
       { id: "SK-JAVA", skillName: "Java" },
       { id: "SK-SPRING-BOOT", skillName: "Spring Boot" },
       { id: "SK-REACT", skillName: "React" },
+      { id: "SK-DOCKER", skillName: "Docker" },
     ]);
   });
 
-  it("renders existing skills as badges", () => {
+  const waitForTaxonomy = async () => {
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /React/i })).toBeEnabled();
+    });
+  };
+
+  it("renders existing skills as badges", async () => {
     render(
       <JobDescriptionSection
         companyId="comp-1"
@@ -47,6 +54,7 @@ describe("JobDescriptionSection Component", () => {
         onBenefitsChange={onBenefitsChange}
       />
     );
+    await waitForTaxonomy();
 
     expect(screen.getAllByText("Java").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByTitle("Xóa Java")).toBeInTheDocument();
@@ -54,7 +62,7 @@ describe("JobDescriptionSection Component", () => {
     expect(screen.getByText(/2 kỹ năng đã chọn/i)).toBeInTheDocument();
   });
 
-  it("adds popular skill when clicking quick pick button", () => {
+  it("adds popular skill when clicking quick pick button", async () => {
     render(
       <JobDescriptionSection
         companyId="comp-1"
@@ -66,6 +74,7 @@ describe("JobDescriptionSection Component", () => {
         onBenefitsChange={onBenefitsChange}
       />
     );
+    await waitForTaxonomy();
 
     const reactButton = screen.getByRole("button", { name: /React/i });
     fireEvent.click(reactButton);
@@ -73,7 +82,7 @@ describe("JobDescriptionSection Component", () => {
     expect(onSkillsChange).toHaveBeenCalledWith("Java, React");
   });
 
-  it("adds skill via keyboard Enter", () => {
+  it("adds skill via keyboard Enter", async () => {
     render(
       <JobDescriptionSection
         companyId="comp-1"
@@ -85,15 +94,16 @@ describe("JobDescriptionSection Component", () => {
         onBenefitsChange={onBenefitsChange}
       />
     );
+    await waitForTaxonomy();
 
-    const input = screen.getByPlaceholderText(/Gõ tên kỹ năng rồi nhấn Enter/i);
+    const input = screen.getByPlaceholderText(/Tìm kỹ năng đã được duyệt/i);
     fireEvent.change(input, { target: { value: "Docker" } });
     fireEvent.keyDown(input, { key: "Enter" });
 
     expect(onSkillsChange).toHaveBeenCalledWith("Java, Docker");
   });
 
-  it("removes skill when clicking remove button", () => {
+  it("removes skill when clicking remove button", async () => {
     render(
       <JobDescriptionSection
         companyId="comp-1"
@@ -105,6 +115,7 @@ describe("JobDescriptionSection Component", () => {
         onBenefitsChange={onBenefitsChange}
       />
     );
+    await waitForTaxonomy();
 
     const removeBtn = screen.getByTitle("Xóa Java");
     fireEvent.click(removeBtn);

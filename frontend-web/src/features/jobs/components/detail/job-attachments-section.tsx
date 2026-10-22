@@ -1,10 +1,16 @@
+"use client";
+
+import React from "react";
 import {
   Paperclip,
   Download,
   FileText,
   FileSpreadsheet,
   FileArchive,
+  Eye,
 } from "lucide-react";
+import { useFilePreview } from "@/features/documents/hooks/use-file-preview";
+import { FilePreviewModal } from "@/features/documents/components/modals/file-preview-modal";
 
 interface AttachmentItem {
   id: string;
@@ -21,6 +27,8 @@ interface JobAttachmentsSectionProps {
 export function JobAttachmentsSection({
   attachments,
 }: JobAttachmentsSectionProps) {
+  const { previewFile, isOpen, openPreview, closePreview } = useFilePreview();
+
   if (!attachments || attachments.length === 0) return null;
 
   return (
@@ -36,15 +44,22 @@ export function JobAttachmentsSection({
             att.fileName.split(".").pop()?.toLowerCase() ||
             "";
           return (
-            <a
+            <div
               key={att.id}
-              href={att.fileUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              download
-              className="flex items-center justify-between p-3 rounded-2xl border border-slate-200 hover:border-sky-300 bg-slate-50/50 hover:bg-sky-50/30 transition-all group cursor-pointer"
+              className="flex items-center justify-between p-3 rounded-2xl border border-slate-200 hover:border-sky-300 bg-slate-50/50 hover:bg-sky-50/30 transition-all group"
             >
-              <div className="flex items-center gap-3 min-w-0 pr-2">
+              <div
+                className="flex items-center gap-3 min-w-0 pr-2 flex-1 cursor-pointer"
+                onClick={() =>
+                  openPreview({
+                    id: att.id,
+                    fileName: att.fileName,
+                    fileUrl: att.fileUrl,
+                    fileSize: att.fileSize,
+                    fileType: att.fileType,
+                  })
+                }
+              >
                 <div className="p-2 rounded-xl bg-white border border-slate-200 shadow-2xs group-hover:border-sky-200">
                   {ext.includes("pdf") ? (
                     <FileText className="w-4 h-4 text-rose-600" />
@@ -67,13 +82,43 @@ export function JobAttachmentsSection({
                   )}
                 </div>
               </div>
-              <div className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-500 group-hover:text-sky-600 group-hover:border-sky-300">
-                <Download className="w-3.5 h-3.5" />
+
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() =>
+                    openPreview({
+                      id: att.id,
+                      fileName: att.fileName,
+                      fileUrl: att.fileUrl,
+                      fileSize: att.fileSize,
+                      fileType: att.fileType,
+                    })
+                  }
+                  className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-500 hover:text-sky-600 hover:border-sky-300 transition cursor-pointer"
+                  title="Xem trước tệp"
+                  aria-label="Xem trước tệp"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                </button>
+                <a
+                  href={att.fileUrl}
+                  download={att.fileName}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-500 hover:text-sky-600 hover:border-sky-300 transition cursor-pointer"
+                  title="Tải xuống tệp"
+                  aria-label="Tải xuống tệp"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                </a>
               </div>
-            </a>
+            </div>
           );
         })}
       </div>
+
+      <FilePreviewModal file={previewFile} isOpen={isOpen} onClose={closePreview} />
     </div>
   );
 }

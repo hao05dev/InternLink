@@ -1,0 +1,71 @@
+-- Canonical release mirrored from ai-service/app/data/esco_it_skills.json.
+-- Backend categories are intentionally collapsed to TECHNICAL/SOFT_SKILL.
+INSERT INTO skill_taxonomies
+    (id, skill_name, category, framework, aliases, taxonomy_version, is_active, updated_at)
+VALUES
+    ('SK-JAVA', 'Java', 'TECHNICAL', 'INTERNLINK', '["java core","core java","java 8","java 17","java 21"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-PYTHON', 'Python', 'TECHNICAL', 'INTERNLINK', '["python 3","python programming"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-JS', 'JavaScript', 'TECHNICAL', 'INTERNLINK', '["js","es6","ecmascript"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-TS', 'TypeScript', 'TECHNICAL', 'INTERNLINK', '["ts"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-CSHARP', 'C#', 'TECHNICAL', 'INTERNLINK', '["c sharp",".net c#"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-CPP', 'C++', 'TECHNICAL', 'INTERNLINK', '["c/c++","cpp"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-GOLANG', 'Go', 'TECHNICAL', 'INTERNLINK', '["golang"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-PHP', 'PHP', 'TECHNICAL', 'INTERNLINK', '["php 8"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-KOTLIN', 'Kotlin', 'TECHNICAL', 'INTERNLINK', '["android kotlin"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-SWIFT', 'Swift', 'TECHNICAL', 'INTERNLINK', '["ios swift"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-SQL', 'SQL', 'TECHNICAL', 'INTERNLINK', '["structured query language","t-sql","pl/sql"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-SPRING-BOOT', 'Spring Boot', 'TECHNICAL', 'INTERNLINK', '["spring","spring framework","spring mvc","spring data","spring security"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-NESTJS', 'NestJS', 'TECHNICAL', 'INTERNLINK', '["nest.js","nest js"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-EXPRESS', 'Express.js', 'TECHNICAL', 'INTERNLINK', '["express","expressjs"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-FASTAPI', 'FastAPI', 'TECHNICAL', 'INTERNLINK', '["fast api"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-DJANGO', 'Django', 'TECHNICAL', 'INTERNLINK', '["django rest framework","drf"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-DOTNET', '.NET Core', 'TECHNICAL', 'INTERNLINK', '["asp.net","asp.net core",".net","dotnet"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-NODEJS', 'Node.js', 'TECHNICAL', 'INTERNLINK', '["nodejs","node"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-REACT', 'React', 'TECHNICAL', 'INTERNLINK', '["reactjs","react.js","react js"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-NEXTJS', 'Next.js', 'TECHNICAL', 'INTERNLINK', '["nextjs","next js"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-VUE', 'Vue.js', 'TECHNICAL', 'INTERNLINK', '["vue","vuejs","vue 3"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-ANGULAR', 'Angular', 'TECHNICAL', 'INTERNLINK', '["angular 2+","angularjs"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-TAILWIND', 'Tailwind CSS', 'TECHNICAL', 'INTERNLINK', '["tailwind","tailwindcss"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-HTML-CSS', 'HTML/CSS', 'TECHNICAL', 'INTERNLINK', '["html","css","html5","css3"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-FLUTTER', 'Flutter', 'TECHNICAL', 'INTERNLINK', '["dart","flutter app"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-REACT-NATIVE', 'React Native', 'TECHNICAL', 'INTERNLINK', '["rn","react-native"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-POSTGRESQL', 'PostgreSQL', 'TECHNICAL', 'INTERNLINK', '["postgres","pgsql","pgvector"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-MYSQL', 'MySQL', 'TECHNICAL', 'INTERNLINK', '["mariadb"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-MONGODB', 'MongoDB', 'TECHNICAL', 'INTERNLINK', '["mongo","nosql mongodb"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-REDIS', 'Redis', 'TECHNICAL', 'INTERNLINK', '["redis cache"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-ORACLE', 'Oracle DB', 'TECHNICAL', 'INTERNLINK', '["oracle database"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-DOCKER', 'Docker', 'TECHNICAL', 'INTERNLINK', '["container","docker compose","dockerfile"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-KUBERNETES', 'Kubernetes', 'TECHNICAL', 'INTERNLINK', '["k8s"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-CICD', 'CI/CD', 'TECHNICAL', 'INTERNLINK', '["continuous integration","github actions","gitlab ci","jenkins"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-AWS', 'Amazon Web Services (AWS)', 'TECHNICAL', 'INTERNLINK', '["aws","ec2","s3","lambda"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-AZURE', 'Microsoft Azure', 'TECHNICAL', 'INTERNLINK', '["azure"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-GCP', 'Google Cloud Platform (GCP)', 'TECHNICAL', 'INTERNLINK', '["gcp","google cloud"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-GIT', 'Git', 'TECHNICAL', 'INTERNLINK', '["github","gitlab","version control","git flow"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-LINUX', 'Linux', 'TECHNICAL', 'INTERNLINK', '["ubuntu","bash","shell script"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-REST-API', 'RESTful API', 'TECHNICAL', 'INTERNLINK', '["rest","rest api","restful webservice"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-GRAPHQL', 'GraphQL', 'TECHNICAL', 'INTERNLINK', '["apollo"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-MICROSERVICES', 'Microservices', 'TECHNICAL', 'INTERNLINK', '["microservice architecture","distributed systems"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-OOP', 'Object-Oriented Programming (OOP)', 'TECHNICAL', 'INTERNLINK', '["oop","lập trình hướng đối tượng"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-DESIGN-PATTERNS', 'Design Patterns', 'TECHNICAL', 'INTERNLINK', '["mô hình thiết kế","solid"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-UNIT-TEST', 'Unit Testing', 'TECHNICAL', 'INTERNLINK', '["junit","mockito","jest","py-test","testing"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-TEAMWORK', 'Làm việc nhóm (Teamwork)', 'SOFT_SKILL', 'INTERNLINK', '["teamwork","kỹ năng làm việc nhóm","hợp tác"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-COMMUNICATION', 'Giao tiếp (Communication)', 'SOFT_SKILL', 'INTERNLINK', '["communication","kỹ năng giao tiếp","thuyết trình"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-PROBLEM-SOLVING', 'Giải quyết vấn đề (Problem Solving)', 'SOFT_SKILL', 'INTERNLINK', '["problem solving","tư duy logic","analytical thinking"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-ENGLISH', 'Tiếng Anh chuyên ngành (English)', 'TECHNICAL', 'INTERNLINK', '["english","toeic","ielts","tiếng anh"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-CRITICAL-THINKING', 'Tư duy phản biện (Critical Thinking)', 'SOFT_SKILL', 'INTERNLINK', '["critical thinking","tư duy phản biện"]'::jsonb, 'internlink-it-v2', TRUE, NOW()),
+    ('SK-PROFESSIONALISM', 'Tác phong chuyên nghiệp (Professionalism)', 'SOFT_SKILL', 'INTERNLINK', '["professionalism","work ethic","đạo đức nghề nghiệp","tác phong chuyên nghiệp"]'::jsonb, 'internlink-it-v2', TRUE, NOW())
+ON CONFLICT (id) DO UPDATE SET
+    skill_name = EXCLUDED.skill_name,
+    category = EXCLUDED.category,
+    framework = EXCLUDED.framework,
+    aliases = EXCLUDED.aliases,
+    taxonomy_version = EXCLUDED.taxonomy_version,
+    is_active = TRUE,
+    updated_at = NOW();
+
+-- Preserve FK history but prevent former auto-registered skills entering new matching.
+UPDATE skill_taxonomies
+SET is_active = FALSE,
+    taxonomy_version = 'legacy-custom-v1',
+    updated_at = NOW()
+WHERE framework = 'CUSTOM';

@@ -19,6 +19,7 @@ import { JobProgramsSection } from "./detail/job-programs-section";
 import { JobLearningOutcomesSection } from "./detail/job-learning-outcomes-section";
 import { JobAttachmentsSection } from "./detail/job-attachments-section";
 import { JobDetailSidebar } from "./detail/job-detail-sidebar";
+import { JobMatchExplanationCard } from "./detail/job-match-explanation-card";
 import { JobApplyModal } from "./modals/job-apply-modal";
 
 export default function JobDetailView({ id }: { id: string }) {
@@ -124,6 +125,11 @@ export default function JobDetailView({ id }: { id: string }) {
                   />
                 </div>
               </div>
+
+              {/* Explainable AI Matching Breakdown */}
+              {(job.matchScore !== undefined || job.scoreLabel) && (
+                <JobMatchExplanationCard job={job} />
+              )}
 
               {companyProfile.company && <CompanyIntroductionSection description={companyProfile.company.description} />}
               <JobLocationSection job={job} />

@@ -1,11 +1,19 @@
 package com.internlink.core.application.system.impl;
 
 import com.internlink.core.application.system.DocumentService;
+import com.internlink.core.application.system.storage.EncryptedDocumentContentService;
+import com.internlink.core.application.system.storage.StoredEncryptedDocument;
+import com.internlink.core.application.system.upload.DocumentAccessPolicy;
+import com.internlink.core.application.system.upload.DocumentContentValidator;
+import com.internlink.core.application.system.upload.DocumentEncryptionPolicy;
 import com.internlink.core.domain.auth.User;
 import com.internlink.core.domain.system.Document;
+import com.internlink.core.domain.system.DocumentCryptoEnvelope;
+import com.internlink.core.infrastructure.integration.storage.ClamAvScanner;
 import com.internlink.core.infrastructure.integration.storage.StorageService;
 import com.internlink.core.infrastructure.integration.storage.StorageServiceRouter;
 import com.internlink.core.infrastructure.integration.storage.StoredFileInfo;
+import com.internlink.core.infrastructure.persistence.jpa.JpaDocumentCryptoEnvelopeRepository;
 import com.internlink.core.infrastructure.persistence.jpa.JpaDocumentRepository;
 import com.internlink.core.presentation.system.dto.response.DocumentDownloadInfo;
 import com.internlink.core.presentation.system.dto.response.DocumentResponse;
@@ -19,12 +27,17 @@ import com.internlink.core.shared.security.ResourceAuthorization;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Slf4j
@@ -33,10 +46,22 @@ import java.util.UUID;
 public class DocumentServiceImpl implements DocumentService {
 
     private final JpaDocumentRepository documentRepository;
+    private final JpaDocumentCryptoEnvelopeRepository cryptoEnvelopeRepository;
     private final StorageServiceRouter storageServiceRouter;
-    private final com.internlink.core.application.system.upload.DocumentAccessPolicy access;
-    private final com.internlink.core.application.system.upload.DocumentContentValidator content;
-    private final com.internlink.core.infrastructure.integration.storage.ClamAvScanner scanner;
+    private final DocumentAccessPolicy access;
+    private final DocumentContentValidator content;
+    private final ClamAvScanner scanner;
+    private final DocumentEncryptionPolicy encryptionPolicy;
+    private final EncryptedDocumentContentService encryptedContentService;
+
+    public DocumentServiceImpl(
+            JpaDocumentRepository documentRepository,
+            StorageServiceRouter storageServiceRouter,
+            DocumentAccessPolicy access,
+            DocumentContentValidator content,
+            ClamAvScanner scanner) {
+        this(documentRepository, null, storageServiceRouter, access, content, scanner, new DocumentEncryptionPolicy(), null);
+    }
 
     @Override
     @Transactional(readOnly = true)
@@ -112,73 +137,86 @@ public class DocumentServiceImpl implements DocumentService {
             throw new BadRequestException("Tệp tải lên phải có dung lượng từ 1 byte đến 20 MiB");
         }
 
-        // Lấy Storage Service đang kích hoạt (Local Disk, Google Drive, ...)
-        StorageService storageService =
-                file.getContentType() != null && file.getContentType().startsWith("image/")
-                        ? storageServiceRouter.getStorageService(StorageProvider.R2)
-                        : storageServiceRouter.getActiveStorageService();
-        String subFolder =
-                com.internlink.core.application.system.upload.StorageFolders.document(
-                        contextType, contextId, docType, ownerId);
-
+        byte[] bytes;
         try {
-            byte[] bytes = file.getBytes();
+            bytes = file.getBytes();
             content.validate(file.getOriginalFilename(), file.getContentType(), bytes);
             scanner.scan(bytes);
-        } catch (java.io.IOException ex) {
+        } catch (IOException ex) {
             throw new BadRequestException("Không đọc được tệp");
         }
-        StoredFileInfo storedInfo = storageService.store(file, subFolder);
 
-        Document doc =
-                Document.builder()
-                        .owner(owner)
-                        .contextType(contextType)
-                        .contextId(contextId)
-                        .documentType(docType)
-                        .storageProvider(storedInfo.getProvider())
-                        .providerFileId(storedInfo.getProviderFileId())
-                        .providerFolderId(storedInfo.getProviderFolderId())
-                        .originalName(storedInfo.getOriginalName())
-                        .mimeType(storedInfo.getMimeType())
-                        .sizeBytes(storedInfo.getSizeBytes())
-                        .checksum(storedInfo.getChecksum())
-                        .externalUrl(storedInfo.getStoragePathOrUrl())
-                        .visibility("PRIVATE")
-                        .status("ACTIVE")
-                        .build();
+        boolean shouldEncrypt = encryptionPolicy.shouldEncrypt(docType, contextType);
+        StorageService storageService = shouldEncrypt
+                ? storageServiceRouter.getStorageService(StorageProvider.R2)
+                : (file.getContentType() != null && file.getContentType().startsWith("image/")
+                        ? storageServiceRouter.getStorageService(StorageProvider.R2)
+                        : storageServiceRouter.getActiveStorageService());
 
-        boolean synchronizedTransaction =
-                org.springframework.transaction.support.TransactionSynchronizationManager
-                        .isSynchronizationActive();
-        if (synchronizedTransaction) {
-            org.springframework.transaction.support.TransactionSynchronizationManager
-                    .registerSynchronization(
-                            new org.springframework.transaction.support
-                                    .TransactionSynchronization() {
-                                @Override
-                                public void afterCompletion(int status) {
-                                    if (status == STATUS_ROLLED_BACK)
-                                        cleanupStoredFile(
-                                                storageService, storedInfo.getProviderFileId());
-                                }
-                            });
+        String subFolder = com.internlink.core.application.system.upload.StorageFolders.document(
+                contextType, contextId, docType, ownerId);
+
+        Document doc = Document.builder()
+                .owner(owner)
+                .contextType(contextType)
+                .contextId(contextId)
+                .documentType(docType)
+                .storageProvider(storageService.getProviderType())
+                .originalName(file.getOriginalFilename())
+                .mimeType(file.getContentType())
+                .sizeBytes(file.getSize())
+                .visibility("PRIVATE")
+                .status("PENDING")
+                .build();
+
+        Document savedDoc = documentRepository.save(doc);
+        StoredFileInfo storedInfo;
+
+        if (shouldEncrypt) {
+            StoredEncryptedDocument encResult =
+                    encryptedContentService.storeEncrypted(savedDoc, bytes, storageService, subFolder);
+            storedInfo = encResult.storedFileInfo();
+            cryptoEnvelopeRepository.save(encResult.envelope());
+        } else {
+            storedInfo = storageService.store(file, subFolder);
         }
-        Document savedDoc;
+
+        savedDoc.setProviderFileId(storedInfo.getProviderFileId());
+        savedDoc.setProviderFolderId(storedInfo.getProviderFolderId());
+        savedDoc.setChecksum(storedInfo.getChecksum());
+        savedDoc.setExternalUrl(storedInfo.getStoragePathOrUrl());
+        savedDoc.setStatus("ACTIVE");
+
+        registerRollbackCleanup(storageService, storedInfo.getProviderFileId());
+
         try {
-            savedDoc = documentRepository.save(doc);
+            savedDoc = documentRepository.save(savedDoc);
         } catch (RuntimeException ex) {
-            if (!synchronizedTransaction)
-                cleanupStoredFile(storageService, storedInfo.getProviderFileId());
+            cleanupStoredFile(storageService, storedInfo.getProviderFileId());
             throw ex;
         }
+
         log.info(
-                "Tải lên tài liệu thành công: id={}, name={}, provider={}",
+                "Tải lên tài liệu thành công: id={}, name={}, encrypted={}",
                 savedDoc.getId(),
                 savedDoc.getOriginalName(),
-                savedDoc.getStorageProvider());
+                shouldEncrypt);
 
         return mapToResponse(savedDoc, true);
+    }
+
+    private void registerRollbackCleanup(StorageService storageService, String key) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(
+                    new TransactionSynchronization() {
+                        @Override
+                        public void afterCompletion(int status) {
+                            if (status == STATUS_ROLLED_BACK) {
+                                cleanupStoredFile(storageService, key);
+                            }
+                        }
+                    });
+        }
     }
 
     private void cleanupStoredFile(StorageService storageService, String key) {
@@ -204,10 +242,18 @@ public class DocumentServiceImpl implements DocumentService {
         ResourceAuthorization.require(
                 actor.getId().equals(requestingUserId) && access.canReadDocument(actor, doc));
 
-        // Định tuyến đến nhà cung cấp lưu trữ đã lưu tài liệu này
         StorageService storageService =
                 storageServiceRouter.getStorageService(doc.getStorageProvider());
-        Resource resource = storageService.loadAsResource(doc.getProviderFileId());
+
+        Optional<DocumentCryptoEnvelope> envelopeOpt =
+                cryptoEnvelopeRepository.findByDocumentId(documentId);
+        Resource resource;
+        if (envelopeOpt.isPresent()) {
+            byte[] decrypted = encryptedContentService.decryptDocument(doc, envelopeOpt.get(), storageService);
+            resource = new ByteArrayResource(decrypted);
+        } else {
+            resource = storageService.loadAsResource(doc.getProviderFileId());
+        }
 
         return DocumentDownloadInfo.builder()
                 .resource(resource)

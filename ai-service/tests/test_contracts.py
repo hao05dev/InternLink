@@ -1,7 +1,7 @@
 import pytest
-from fastapi.testclient import TestClient
 
 from app.main import create_app
+from tests.conftest import make_in_process_client
 
 
 def payload():
@@ -90,11 +90,11 @@ def test_sample_benchmark_disabled_by_default(client):
 
 def test_sample_benchmark_explicitly_labelled(config):
     config.ENABLE_SAMPLE_BENCHMARK = True
-    with TestClient(create_app(config)) as client:
-        result = client.get("/api/v1/benchmarks/run-sample-evaluation")
-        assert result.status_code == 200
-        assert result.json()["is_demo"] is True
-        assert result.json()["evaluation_kind"] == "precomputed_scores"
+    client = make_in_process_client(create_app(config))
+    result = client.get("/api/v1/benchmarks/run-sample-evaluation")
+    assert result.status_code == 200
+    assert result.json()["is_demo"] is True
+    assert result.json()["evaluation_kind"] == "precomputed_scores"
 
 
 def test_taxonomy_is_not_advertised_as_verified_esco(client):

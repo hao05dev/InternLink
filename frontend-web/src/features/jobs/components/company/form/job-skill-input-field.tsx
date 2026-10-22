@@ -3,8 +3,14 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Plus, X, Search, Check } from "lucide-react";
+import { Sparkles, Plus, X, Search } from "lucide-react";
 import { jobService } from "@/features/jobs/services/job.service";
+import { JobSkillQuickPicks } from "./job-skill-quick-picks";
+import {
+  ApprovedTaxonomySkill,
+  findApprovedSkill,
+  resolveApprovedSkills,
+} from "@/features/jobs/utils/job-skill-input-utils";
 
 interface JobSkillInputFieldProps {
   value: string;
@@ -12,30 +18,14 @@ interface JobSkillInputFieldProps {
   disabled?: boolean;
 }
 
-const POPULAR_SKILLS = [
-  "Java",
-  "Spring Boot",
-  "React",
-  "TypeScript",
-  "JavaScript",
-  "Node.js",
-  "Python",
-  "SQL",
-  "PostgreSQL",
-  "Docker",
-  "Git",
-  "RESTful API",
-  "CI/CD",
-  "Tailwind CSS",
-];
-
 export function JobSkillInputField({
   value,
   onChange,
   disabled = false,
 }: JobSkillInputFieldProps) {
   const [skillInput, setSkillInput] = useState("");
-  const [taxonomySkills, setTaxonomySkills] = useState<Array<{ id: string; skillName: string }>>([]);
+  const [taxonomySkills, setTaxonomySkills] = useState<ApprovedTaxonomySkill[]>([]);
+  const [validationError, setValidationError] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -68,17 +58,25 @@ export function JobSkillInputField({
         .filter(Boolean)
     : [];
 
-  const addSkill = (name: string) => {
-    const trimmed = name.trim();
-    if (!trimmed) return;
-    if (currentSkills.some((s) => s.toLowerCase() === trimmed.toLowerCase())) {
+  const addApprovedSkill = (skill: ApprovedTaxonomySkill) => {
+    if (currentSkills.some((s) => s.toLowerCase() === skill.skillName.toLowerCase())) {
       setSkillInput("");
       return;
     }
-    const updated = [...currentSkills, trimmed];
+    const updated = [...currentSkills, skill.skillName];
     onChange(updated.join(", "));
     setSkillInput("");
+    setValidationError("");
     setShowDropdown(false);
+  };
+
+  const addTypedSkill = () => {
+    const approved = findApprovedSkill(skillInput, taxonomySkills);
+    if (!approved) {
+      setValidationError("Kỹ năng chưa có trong danh mục đã duyệt. Hãy chọn một gợi ý bên dưới.");
+      return;
+    }
+    addApprovedSkill(approved);
   };
 
   const removeSkill = (name: string) => {
@@ -89,7 +87,7 @@ export function JobSkillInputField({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" || e.key === ",") {
       e.preventDefault();
-      addSkill(skillInput);
+      addTypedSkill();
     } else if (e.key === "Backspace" && !skillInput && currentSkills.length > 0) {
       removeSkill(currentSkills[currentSkills.length - 1]);
     }
@@ -100,14 +98,20 @@ export function JobSkillInputField({
     if (pasted.includes(",")) {
       e.preventDefault();
       const parts = pasted.split(",").map((p) => p.trim()).filter(Boolean);
+      const { approved, rejected } = resolveApprovedSkills(parts, taxonomySkills);
+      if (rejected.length > 0) {
+        setValidationError(`Chưa có trong danh mục: ${rejected.join(", ")}.`);
+        return;
+      }
       const combined = [...currentSkills];
-      for (const part of parts) {
-        if (!combined.some((s) => s.toLowerCase() === part.toLowerCase())) {
-          combined.push(part);
+      for (const skill of approved) {
+        if (!combined.some((s) => s.toLowerCase() === skill.skillName.toLowerCase())) {
+          combined.push(skill.skillName);
         }
       }
       onChange(combined.join(", "));
       setSkillInput("");
+      setValidationError("");
     }
   };
 
@@ -138,7 +142,7 @@ export function JobSkillInputField({
       <div className="min-h-[46px] p-2 bg-slate-50/70 border border-slate-200 rounded-xl flex flex-wrap gap-1.5 items-center">
         {currentSkills.length === 0 ? (
           <span className="text-xs text-slate-400 px-1 italic">
-            Chưa chọn kỹ năng nào. Nhập tên kỹ năng hoặc bấm vào gợi ý bên dưới.
+            Chưa chọn kỹ năng nào. Tìm và chọn từ danh mục bên dưới.
           </span>
         ) : (
           currentSkills.map((skill) => (
@@ -169,7 +173,7 @@ export function JobSkillInputField({
           <div className="relative flex-1">
             <Input
               disabled={disabled}
-              placeholder="Gõ tên kỹ năng rồi nhấn Enter hoặc dấu phẩy (VD: Java, Spring Boot, React...)"
+              placeholder="Tìm kỹ năng đã được duyệt (VD: Java, Spring Boot...)"
               value={skillInput}
               onChange={(e) => {
                 setSkillInput(e.target.value);
@@ -190,7 +194,7 @@ export function JobSkillInputField({
                     key={item.id}
                     type="button"
                     className="w-full text-left px-3.5 py-2 text-xs text-slate-700 hover:bg-sky-50 hover:text-sky-800 flex items-center justify-between transition-colors cursor-pointer"
-                    onClick={() => addSkill(item.skillName)}
+                    onClick={() => addApprovedSkill(item)}
                   >
                     <span className="font-medium">{item.skillName}</span>
                     <span className="text-[10px] text-slate-400">{item.id}</span>
@@ -202,7 +206,7 @@ export function JobSkillInputField({
           <button
             type="button"
             disabled={disabled || !skillInput.trim()}
-            onClick={() => addSkill(skillInput)}
+            onClick={addTypedSkill}
             className="px-4 py-2 bg-sky-600 hover:bg-sky-700 disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-xl text-xs font-semibold flex items-center gap-1 transition-colors shrink-0 shadow-sm cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -210,38 +214,15 @@ export function JobSkillInputField({
           </button>
         </div>
       </div>
+      {validationError && <p role="alert" className="text-xs text-amber-700">{validationError}</p>}
 
-      {/* Danh sách nút chọn nhanh kỹ năng phổ biến */}
-      <div className="pt-1">
-        <span className="text-[11px] font-semibold text-slate-500 mr-2">Gợi ý chọn nhanh:</span>
-        <div className="inline-flex flex-wrap gap-1.5 mt-1.5">
-          {POPULAR_SKILLS.map((popSkill) => {
-            const isSelected = currentSkills.some(
-              (s) => s.toLowerCase() === popSkill.toLowerCase()
-            );
-            return (
-              <button
-                key={popSkill}
-                type="button"
-                disabled={disabled}
-                onClick={() => (isSelected ? removeSkill(popSkill) : addSkill(popSkill))}
-                className={`inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
-                  isSelected
-                    ? "bg-sky-100 text-sky-800 border-sky-300 font-semibold shadow-xs"
-                    : "bg-white text-slate-600 border-slate-200 hover:border-sky-300 hover:bg-sky-50/50 hover:text-sky-700 disabled:opacity-50"
-                }`}
-              >
-                {isSelected ? (
-                  <Check className="w-3 h-3 text-sky-600" />
-                ) : (
-                  <Plus className="w-3 h-3 text-slate-400" />
-                )}
-                <span>{popSkill}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      <JobSkillQuickPicks
+        currentSkills={currentSkills}
+        taxonomySkills={taxonomySkills}
+        disabled={disabled}
+        onAdd={addApprovedSkill}
+        onRemove={removeSkill}
+      />
     </div>
   );
 }

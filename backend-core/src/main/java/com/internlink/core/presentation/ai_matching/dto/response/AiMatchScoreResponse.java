@@ -19,7 +19,14 @@ public class AiMatchScoreResponse {
     private UUID jobId;
     private String jobTitle;
     private String companyName;
-    private BigDecimal matchScore; // Thang điểm 0 -> 100%
+    private BigDecimal matchScore; // Thang điểm 0 -> 100
+    private String scoreLabel; // "Cao", "Vừa", "Thấp", "Chưa đủ dữ liệu"
+    private String scoreFormatted; // "85/100"
+    private BigDecimal mandatoryScore;
+    private BigDecimal optionalScore;
+    private BigDecimal semanticScore;
+    private String eligibilityStatus; // "ELIGIBLE", "INELIGIBLE"
+    private String eligibilityReason;
     private List<String> matchedSkills;
     private List<String> missingSkills;
     private Map<String, Object> explanation;

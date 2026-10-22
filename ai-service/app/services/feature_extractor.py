@@ -1,7 +1,7 @@
-"""Feature extractor for Learning-to-Rank (LTR) matching models.
+"""Feature extractor for offline ranking experiments.
 
 Transforms StudentProfileDTO and JobDTO into normalized feature vectors
-for empirical ranking and supervised machine learning models.
+for transparent weighted-feature baselines.
 """
 from app.evaluation.retrieval import bm25_scores, jaccard
 from app.schemas.matching import JobDTO, StudentProfileDTO

@@ -12,12 +12,10 @@ export default defineConfig({
         globals: true,
         setupFiles: ["./src/tests/setup.ts"],
         fileParallelism: false,
-        pool: "vmThreads",
-        poolOptions: {
-            vmThreads: {
-                useAtomics: true,
-            },
-        },
+        // Forks are reliable on the Windows development environment; thread
+        // workers can remain alive after the suite has completed.
+        pool: "forks",
+        maxWorkers: 1,
     },
     resolve: {
         alias: {

@@ -83,6 +83,9 @@ class AiMatchingServiceImplTest {
     private AiServiceClient aiServiceClient;
 
     @Mock
+    private EmbeddingPreparationService embeddingPreparationService;
+
+    @Mock
     private SecurityGuard securityGuard;
 
     private AiMatchingMapper mapper;
@@ -99,13 +102,14 @@ class AiMatchingServiceImplTest {
         );
         matchScoringHandler = new AiMatchScoringHandler(
             jobPositionRepository, jobSkillRepository, studentSkillRepository,
-            studentProfileRepository, aiServiceClient, mapper
+            studentProfileRepository, aiServiceClient, embeddingPreparationService, mapper
         );
         service = new AiMatchingServiceImpl(
             taxonomyRepository, studentSkillRepository, userRepository,
             applicationRepository, placementRepository, studentProfileRepository,
             securityGuard, mapper, cvProcessingHandler, matchScoringHandler
         );
+        lenient().when(embeddingPreparationService.prepare(any())).thenReturn(Map.of());
     }
 
     @Test
@@ -318,21 +322,13 @@ class AiMatchingServiceImplTest {
             .thenReturn(List.of(studentSkill(studentId, java), studentSkill(studentId, spring)));
         when(jobSkillRepository.findByIdJobId(jobId))
             .thenReturn(List.of(jobSkill(jobId, java, RequirementType.MANDATORY), jobSkill(jobId, docker, RequirementType.OPTIONAL)));
-        when(aiServiceClient.calculateMatchScore(
-            eq(studentId),
-            eq(jobId),
-            eq("Backend Intern"),
-            eq("Description"),
-            eq(""),
-            eq(List.of("skill-java", "skill-spring")),
-            eq(List.of("skill-java")),
-            eq(List.of("skill-docker"))
-        )).thenReturn(Map.of(
+        when(aiServiceClient.rankJobs(any(), any())).thenReturn(List.of(Map.of(
+            "job_id", jobId.toString(),
             "match_percentage", "76.5",
             "matched_skills", List.of("skill-java"),
             "missing_skills", List.of("skill-docker"),
             "explanation", Map.of("recommendation", "Review Docker")
-        ));
+        )));
 
         AiMatchScoreResponse response = service.calculateMatchScoreForJob(studentId, jobId);
 
@@ -343,6 +339,11 @@ class AiMatchingServiceImplTest {
         assertThat(response.getMatchedSkills()).containsExactly("skill-java");
         assertThat(response.getMissingSkills()).containsExactly("skill-docker");
         assertThat(response.getExplanation()).containsEntry("recommendation", "Review Docker");
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> studentPayload = ArgumentCaptor.forClass(Map.class);
+        verify(aiServiceClient).rankJobs(studentPayload.capture(), any());
+        assertThat(studentPayload.getValue().get("skill_ids"))
+            .isEqualTo(List.of("skill-java", "skill-spring"));
     }
 
     @Test

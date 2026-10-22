@@ -73,6 +73,28 @@ public class DocumentController {
     }
 
     /**
+     * Xem trước tài liệu an toàn (inline preview).
+     * Kiểm tra quyền truy cập và trả về Content-Disposition: inline để trình duyệt render trực tiếp.
+     */
+    @GetMapping("/{id}/preview")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Resource> previewDocument(
+        @PathVariable UUID id,
+        @AuthenticationPrincipal CustomUserDetail userDetail
+    ) {
+        DocumentDownloadInfo downloadInfo = documentService.downloadDocument(id, userDetail.getId());
+
+        String encodedFilename = URLEncoder.encode(downloadInfo.getOriginalName(), StandardCharsets.UTF_8)
+            .replace("+", "%20");
+
+        return ResponseEntity.ok()
+            .contentType(MediaType.parseMediaType(downloadInfo.getMimeType()))
+            .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + encodedFilename + "\"; filename*=UTF-8''" + encodedFilename)
+            .header("X-Checksum-SHA256", downloadInfo.getChecksum())
+            .body(downloadInfo.getResource());
+    }
+
+    /**
      * Danh sách tài liệu theo ngữ cảnh — URL lưu trữ bị ẩn trong listing,
      * dùng GET /documents/{id} để lấy URL đầy đủ sau khi kiểm tra quyền.
      */

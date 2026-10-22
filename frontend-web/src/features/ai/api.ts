@@ -10,7 +10,15 @@ export interface StudentSkill {
 export interface Match {
     jobId: string; jobTitle: string; companyName: string; matchScore: number;
     scoreAvailable: boolean; semanticAvailable: boolean; mode: string; missingSkills: string[]; matchedSkills: string[];
-    explanation: { recommendation?: string }; warnings: string[];
+    scoreLabel?: string; scoreFormatted?: string;
+    mandatoryScore?: number; optionalScore?: number; semanticScore?: number;
+    eligibilityStatus?: string; eligibilityReason?: string;
+    explanation: {
+        recommendation?: string;
+        effective_weights?: Record<string, number>;
+        component_availability?: Record<string, boolean>;
+    };
+    warnings: string[];
 }
 export interface Extraction { status: string; mode?: string; error_code?: string; skills: StudentSkill[] }
 export interface LearningPlan {

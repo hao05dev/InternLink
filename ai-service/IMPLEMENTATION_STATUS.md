@@ -1,5 +1,30 @@
 # Tích hợp AI — bàn giao code ngày 03/10/2026
 
+## Milestone chuẩn hóa bắt đầu ngày 20/10/2026
+
+- Đã loại lexical hashing khỏi cấu hình inference online; provider chỉ còn dùng cho dữ liệu smoke offline với tên `local-hashing-baseline-v1`.
+- Đã loại lựa chọn `ltr_ml` chưa có model artifact khỏi composition root. Weighted-feature chỉ còn là baseline offline và trả cảnh báo `offline_untrained_baseline`.
+- Dataset 4 query do developer viết đã được đánh dấu `synthetic`, không còn ghi là benchmark học thuật có nhãn độc lập.
+- Đã chuyển dependency test theo đường hỗ trợ hiện tại của Starlette sang `httpx2`. Contract HTTP vẫn cần chạy lại trong môi trường CI không bị giới hạn tiến trình/transport của sandbox hiện tại.
+- Workflow và cổng nghiệm thu cho các milestone tiếp theo nằm tại [IMPLEMENTATION_WORKFLOW.html](IMPLEMENTATION_WORKFLOW.html).
+
+## Milestone taxonomy bắt đầu ngày 20/10/2026
+
+- Taxonomy `internlink-it-v2` có 51 kỹ năng; Python và migration V32 dùng cùng tập ID và có contract test chống lệch dữ liệu.
+- Backend chỉ nhận kỹ năng đang active theo ID, tên chuẩn hoặc alias. Kỹ năng nhập tự do không còn được tự tạo với trạng thái active.
+- Migration V32 đồng bộ version, bổ sung hai kỹ năng còn thiếu và vô hiệu hóa các bản ghi `CUSTOM` cũ để chờ rà soát.
+- Form tin tuyển dụng chỉ thêm kỹ năng thuộc danh mục đã duyệt; nhập, dán hoặc chọn nhanh đều đi qua cùng bước kiểm tra.
+- Migration vẫn cần được áp dụng và xác nhận trên cơ sở dữ liệu tích hợp trước khi đóng milestone.
+
+## Milestone embedding và hybrid bắt đầu ngày 20/10/2026
+
+- AI service có endpoint metadata và batch embedding; kết quả mang source hash, model revision, dimension, task và chunk policy.
+- Gemini batch dùng một lời gọi cho các tài liệu cùng task; local E5 giữ tiền tố query/passage và không tự tải weights.
+- Backend có migration V33 cho `embedding_records` bằng pgvector và cache theo toàn bộ provenance của vector.
+- Luồng gợi ý chuẩn bị vector hồ sơ/JD ngoài ranker, tái sử dụng cache và tự hạ về skill-only khi provider hoặc cache không khả dụng.
+- Hybrid response trả `effective_weights`, trạng thái thành phần và cảnh báo preference chưa được đánh giá; UI hiển thị trọng số thực dùng và lời giải thích.
+- Chưa áp dụng V33 hoặc chạy với model weights/API thật trong lượt này; không tuyên bố đạt chất lượng hay latency production.
+
 ## Chức năng đã có code xuyên các lớp
 
 | Chức năng | Hành vi hiện tại | Giới hạn |
@@ -26,7 +51,7 @@ Các trang mới có mục **Hỗ trợ AI** trong menu: /student/ai, /company/a
 
 ## Cách chạy thử
 
-1. Khởi động PostgreSQL và backend theo hướng dẫn hiện có. Migration V16 bổ sung ai_evidence, external_uri và sửa nhãn bộ kỹ năng nội bộ. Migration **chưa được áp dụng lên cơ sở dữ liệu trong lượt triển khai này**.
+1. Khởi động PostgreSQL và backend theo hướng dẫn hiện có. Migration V16 bổ sung ai_evidence/external_uri; V32 quản trị taxonomy v2; V33 tạo cache embedding pgvector. Các migration **chưa được áp dụng lên cơ sở dữ liệu trong lượt triển khai này**.
 2. Trong ai-service, cài requirements-dev.txt (đã gồm requirements.txt). Dùng EXTRACTION_PROVIDER=rules, EMBEDDING_PROVIDER=disabled để chạy nội bộ.
 3. Đặt SERVICE_API_KEY ở ai-service bằng AI_SERVICE_API_KEY ở backend khi triển khai hai dịch vụ. Giữ FastAPI trong mạng nội bộ. Giá trị trống chỉ dành cho phát triển local.
 4. Chạy Python bằng `python -m uvicorn app.main:app --host 127.0.0.1 --port 8001`, backend và frontend như hướng dẫn dự án.
@@ -53,10 +78,10 @@ Chưa tuyên bố hoàn thành toàn bộ nghiên cứu, chất lượng mô hì
 
 ## Kết quả kiểm tra của lượt triển khai
 
-- Python: 57 tests passed; chặn kết nối ngoài trong test. Có cảnh báo deprecation của bộ TestClient.
-- Backend: 24 tests passed trong AiMatchingServiceImplTest, AiWorkspaceServiceTest, AiServiceClientTest. Có kiểm tra nguồn CV/consent, quyền doanh nghiệp, nhóm thống kê nhỏ và hợp đồng fallback dùng chung.
-- Frontend: 4 tests passed cho consent mặc định, chặn xác nhận câu phủ định, xác nhận thủ công và hiển thị thiếu dữ liệu. TypeScript --noEmit đạt.
+- Python: 30 ranking/embedding/provider/taxonomy tests đạt trong lượt mới nhất. Nhóm HTTP contract vẫn bị treo bởi ASGI transport trong sandbox và cần chạy lại ở CI.
+- Backend: `mvn -DskipTests test-compile` đạt. Test Mockito chưa chạy được trong sandbox vì Java agent bị từ chối quyền truy cập.
+- Frontend: 7/7 test taxonomy/form và 4/4 test AI workspace đạt khi chạy theo từng suite; TypeScript `--noEmit` đạt.
 - Runner synthetic chạy thành công cho Jaccard/BM25/Skill_Only, không tạo kết quả Dense/Hybrid khi không có vector.
-- React Doctor quét thay đổi chung: 6 cảnh báo ở phần khác của workspace. Quét riêng 4 tệp component AI: không có lỗi, 3 cảnh báo “mutation without cache invalidation”. Ba lời gọi này chỉ tính bản nháp (plan/review/summary), không ghi dữ liệu và không có query cache cần làm mới; đã đối chiếu endpoint, giữ nguyên không thêm invalidation giả.
+- React Doctor quét 5 tệp frontend thay đổi: điểm 90/100, không phát hiện vấn đề.
 - Diff check trong các tệp AI thay đổi không báo lỗi whitespace.
 - Chưa kiểm thử E2E trên DB/server đang chạy; chưa áp dụng migration, tải weights hoặc gọi dịch vụ mô hình thật.

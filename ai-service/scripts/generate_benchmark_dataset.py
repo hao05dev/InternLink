@@ -1,12 +1,12 @@
-"""Script to generate the standardized academic benchmark evaluation dataset with real dense embeddings."""
+"""Generate a handwritten synthetic smoke dataset with lexical hashing vectors."""
 import json
 from pathlib import Path
 
-from app.providers.local_dense import LocalDenseSemanticProvider
+from app.providers.local_hashing import LocalHashingBaselineProvider
 
 DIM = 128
-MODEL_NAME = "local-dense-semantic-v1"
-embedder = LocalDenseSemanticProvider(dimension=DIM, model_name=MODEL_NAME)
+MODEL_NAME = "local-hashing-baseline-v1"
+embedder = LocalHashingBaselineProvider(dimension=DIM, model_name=MODEL_NAME)
 
 
 def make_embedding(text: str, task: str = "retrieval_document") -> list[float]:
@@ -287,8 +287,8 @@ SAMPLES = [
 
 def build_dataset():
     dataset = {
-        "split": "test",
-        "provenance": "InternLink Academic Benchmark (Curated Multi-Domain IT Internship Dataset)",
+        "split": "synthetic",
+        "provenance": "Handwritten developer smoke fixture; not real students or independent expert labels.",
         "queries": [],
     }
     for item in SAMPLES:

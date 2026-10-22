@@ -1,13 +1,18 @@
 "use client";
 
-import { Download, FileText, FileSpreadsheet, FileArchive, Paperclip } from "lucide-react";
+import React from "react";
+import { Download, FileText, FileSpreadsheet, FileArchive, Paperclip, Eye } from "lucide-react";
 import { PostAttachment } from "../../types/post.types";
+import { useFilePreview } from "@/features/documents/hooks/use-file-preview";
+import { FilePreviewModal } from "@/features/documents/components/modals/file-preview-modal";
 
 interface BlogPostAttachmentsProps {
     attachments: PostAttachment[];
 }
 
 export function BlogPostAttachments({ attachments }: BlogPostAttachmentsProps) {
+    const { previewFile, isOpen, openPreview, closePreview } = useFilePreview();
+
     if (!attachments || attachments.length === 0) return null;
 
     const getFileIcon = (fileName: string, fileType?: string) => {
@@ -29,14 +34,22 @@ export function BlogPostAttachments({ attachments }: BlogPostAttachmentsProps) {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {attachments.map((att, idx) => (
-                    <a
+                    <div
                         key={att.id || idx}
-                        href={att.fileUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
                         className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-sky-300 dark:hover:border-sky-700 hover:shadow-xs transition-all group"
                     >
-                        <div className="flex items-center gap-3 min-w-0 pr-2">
+                        <div
+                            className="flex items-center gap-3 min-w-0 pr-2 flex-1 cursor-pointer"
+                            onClick={() =>
+                                openPreview({
+                                    id: att.id,
+                                    fileName: att.fileName,
+                                    fileUrl: att.fileUrl,
+                                    fileSize: att.fileSize,
+                                    mimeType: att.fileType,
+                                })
+                            }
+                        >
                             <div className="shrink-0 p-2 rounded-lg bg-slate-100 dark:bg-slate-800 group-hover:bg-sky-50 dark:group-hover:bg-sky-950 transition-colors">
                                 {getFileIcon(att.fileName, att.fileType)}
                             </div>
@@ -52,12 +65,41 @@ export function BlogPostAttachments({ attachments }: BlogPostAttachmentsProps) {
                             </div>
                         </div>
 
-                        <span className="shrink-0 p-1.5 rounded-md text-slate-400 hover:text-sky-600 dark:hover:text-sky-400">
-                            <Download className="w-4 h-4" />
-                        </span>
-                    </a>
+                        <div className="flex items-center gap-1 shrink-0">
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    openPreview({
+                                        id: att.id,
+                                        fileName: att.fileName,
+                                        fileUrl: att.fileUrl,
+                                        fileSize: att.fileSize,
+                                        mimeType: att.fileType,
+                                    })
+                                }
+                                className="p-1.5 rounded-md text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                                title="Xem trước tài liệu"
+                                aria-label="Xem trước tài liệu"
+                            >
+                                <Eye className="w-4 h-4" />
+                            </button>
+                            <a
+                                href={att.fileUrl}
+                                download={att.fileName}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-1.5 rounded-md text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                                title="Tải xuống tài liệu"
+                                aria-label="Tải xuống tài liệu"
+                            >
+                                <Download className="w-4 h-4" />
+                            </a>
+                        </div>
+                    </div>
                 ))}
             </div>
+
+            <FilePreviewModal file={previewFile} isOpen={isOpen} onClose={closePreview} />
         </div>
     );
 }

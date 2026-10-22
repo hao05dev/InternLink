@@ -1,11 +1,11 @@
 {
-  "split": "test",
-  "provenance": "InternLink Academic Benchmark (Curated Multi-Domain IT Internship Dataset)",
-  "synthetic": false,
+  "split": "synthetic",
+  "provenance": "Handwritten developer smoke fixture; not real students or independent expert labels.",
+  "synthetic": true,
   "query_count": 4,
   "gain": "2^relevance-1",
   "relevant_threshold": 1,
-  "semantic_policy": "only queries with real compatible supplied vectors",
+  "vector_policy": "only queries with compatible supplied vectors",
   "results": {
     "Jaccard": {
       "evaluated_queries": 4,
@@ -34,7 +34,7 @@
         "MRR": 1.0
       }
     },
-    "Dense_Semantic": {
+    "Vector_Cosine": {
       "evaluated_queries": 4,
       "metrics": {
         "nDCG@5": 0.9086285203740732,
@@ -43,7 +43,7 @@
         "MRR": 1.0
       }
     },
-    "Hybrid": {
+    "Skill_Vector_Hybrid": {
       "evaluated_queries": 4,
       "metrics": {
         "nDCG@5": 0.9912710946768091,
@@ -52,7 +52,7 @@
         "MRR": 1.0
       }
     },
-    "Proposed_LTR_ML": {
+    "Weighted_Features_Baseline": {
       "evaluated_queries": 4,
       "metrics": {
         "nDCG@5": 0.9981186568186995,
@@ -62,5 +62,5 @@
       }
     }
   },
-  "dataset_sha256": "83dcf2608965a02423785fc5b1e6a2ff7f8e5758fbf0953c472820a6945d86a9"
+  "dataset_sha256": "cbece3bef5a7839220a5b104894c0b120f9f1808ee6762f83ed82511693dd86c"
 }
