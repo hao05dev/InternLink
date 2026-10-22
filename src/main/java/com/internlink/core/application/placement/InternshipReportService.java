@@ -38,6 +38,7 @@ public class InternshipReportService {
                                 () ->
                                         new ResourceNotFoundException(
                                                 "InternshipPlacement", "id", placementId));
+        TermGuard.requireNotClosed(placement.getTerm());
         var student = actor();
         ResourceAuthorization.require(
                 student.getRole() == UserRole.STUDENT
@@ -86,6 +87,7 @@ public class InternshipReportService {
                 reports.findById(id)
                         .orElseThrow(
                                 () -> new ResourceNotFoundException("InternshipReport", "id", id));
+        TermGuard.requireNotClosed(report.getPlacement().getTerm());
         var lecturer = actor();
         ResourceAuthorization.require(
                 lecturer.getRole() == UserRole.LECTURER

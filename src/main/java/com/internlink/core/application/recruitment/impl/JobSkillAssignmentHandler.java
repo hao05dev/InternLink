@@ -9,7 +9,6 @@ import com.internlink.core.infrastructure.persistence.jpa.JpaSkillTaxonomyReposi
 import com.internlink.core.presentation.recruitment.dto.request.JobPositionRequest;
 import com.internlink.core.presentation.recruitment.dto.request.JobSkillRequest;
 import com.internlink.core.shared.enums.RequirementType;
-import com.internlink.core.shared.enums.SkillCategory;
 import com.internlink.core.shared.exception.BadRequestException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -18,7 +17,6 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
@@ -95,15 +93,15 @@ public class JobSkillAssignmentHandler {
         String trimmed = skillIdentifier.trim();
 
         // 1. Direct ID match
-        Optional<SkillTaxonomy> match = taxonomyRepository.findById(trimmed);
+        Optional<SkillTaxonomy> match = taxonomyRepository.findByIdAndIsActiveTrue(trimmed);
         if (match.isPresent()) return match.get();
 
         // 2. Case-insensitive ID match
-        match = taxonomyRepository.findByIdIgnoreCase(trimmed);
+        match = taxonomyRepository.findByIdIgnoreCaseAndIsActiveTrue(trimmed);
         if (match.isPresent()) return match.get();
 
         // 3. Exact skill name case-insensitive
-        match = taxonomyRepository.findBySkillNameIgnoreCase(trimmed);
+        match = taxonomyRepository.findBySkillNameIgnoreCaseAndIsActiveTrue(trimmed);
         if (match.isPresent()) return match.get();
 
         // 4. Match against aliases in active taxonomy
@@ -116,33 +114,8 @@ public class JobSkillAssignmentHandler {
             }
         }
 
-        // 5. Tự động khởi tạo taxonomy cho kỹ năng mới nếu chưa có trong từ điển
-        String slug = "SK-" + trimmed.replaceAll("[^a-zA-Z0-9]+", "-").toUpperCase();
-        while (slug.endsWith("-")) {
-            slug = slug.substring(0, slug.length() - 1);
-        }
-        while (slug.startsWith("-")) {
-            slug = slug.substring(1);
-        }
-        if (slug.length() > 50) {
-            slug = slug.substring(0, 50);
-        }
-        if (slug.equals("SK") || slug.equals("SK-") || slug.isEmpty()) {
-            slug = "SK-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
-        }
-
-        final String finalId = slug;
-        return taxonomyRepository.findById(finalId).orElseGet(() -> {
-            SkillTaxonomy customSkill = SkillTaxonomy.builder()
-                .id(finalId)
-                .skillName(trimmed)
-                .category(SkillCategory.TECHNICAL)
-                .framework("CUSTOM")
-                .taxonomyVersion("v1.0")
-                .isActive(true)
-                .aliases(List.of(trimmed.toLowerCase()))
-                .build();
-            return taxonomyRepository.save(customSkill);
-        });
+        throw new BadRequestException(
+            "Kỹ năng chưa có trong danh mục đã duyệt: " + trimmed
+                + ". Hãy chọn kỹ năng có sẵn hoặc gửi yêu cầu cho quản trị viên.");
     }
 }

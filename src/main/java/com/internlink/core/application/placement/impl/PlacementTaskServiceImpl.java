@@ -169,6 +169,38 @@ public class PlacementTaskServiceImpl implements PlacementTaskService {
         return mapToResponse(saved);
     }
 
+    @Override
+    @Transactional
+    public PlacementTaskResponse reopenTask(UUID id, UUID mentorId, String reasonNote, OffsetDateTime newDueAt) {
+        User mentor = userRepository.findById(mentorId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", mentorId));
+        PlacementTask task = taskRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("PlacementTask", "id", id));
+
+        TermGuard.requireNotClosed(task.getPlacement().getTerm());
+        if (task.getPlacement().getStatus() != PlacementStatus.ACTIVE) {
+            throw new BadRequestException("Chỉ có thể mở lại nhiệm vụ cho lần thực tập đang ACTIVE");
+        }
+        PlacementTaskAccessPolicy.requireCanReview(mentor, task);
+
+        if (task.getStatus() != TaskStatus.COMPLETED && task.getStatus() != TaskStatus.REVISION_REQUIRED) {
+            throw new BadRequestException("Chỉ có thể mở lại nhiệm vụ đã COMPLETED hoặc REVISION_REQUIRED");
+        }
+
+        task.setStatus(TaskStatus.IN_PROGRESS);
+        if (reasonNote != null && !reasonNote.isBlank()) {
+            task.setMentorFeedback(reasonNote.trim());
+        }
+        if (newDueAt != null) {
+            task.setDueAt(newDueAt);
+        }
+        task.setReviewedAt(null);
+
+        var savedTask = taskRepository.save(task);
+        notifications.task(task, mentorId, "TASK_REOPENED");
+        return mapToResponse(savedTask);
+    }
+
     private PlacementTaskResponse mapToResponse(PlacementTask entity) {
         return PlacementTaskResponse.builder()
                 .id(entity.getId())

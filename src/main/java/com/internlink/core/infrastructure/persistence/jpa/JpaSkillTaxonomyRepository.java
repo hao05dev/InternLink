@@ -14,6 +14,9 @@ public interface JpaSkillTaxonomyRepository extends JpaRepository<SkillTaxonomy,
     Optional<SkillTaxonomy> findBySkillName(String skillName);
     Optional<SkillTaxonomy> findBySkillNameIgnoreCase(String skillName);
     Optional<SkillTaxonomy> findByIdIgnoreCase(String id);
+    Optional<SkillTaxonomy> findByIdAndIsActiveTrue(String id);
+    Optional<SkillTaxonomy> findByIdIgnoreCaseAndIsActiveTrue(String id);
+    Optional<SkillTaxonomy> findBySkillNameIgnoreCaseAndIsActiveTrue(String skillName);
     List<SkillTaxonomy> findByCategory(SkillCategory category);
     List<SkillTaxonomy> findByIsActiveTrue();
 }

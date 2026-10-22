@@ -7,7 +7,6 @@ import com.internlink.core.infrastructure.persistence.jpa.JpaJobSkillRepository;
 import com.internlink.core.infrastructure.persistence.jpa.JpaSkillTaxonomyRepository;
 import com.internlink.core.presentation.recruitment.dto.request.JobPositionRequest;
 import com.internlink.core.shared.enums.RequirementType;
-import com.internlink.core.shared.enums.SkillCategory;
 import com.internlink.core.shared.exception.BadRequestException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -44,7 +43,7 @@ class JobSkillAssignmentHandlerTest {
     @Test
     void requireSkill_byId() {
         SkillTaxonomy java = SkillTaxonomy.builder().id("SK-JAVA").skillName("Java").build();
-        when(taxonomyRepository.findById("SK-JAVA")).thenReturn(Optional.of(java));
+        when(taxonomyRepository.findByIdAndIsActiveTrue("SK-JAVA")).thenReturn(Optional.of(java));
 
         SkillTaxonomy result = handler.requireSkill("SK-JAVA");
         assertThat(result.getId()).isEqualTo("SK-JAVA");
@@ -53,9 +52,9 @@ class JobSkillAssignmentHandlerTest {
     @Test
     void requireSkill_byName() {
         SkillTaxonomy java = SkillTaxonomy.builder().id("SK-JAVA").skillName("Java").build();
-        when(taxonomyRepository.findById("Java")).thenReturn(Optional.empty());
-        when(taxonomyRepository.findByIdIgnoreCase("Java")).thenReturn(Optional.empty());
-        when(taxonomyRepository.findBySkillNameIgnoreCase("Java")).thenReturn(Optional.of(java));
+        when(taxonomyRepository.findByIdAndIsActiveTrue("Java")).thenReturn(Optional.empty());
+        when(taxonomyRepository.findByIdIgnoreCaseAndIsActiveTrue("Java")).thenReturn(Optional.empty());
+        when(taxonomyRepository.findBySkillNameIgnoreCaseAndIsActiveTrue("Java")).thenReturn(Optional.of(java));
 
         SkillTaxonomy result = handler.requireSkill("Java");
         assertThat(result.getId()).isEqualTo("SK-JAVA");
@@ -69,9 +68,9 @@ class JobSkillAssignmentHandlerTest {
             .skillName("JavaScript")
             .aliases(List.of("js", "es6"))
             .build();
-        when(taxonomyRepository.findById("js")).thenReturn(Optional.empty());
-        when(taxonomyRepository.findByIdIgnoreCase("js")).thenReturn(Optional.empty());
-        when(taxonomyRepository.findBySkillNameIgnoreCase("js")).thenReturn(Optional.empty());
+        when(taxonomyRepository.findByIdAndIsActiveTrue("js")).thenReturn(Optional.empty());
+        when(taxonomyRepository.findByIdIgnoreCaseAndIsActiveTrue("js")).thenReturn(Optional.empty());
+        when(taxonomyRepository.findBySkillNameIgnoreCaseAndIsActiveTrue("js")).thenReturn(Optional.empty());
         when(taxonomyRepository.findByIsActiveTrue()).thenReturn(List.of(js));
 
         SkillTaxonomy result = handler.requireSkill("js");
@@ -79,17 +78,16 @@ class JobSkillAssignmentHandlerTest {
     }
 
     @Test
-    void requireSkill_autoRegisterWhenNotFound() {
-        when(taxonomyRepository.findById(anyString())).thenReturn(Optional.empty());
-        when(taxonomyRepository.findByIdIgnoreCase(anyString())).thenReturn(Optional.empty());
-        when(taxonomyRepository.findBySkillNameIgnoreCase(anyString())).thenReturn(Optional.empty());
+    void requireSkill_rejectsUnreviewedSkill() {
+        when(taxonomyRepository.findByIdAndIsActiveTrue(anyString())).thenReturn(Optional.empty());
+        when(taxonomyRepository.findByIdIgnoreCaseAndIsActiveTrue(anyString())).thenReturn(Optional.empty());
+        when(taxonomyRepository.findBySkillNameIgnoreCaseAndIsActiveTrue(anyString())).thenReturn(Optional.empty());
         when(taxonomyRepository.findByIsActiveTrue()).thenReturn(List.of());
-        when(taxonomyRepository.save(any(SkillTaxonomy.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        SkillTaxonomy result = handler.requireSkill("Apache Kafka");
-        assertThat(result.getId()).isEqualTo("SK-APACHE-KAFKA");
-        assertThat(result.getSkillName()).isEqualTo("Apache Kafka");
-        assertThat(result.getCategory()).isEqualTo(SkillCategory.TECHNICAL);
+        assertThatThrownBy(() -> handler.requireSkill("Apache Kafka"))
+            .isInstanceOf(BadRequestException.class)
+            .hasMessageContaining("chưa có trong danh mục đã duyệt");
+        verify(taxonomyRepository, never()).save(any(SkillTaxonomy.class));
     }
 
     @Test
@@ -106,10 +104,10 @@ class JobSkillAssignmentHandlerTest {
         SkillTaxonomy java = SkillTaxonomy.builder().id("SK-JAVA").skillName("Java").build();
 
         // One requested by ID SK-JAVA, another by name "Java" -> both resolve to SK-JAVA
-        when(taxonomyRepository.findById("SK-JAVA")).thenReturn(Optional.of(java));
-        when(taxonomyRepository.findById("Java")).thenReturn(Optional.empty());
-        when(taxonomyRepository.findByIdIgnoreCase("Java")).thenReturn(Optional.empty());
-        when(taxonomyRepository.findBySkillNameIgnoreCase("Java")).thenReturn(Optional.of(java));
+        when(taxonomyRepository.findByIdAndIsActiveTrue("SK-JAVA")).thenReturn(Optional.of(java));
+        when(taxonomyRepository.findByIdAndIsActiveTrue("Java")).thenReturn(Optional.empty());
+        when(taxonomyRepository.findByIdIgnoreCaseAndIsActiveTrue("Java")).thenReturn(Optional.empty());
+        when(taxonomyRepository.findBySkillNameIgnoreCaseAndIsActiveTrue("Java")).thenReturn(Optional.of(java));
 
         JobPositionRequest request = JobPositionRequest.builder()
             .mandatorySkillIds(List.of("SK-JAVA", "Java"))

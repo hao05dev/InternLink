@@ -113,13 +113,13 @@ public class AiMatchingServiceImpl implements AiMatchingService {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public AiMatchScoreResponse calculateMatchScoreForJob(UUID studentId, UUID jobId) {
         return matchScoringHandler.calculateMatchScoreForJob(studentId, jobId);
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public List<AiMatchScoreResponse> recommendJobsForStudent(UUID studentId, UUID termId) {
         return matchScoringHandler.recommendJobsForStudent(studentId, termId);
     }

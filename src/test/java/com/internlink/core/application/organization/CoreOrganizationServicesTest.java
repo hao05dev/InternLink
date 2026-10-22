@@ -1,9 +1,24 @@
-package com.internlink.core.application;
+package com.internlink.core.application.organization;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+
+import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import com.internlink.core.application.organization.impl.AcademicProgramServiceImpl;
 import com.internlink.core.application.organization.impl.DepartmentServiceImpl;
@@ -12,10 +27,19 @@ import com.internlink.core.application.organization.impl.StudentRosterAccountPro
 import com.internlink.core.application.organization.impl.StudentRosterIneligibleNotifier;
 import com.internlink.core.application.organization.impl.StudentRosterMapper;
 import com.internlink.core.application.organization.impl.StudentRosterServiceImpl;
+import com.internlink.core.application.system.AuditLogService;
 import com.internlink.core.domain.auth.User;
 import com.internlink.core.domain.organization.AcademicProgram;
 import com.internlink.core.domain.organization.Department;
 import com.internlink.core.domain.organization.InternshipTerm;
+import com.internlink.core.infrastructure.persistence.jpa.JpaAcademicProgramRepository;
+import com.internlink.core.infrastructure.persistence.jpa.JpaAssessmentSchemeRepository;
+import com.internlink.core.infrastructure.persistence.jpa.JpaDepartmentRepository;
+import com.internlink.core.infrastructure.persistence.jpa.JpaInternshipPlacementRepository;
+import com.internlink.core.infrastructure.persistence.jpa.JpaInternshipTermRepository;
+import com.internlink.core.infrastructure.persistence.jpa.JpaStudentProfileRepository;
+import com.internlink.core.infrastructure.persistence.jpa.JpaStudentRosterRepository;
+import com.internlink.core.infrastructure.persistence.jpa.JpaUserRepository;
 import com.internlink.core.infrastructure.security.CustomUserDetail;
 import com.internlink.core.presentation.organization.dto.request.AcademicProgramRequest;
 import com.internlink.core.presentation.organization.dto.request.DepartmentRequest;
@@ -23,15 +47,93 @@ import com.internlink.core.presentation.organization.dto.request.InternshipTermR
 import com.internlink.core.presentation.organization.dto.request.StudentRosterImportItem;
 import com.internlink.core.shared.enums.UserRole;
 import com.internlink.core.shared.exception.BadRequestException;
+import com.internlink.core.shared.security.SecurityGuard;
 
-import org.junit.jupiter.api.Test;
+@ExtendWith(MockitoExtension.class)
+class CoreOrganizationServicesTest {
 
-import java.time.LocalDate;
-import java.time.OffsetDateTime;
-import java.util.List;
-import java.util.Optional;
+    @Mock
+    private JpaDepartmentRepository departmentRepository;
 
-class CoreOrganizationServicesTest extends CoreServiceTestFixture {
+    @Mock
+    private JpaAcademicProgramRepository programRepository;
+
+    @Mock
+    private JpaAssessmentSchemeRepository assessmentSchemeRepository;
+
+    @Mock
+    private JpaInternshipTermRepository termRepository;
+
+    @Mock
+    private JpaStudentRosterRepository rosterRepository;
+
+    @Mock
+    private JpaUserRepository userRepository;
+
+    @Mock
+    private JpaStudentProfileRepository profileRepository;
+
+    @Mock
+    private JpaInternshipPlacementRepository placementRepository;
+
+    @Mock
+    private AuditLogService auditLogService;
+
+    @Mock
+    private SecurityGuard securityGuard;
+
+    @BeforeEach
+    void setUp() {
+        lenient()
+                .when(departmentRepository.save(any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        lenient()
+                .when(programRepository.save(any()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        SecurityContextHolder.clearContext();
+    }
+
+    private Department department() {
+        Department value =
+                Department.builder()
+                        .code(UUID.randomUUID().toString())
+                        .name("CNTT")
+                        .contactEmail("it@example.com")
+                        .build();
+        value.setId(UUID.randomUUID());
+        return value;
+    }
+
+    private AcademicProgram program(Department department) {
+        AcademicProgram value =
+                AcademicProgram.builder()
+                        .department(department)
+                        .code("SE")
+                        .name("Software Engineering")
+                        .build();
+        value.setId(UUID.randomUUID());
+        return value;
+    }
+
+    private InternshipTerm term(Department department) {
+        InternshipTerm value =
+                InternshipTerm.builder().department(department).code("T1").termName("Term").build();
+        value.setId(UUID.randomUUID());
+        return value;
+    }
+
+    private User user(UserRole role) {
+        User value =
+                User.builder()
+                        .email(UUID.randomUUID() + "@example.com")
+                        .passwordHash("hash")
+                        .fullName("User")
+                        .role(role)
+                        .build();
+        value.setId(UUID.randomUUID());
+        return value;
+    }
+
     @Test
     void departmentCreationNormalizesCodeAndEmail() {
         DepartmentServiceImpl service =
@@ -180,5 +282,4 @@ class CoreOrganizationServicesTest extends CoreServiceTestFixture {
         assertThatThrownBy(() -> service.importRosterList(term.getId(), List.of(item)))
                 .isInstanceOf(BadRequestException.class);
     }
-
 }
