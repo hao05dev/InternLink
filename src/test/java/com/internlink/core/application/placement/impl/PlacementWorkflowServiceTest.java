@@ -49,6 +49,7 @@ class PlacementWorkflowServiceTest {
     @Mock JpaLearningAgreementRepository agreementRepository;
     @Mock JpaPlacementOfferRepository offerRepository;
     @Mock JpaDepartmentRepository departmentRepository;
+    @Mock JpaStudentProfileRepository studentProfileRepository;
     @Mock SecurityGuard securityGuard;
     @Mock AuditLogService auditLogService;
     @Mock NotificationService notificationService;
@@ -84,6 +85,7 @@ class PlacementWorkflowServiceTest {
                         offerRepository,
                         departmentRepository,
                         userRepository,
+                        studentProfileRepository,
                         securityGuard,
                         auditLogService,
                         notificationService);

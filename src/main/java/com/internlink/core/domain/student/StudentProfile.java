@@ -69,7 +69,6 @@ public class StudentProfile {
     private OffsetDateTime updatedAt;
 
     @Version
-    @Builder.Default
     @Column(name = "version", nullable = false)
-    private Integer version = 0;
+    private Integer version;
 }

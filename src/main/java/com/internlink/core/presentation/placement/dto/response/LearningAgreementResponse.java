@@ -21,6 +21,7 @@ public class LearningAgreementResponse {
     private UUID termId;
     private UUID studentId;
     private String studentName;
+    private String studentCode;
     private UUID companyId;
     private String companyName;
     private UUID departmentId;

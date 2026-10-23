@@ -7,9 +7,11 @@ import com.internlink.core.domain.auth.User;
 import com.internlink.core.domain.organization.Department;
 import com.internlink.core.domain.placement.LearningAgreement;
 import com.internlink.core.domain.recruitment.PlacementOffer;
+import com.internlink.core.domain.student.StudentProfile;
 import com.internlink.core.infrastructure.persistence.jpa.JpaDepartmentRepository;
 import com.internlink.core.infrastructure.persistence.jpa.JpaLearningAgreementRepository;
 import com.internlink.core.infrastructure.persistence.jpa.JpaPlacementOfferRepository;
+import com.internlink.core.infrastructure.persistence.jpa.JpaStudentProfileRepository;
 import com.internlink.core.infrastructure.persistence.jpa.JpaUserRepository;
 import com.internlink.core.presentation.placement.dto.request.LearningAgreementRequest;
 import com.internlink.core.presentation.placement.dto.response.LearningAgreementResponse;
@@ -40,6 +42,7 @@ public class LearningAgreementServiceImpl implements LearningAgreementService {
     private final JpaPlacementOfferRepository offerRepository;
     private final JpaDepartmentRepository departmentRepository;
     private final JpaUserRepository userRepository;
+    private final JpaStudentProfileRepository studentProfileRepository;
     private final SecurityGuard securityGuard;
     private final AuditLogService auditLogService;
     private final NotificationService notificationService;
@@ -292,12 +295,17 @@ public class LearningAgreementServiceImpl implements LearningAgreementService {
     }
 
     private LearningAgreementResponse mapToResponse(LearningAgreement entity) {
+        String studentCode = studentProfileRepository.findById(entity.getStudent().getId())
+            .map(StudentProfile::getStudentCode)
+            .orElse(null);
+
         return LearningAgreementResponse.builder()
             .id(entity.getId())
             .offerId(entity.getOffer().getId())
             .termId(entity.getOffer().getApplication().getJob().getTerm().getId())
             .studentId(entity.getStudent().getId())
             .studentName(entity.getStudent().getFullName())
+            .studentCode(studentCode)
             .companyId(entity.getCompany().getId())
             .companyName(entity.getCompany().getCompanyName())
             .departmentId(entity.getDepartment().getId())
