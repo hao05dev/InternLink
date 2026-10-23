@@ -11,6 +11,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -19,6 +20,7 @@ import java.util.Map;
  * Bộ xử lý ngoại lệ tập trung toàn cục (Global Exception Handler).
  * Đồng bộ hóa mã lỗi error_code định dạng snake_case trả về cho client.
  */
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
