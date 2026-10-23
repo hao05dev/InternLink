@@ -35,10 +35,18 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error("sys_response_status", ex.getReason()));
     }
 
-    @ExceptionHandler({org.springframework.orm.ObjectOptimisticLockingFailureException.class, org.springframework.dao.DataIntegrityViolationException.class})
-    public ResponseEntity<ApiResponse<Void>> handleConflict(Exception ex) {
+    @ExceptionHandler(org.springframework.orm.ObjectOptimisticLockingFailureException.class)
+    public ResponseEntity<ApiResponse<Void>> handleOptimisticLock(Exception ex) {
+        log.warn("Optimistic lock conflict: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(ApiResponse.error(ErrorCode.OPTIMISTIC_LOCK_CONFLICT));
+    }
+
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDataIntegrity(org.springframework.dao.DataIntegrityViolationException ex) {
+        log.error("Data integrity violation: {}", ex.getMessage(), ex);
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error(ErrorCode.OPTIMISTIC_LOCK_CONFLICT, "Dữ liệu không hợp lệ hoặc bị xung đột ràng buộc hệ thống. Vui lòng thử lại."));
     }
 
     @ExceptionHandler({ResourceNotFoundException.class, NoResourceFoundException.class})

@@ -59,6 +59,7 @@ public class DocumentServiceImpl implements DocumentService {
     public List<DocumentResponse> getDocumentsByContext(ContextType contextType, UUID contextId) {
         User actor = access.currentActor();
         return documentRepository.findByContextTypeAndContextId(contextType, contextId).stream()
+                .filter(doc -> !"DELETED".equals(doc.getStatus()) && doc.getDeletedAt() == null)
                 .filter(doc -> access.canReadDocument(actor, doc))
                 .map(
                         doc ->
@@ -157,7 +158,7 @@ public class DocumentServiceImpl implements DocumentService {
                 .mimeType(file.getContentType())
                 .sizeBytes(file.getSize())
                 .visibility("PRIVATE")
-                .status("PENDING")
+                .status("UPLOADING")
                 .build();
 
         Document savedDoc = documentRepository.save(doc);
@@ -185,6 +186,17 @@ public class DocumentServiceImpl implements DocumentService {
         } catch (RuntimeException ex) {
             cleanupStoredFile(storageService, storedInfo.getProviderFileId());
             throw ex;
+        }
+
+        if (contextType == ContextType.PROFILE && docType == DocumentType.CV) {
+            List<Document> oldCvs = documentRepository.findByContextTypeAndContextId(contextType, contextId);
+            for (Document oldCv : oldCvs) {
+                if (oldCv.getDocumentType() == DocumentType.CV && !oldCv.getId().equals(savedDoc.getId()) && !"DELETED".equals(oldCv.getStatus())) {
+                    oldCv.setStatus("DELETED");
+                    oldCv.setDeletedAt(java.time.OffsetDateTime.now());
+                    documentRepository.save(oldCv);
+                }
+            }
         }
 
         log.info(

@@ -95,7 +95,7 @@ public class R2MaintenanceService {
 
         try {
             OffsetDateTime threshold = OffsetDateTime.now().minus(Duration.ofHours(24));
-            List<Document> pendingDocs = documents.findByStatusAndCreatedAtBefore("PENDING", threshold);
+            List<Document> pendingDocs = documents.findByStatusAndCreatedAtBefore("UPLOADING", threshold);
             for (Document doc : pendingDocs) {
                 try {
                     if (doc.getProviderFileId() != null) {

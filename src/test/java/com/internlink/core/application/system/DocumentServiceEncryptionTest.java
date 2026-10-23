@@ -98,7 +98,7 @@ class DocumentServiceEncryptionTest {
                 .documentType(DocumentType.AGREEMENT)
                 .storageProvider(StorageProvider.R2)
                 .originalName("agreement.pdf")
-                .status("PENDING")
+                .status("UPLOADING")
                 .build();
         pendingDoc.setId(docId);
 
