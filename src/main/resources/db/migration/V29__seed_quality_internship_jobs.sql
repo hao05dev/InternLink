@@ -5,6 +5,33 @@
 -- BCrypt Hash: $2a$10$V04qPky6yVn5nff2zFkWveXlJ/z46L.G9v72xT74z7rK9n0W1WzK6
 -- ====================================================================
 
+-- 0. Ensure Active Internship Term Exists (HK2 2026-2027)
+INSERT INTO internship_terms (
+    id, department_id, code, term_name, academic_year, semester,
+    registration_open_at, registration_close_at, start_date, end_date,
+    application_deadline, evaluation_deadline, status, settings
+)
+VALUES (
+    '96636aef-f3b9-45af-a20a-0782a93c2684',
+    '11111111-1111-1111-1111-111111111111',
+    'HK2_2026_2027',
+    'Học kỳ 2 Năm học 2026-2027',
+    '2026-2027',
+    'HK2',
+    NOW() - INTERVAL '15 days',
+    NOW() + INTERVAL '30 days',
+    CURRENT_DATE + INTERVAL '5 days',
+    CURRENT_DATE + INTERVAL '120 days',
+    '2027-06-30 23:59:59+07',
+    CURRENT_DATE + INTERVAL '130 days',
+    'APPLICATION_OPEN',
+    '{"requiredHours": 320, "weeklyLogFrequency": "WEEKLY", "appealWindowDays": 7, "mentorWeight": 0.6, "lecturerWeight": 0.4}'::jsonb
+)
+ON CONFLICT (id) DO UPDATE
+SET term_name = EXCLUDED.term_name,
+    status = EXCLUDED.status,
+    updated_at = NOW();
+
 -- 1. Ensure Partner Companies are Registered & Verified
 INSERT INTO companies (id, company_name, tax_code, industry, website, address, verification_status, verification_detail, verified_by_user_id, verified_at)
 VALUES 

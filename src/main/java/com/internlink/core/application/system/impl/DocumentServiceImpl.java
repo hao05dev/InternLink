@@ -54,15 +54,6 @@ public class DocumentServiceImpl implements DocumentService {
     private final DocumentEncryptionPolicy encryptionPolicy;
     private final EncryptedDocumentContentService encryptedContentService;
 
-    public DocumentServiceImpl(
-            JpaDocumentRepository documentRepository,
-            StorageServiceRouter storageServiceRouter,
-            DocumentAccessPolicy access,
-            DocumentContentValidator content,
-            ClamAvScanner scanner) {
-        this(documentRepository, null, storageServiceRouter, access, content, scanner, new DocumentEncryptionPolicy(), null);
-    }
-
     @Override
     @Transactional(readOnly = true)
     public List<DocumentResponse> getDocumentsByContext(ContextType contextType, UUID contextId) {

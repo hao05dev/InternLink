@@ -1,5 +1,7 @@
 package com.internlink.core.application.ai_matching.impl;
 
+import com.internlink.core.application.ai_matching.RecommendationCandidateService;
+import com.internlink.core.application.ai_matching.RecommendationEligibilityService;
 import com.internlink.core.domain.ai_matching.AiRun;
 import com.internlink.core.domain.ai_matching.SkillTaxonomy;
 import com.internlink.core.domain.ai_matching.StudentSkill;
@@ -87,6 +89,10 @@ class AiMatchingServiceImplTest {
 
     @Mock
     private SecurityGuard securityGuard;
+    @Mock
+    private RecommendationCandidateService recommendationCandidateService;
+    @Mock
+    private RecommendationEligibilityService recommendationEligibilityService;
 
     private AiMatchingMapper mapper;
     private AiCvProcessingHandler cvProcessingHandler;
@@ -102,8 +108,7 @@ class AiMatchingServiceImplTest {
         );
         matchScoringHandler = new AiMatchScoringHandler(
             jobPositionRepository, jobSkillRepository, studentSkillRepository,
-            studentProfileRepository, aiServiceClient, embeddingPreparationService, mapper
-        );
+            studentProfileRepository, aiServiceClient, embeddingPreparationService, mapper, recommendationCandidateService, recommendationEligibilityService);
         service = new AiMatchingServiceImpl(
             taxonomyRepository, studentSkillRepository, userRepository,
             applicationRepository, placementRepository, studentProfileRepository,
@@ -439,3 +444,5 @@ class AiMatchingServiceImplTest {
         return job;
     }
 }
+
+

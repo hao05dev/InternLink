@@ -77,9 +77,7 @@ class SystemServiceTest {
                 agreementRepository, placementRepository, taskRepository, logbookRepository,
                 rubricRepository, caseRepository);
 
-        documentService = new DocumentServiceImpl(
-                documentRepository, storageServiceRouter, accessPolicy,
-                new DocumentContentValidator(), mock(ClamAvScanner.class));
+        documentService = new DocumentServiceImpl(documentRepository, mock(JpaDocumentCryptoEnvelopeRepository.class), storageServiceRouter, accessPolicy, new DocumentContentValidator(), mock(ClamAvScanner.class), mock(com.internlink.core.application.system.upload.DocumentEncryptionPolicy.class), mock(com.internlink.core.application.system.storage.EncryptedDocumentContentService.class));
 
         lenient().when(studentProfileRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         lenient().when(notificationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -185,3 +183,4 @@ class SystemServiceTest {
         return value;
     }
 }
+

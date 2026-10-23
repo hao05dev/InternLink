@@ -41,20 +41,18 @@ public interface JpaJobApplicationRepository extends JpaRepository<JobApplicatio
     @EntityGraph(attributePaths = {"job", "job.company", "student", "submittedCvDocument"})
     List<JobApplication> findByJobIdAndStatus(UUID jobId, ApplicationStatus status);
 
+    @EntityGraph(attributePaths = {"job", "job.company", "student", "submittedCvDocument"})
+    List<JobApplication> findByJobIdIn(List<UUID> jobIds);
+
     @Override
     @EntityGraph(attributePaths = {"job", "job.company", "student", "submittedCvDocument"})
     Optional<JobApplication> findById(UUID id);
 
     boolean existsByJobIdAndStudentId(UUID jobId, UUID studentId);
 
-    /** Đếm số hồ sơ đã được ACCEPTED/OFFERED cho một vị trí — dùng kiểm tra chỉ tiêu. */
     @Query("SELECT COUNT(a) FROM JobApplication a WHERE a.job.id = :jobId AND a.status IN ('OFFERED', 'REVIEWING', 'INTERVIEWING')")
     long countActiveApplicationsByJob(@Param("jobId") UUID jobId);
 
-    /**
-     * Đếm số hồ sơ còn đang hoạt động của sinh viên trong một kỳ thực tập.
-     * Dùng để giới hạn số đơn ứng tuyển đồng thời (tránh spam).
-     */
     @Query("""
         SELECT COUNT(a) FROM JobApplication a
         WHERE a.student.id = :studentId

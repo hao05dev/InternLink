@@ -35,19 +35,6 @@ public class AiMatchScoringHandler {
     private final RecommendationCandidateService candidateService;
     private final RecommendationEligibilityService eligibilityService;
 
-    public AiMatchScoringHandler(
-            JpaJobPositionRepository jobPositionRepository,
-            JpaJobSkillRepository jobSkillRepository,
-            JpaStudentSkillRepository studentSkillRepository,
-            JpaStudentProfileRepository studentProfileRepository,
-            AiServiceClient aiServiceClient,
-            EmbeddingPreparationService embeddingPreparationService,
-            AiMatchingMapper mapper) {
-        this(jobPositionRepository, jobSkillRepository, studentSkillRepository,
-             studentProfileRepository, aiServiceClient, embeddingPreparationService,
-             mapper, null, null);
-    }
-
     public AiMatchScoreResponse calculateMatchScoreForJob(UUID studentId, UUID jobId) {
         JobPosition job = jobPositionRepository.findById(jobId)
             .filter(j -> j.getStatus() == JobStatus.APPROVED)

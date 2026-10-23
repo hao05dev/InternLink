@@ -1,3 +1,5 @@
+CREATE EXTENSION IF NOT EXISTS vector;
+
 CREATE TABLE embedding_records (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     subject_type VARCHAR(30) NOT NULL CHECK (subject_type IN ('STUDENT_PROFILE', 'JOB_POSITION')),

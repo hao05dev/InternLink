@@ -3,12 +3,14 @@ package com.internlink.core.application.exception_case;
 import com.internlink.core.presentation.exception_case.dto.request.InternshipCaseRequest;
 import com.internlink.core.presentation.exception_case.dto.response.InternshipCaseResponse;
 import com.internlink.core.shared.enums.CaseStatus;
+import com.internlink.core.shared.enums.CaseType;
 
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 public interface InternshipCaseService {
+    List<InternshipCaseResponse> getAllCases(UUID termId, CaseStatus status, CaseType caseType);
     List<InternshipCaseResponse> getCasesByPlacement(UUID placementId);
     List<InternshipCaseResponse> getCasesByStatus(CaseStatus status);
     InternshipCaseResponse getCaseById(UUID id);

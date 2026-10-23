@@ -10,6 +10,7 @@ import com.internlink.core.infrastructure.persistence.jpa.JpaUserRepository;
 import com.internlink.core.presentation.exception_case.dto.request.InternshipCaseRequest;
 import com.internlink.core.presentation.exception_case.dto.response.InternshipCaseResponse;
 import com.internlink.core.shared.enums.CaseStatus;
+import com.internlink.core.shared.enums.CaseType;
 import com.internlink.core.shared.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -27,6 +28,20 @@ public class InternshipCaseServiceImpl implements InternshipCaseService {
     private final JpaInternshipCaseRepository caseRepository;
     private final JpaInternshipPlacementRepository placementRepository;
     private final JpaUserRepository userRepository;
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<InternshipCaseResponse> getAllCases(UUID termId, CaseStatus status, CaseType caseType) {
+        List<InternshipCase> list = (termId != null)
+            ? caseRepository.findByPlacementTermId(termId)
+            : caseRepository.findAllByOrderByOpenedAtDesc();
+
+        return list.stream()
+            .filter(c -> status == null || c.getStatus() == status)
+            .filter(c -> caseType == null || c.getCaseType() == caseType)
+            .map(this::mapToResponse)
+            .toList();
+    }
 
     @Override
     @Transactional(readOnly = true)

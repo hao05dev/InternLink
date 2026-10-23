@@ -5,7 +5,9 @@ import com.internlink.core.infrastructure.security.CustomUserDetail;
 import com.internlink.core.presentation.exception_case.dto.request.InternshipCaseRequest;
 import com.internlink.core.presentation.exception_case.dto.response.InternshipCaseResponse;
 import com.internlink.core.shared.api.ApiResponse;
+import com.internlink.core.shared.enums.CaseSeverity;
 import com.internlink.core.shared.enums.CaseStatus;
+import com.internlink.core.shared.enums.CaseType;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -24,6 +26,17 @@ import java.util.UUID;
 public class InternshipCaseController {
 
     private final InternshipCaseService caseService;
+
+    @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN', 'FACULTY_ADMIN', 'LECTURER')")
+    public ResponseEntity<ApiResponse<List<InternshipCaseResponse>>> getAllCases(
+        @RequestParam(required = false) UUID termId,
+        @RequestParam(required = false) CaseStatus status,
+        @RequestParam(required = false) CaseType caseType
+    ) {
+        List<InternshipCaseResponse> list = caseService.getAllCases(termId, status, caseType);
+        return ResponseEntity.ok(ApiResponse.success(list));
+    }
 
     @GetMapping("/placement/{placementId}")
     @PreAuthorize("hasAnyRole('STUDENT', 'COMPANY_MENTOR', 'LECTURER', 'FACULTY_ADMIN', 'ADMIN')")
@@ -53,7 +66,7 @@ public class InternshipCaseController {
     }
 
     @PatchMapping("/{id}/resolve")
-    @PreAuthorize("hasRole('FACULTY_ADMIN')")
+    @PreAuthorize("hasAnyRole('FACULTY_ADMIN', 'ADMIN')")
     public ResponseEntity<ApiResponse<InternshipCaseResponse>> resolveCase(
         @PathVariable UUID id,
         @RequestParam CaseStatus status,
