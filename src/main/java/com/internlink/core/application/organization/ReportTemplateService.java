@@ -19,6 +19,7 @@ import com.internlink.core.shared.exception.BadRequestException;
 import com.internlink.core.shared.exception.ForbiddenException;
 import com.internlink.core.shared.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +29,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ReportTemplateService {
@@ -37,22 +39,18 @@ public class ReportTemplateService {
     private final JpaDepartmentRepository departmentRepository;
     private final JpaAcademicProgramRepository programRepository;
     private final StorageServiceRouter storageServiceRouter;
+    private final SampleTemplateDocumentGenerator sampleGenerator;
 
     @Transactional(readOnly = true)
     public List<ReportTemplateResponse> getTemplates(UUID termId, UUID departmentId, Boolean activeOnly) {
-        List<ReportTemplateVersion> list;
         boolean onlyActive = activeOnly == null || activeOnly;
-
-        if (departmentId != null) {
-            list = onlyActive
+        List<ReportTemplateVersion> list = (departmentId != null)
+            ? (onlyActive
                 ? templateRepository.findByTermIdAndDepartmentIdAndIsActiveTrue(termId, departmentId)
-                : templateRepository.findByTermIdAndDepartmentIdOrderByCreatedAtDesc(termId, departmentId);
-        } else {
-            list = onlyActive
+                : templateRepository.findByTermIdAndDepartmentIdOrderByCreatedAtDesc(termId, departmentId))
+            : (onlyActive
                 ? templateRepository.findByTermIdAndIsActiveTrue(termId)
-                : templateRepository.findByTermIdOrderByCreatedAtDesc(termId);
-        }
-
+                : templateRepository.findByTermIdOrderByCreatedAtDesc(termId));
         return list.stream().map(ReportTemplateResponse::fromEntity).toList();
     }
 
@@ -68,47 +66,34 @@ public class ReportTemplateService {
                 .findFirstByTermIdAndReportTypeAndProgramCodeAndIsActiveTrueOrderByVersionNumberDesc(
                     termId, ReportTemplateType.M04, "DEFAULT");
         }
-
         if (template.isEmpty()) {
             template = templateRepository
                 .findFirstByTermIdAndReportTypeAndIsActiveTrueOrderByVersionNumberDesc(
                     termId, ReportTemplateType.M04);
         }
-
         return template.map(ReportTemplateResponse::fromEntity).orElse(null);
     }
 
     @Transactional
     public ReportTemplateResponse uploadTemplate(
-        UUID termId,
-        UUID departmentId,
-        UUID programId,
-        String programCode,
-        ReportTemplateType reportType,
-        String title,
-        String description,
-        Boolean isMandatory,
-        MultipartFile file,
-        User uploader
+        UUID termId, UUID departmentId, UUID programId, String programCode,
+        ReportTemplateType reportType, String title, String description,
+        Boolean isMandatory, MultipartFile file, User uploader
     ) {
         verifyFacultyAdminOrAdmin(uploader);
-
         if (file == null || file.isEmpty()) {
             throw new BadRequestException("Tệp tin biểu mẫu không được để trống");
         }
 
         InternshipTerm term = termRepository.findById(termId)
             .orElseThrow(() -> new ResourceNotFoundException("InternshipTerm", "id", termId));
-
         Department department = departmentId != null
             ? departmentRepository.findById(departmentId).orElse(null)
             : term.getDepartment();
 
         AcademicProgram program = null;
         String resolvedProgramCode = programCode != null && !programCode.isBlank()
-            ? programCode.trim().toUpperCase()
-            : "DEFAULT";
-
+            ? programCode.trim().toUpperCase() : "DEFAULT";
         if (programId != null) {
             program = programRepository.findById(programId).orElse(null);
             if (program != null && (programCode == null || programCode.isBlank())) {
@@ -116,28 +101,19 @@ public class ReportTemplateService {
             }
         }
 
-        int nextVersion = 1;
-        Optional<ReportTemplateVersion> latest = templateRepository
-            .findFirstByTermIdAndReportTypeAndProgramCodeOrderByVersionNumberDesc(termId, reportType, resolvedProgramCode);
-        if (latest.isPresent()) {
-            nextVersion = latest.get().getVersionNumber() + 1;
-        }
+        int nextVersion = templateRepository
+            .findFirstByTermIdAndReportTypeAndProgramCodeOrderByVersionNumberDesc(termId, reportType, resolvedProgramCode)
+            .map(t -> t.getVersionNumber() + 1).orElse(1);
 
         StorageService storage = storageServiceRouter.getActiveStorageService();
-        String subFolder = "templates/" + termId;
+        String subFolder = "templates/" + termId + "/" + reportType.name().toLowerCase() + "/" + resolvedProgramCode.toLowerCase();
         StoredFileInfo stored = storage.store(file, subFolder);
 
-        String originalName = file.getOriginalFilename();
-        if (originalName == null || originalName.isBlank()) {
-            originalName = reportType.name() + ".docx";
-        }
-
-        String mimeType = file.getContentType();
-        if (mimeType == null || mimeType.isBlank()) {
-            mimeType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-        }
-
-        String fileUrl = stored.getStoragePathOrUrl() != null ? stored.getStoragePathOrUrl() : stored.getProviderFileId();
+        String originalName = (file.getOriginalFilename() != null && !file.getOriginalFilename().isBlank())
+            ? file.getOriginalFilename() : (reportType.name() + ".docx");
+        String mimeType = (file.getContentType() != null && !file.getContentType().isBlank())
+            ? file.getContentType() : "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+        String fileKey = extractStorageKey(stored.getProviderFileId() != null ? stored.getProviderFileId() : stored.getStoragePathOrUrl());
 
         ReportTemplateVersion entity = ReportTemplateVersion.builder()
             .term(term)
@@ -147,7 +123,7 @@ public class ReportTemplateService {
             .title(title != null && !title.isBlank() ? title : originalName)
             .description(description)
             .reportType(reportType)
-            .fileUrl(fileUrl)
+            .fileUrl(fileKey)
             .fileName(originalName)
             .fileSizeBytes(file.getSize())
             .mimeType(mimeType)
@@ -178,11 +154,46 @@ public class ReportTemplateService {
     }
 
     @Transactional(readOnly = true)
-    public Resource loadTemplateResource(UUID templateId) {
+    public TemplateDownload loadTemplateDownload(UUID templateId) {
         ReportTemplateVersion entity = templateRepository.findById(templateId)
             .orElseThrow(() -> new ResourceNotFoundException("ReportTemplateVersion", "id", templateId));
-        StorageService storage = storageServiceRouter.getActiveStorageService();
-        return storage.loadAsResource(entity.getFileUrl());
+        String rawKey = entity.getFileUrl();
+        String key = extractStorageKey(rawKey);
+
+        Resource resource;
+        if (key.isBlank() || key.startsWith("/api/v1/storage/")) {
+            resource = sampleGenerator.generateSample(entity.getTitle(), entity.getReportType(), entity.getProgramCode());
+        } else {
+            try {
+                StorageService storage = storageServiceRouter.getActiveStorageService();
+                resource = storage.loadAsResource(key);
+            } catch (Exception ex) {
+                log.warn("Storage template fetch failed for id={}, key={}. Falling back to sample generator: {}",
+                    templateId, key, ex.getMessage());
+                resource = sampleGenerator.generateSample(entity.getTitle(), entity.getReportType(), entity.getProgramCode());
+            }
+        }
+        return new TemplateDownload(resource, entity.getFileName(), entity.getMimeType());
+    }
+
+    @Transactional(readOnly = true)
+    public Resource loadTemplateResource(UUID templateId) {
+        return loadTemplateDownload(templateId).resource();
+    }
+
+    public TemplateDownload generateFallbackDownload(ReportTemplateType reportType, String programCode) {
+        Resource resource = sampleGenerator.generateSample(null, reportType, programCode);
+        String fileName = sampleGenerator.resolveDefaultFileName(reportType, programCode);
+        return new TemplateDownload(resource, fileName, "application/msword");
+    }
+
+    private String extractStorageKey(String fileUrl) {
+        if (fileUrl == null || fileUrl.isBlank()) return "";
+        if (fileUrl.startsWith("r2://")) {
+            int slashAfterBucket = fileUrl.indexOf('/', 5);
+            return slashAfterBucket != -1 ? fileUrl.substring(slashAfterBucket + 1) : fileUrl;
+        }
+        return fileUrl;
     }
 
     private void verifyFacultyAdminOrAdmin(User user) {

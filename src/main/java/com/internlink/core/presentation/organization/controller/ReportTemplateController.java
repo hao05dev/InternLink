@@ -1,6 +1,7 @@
 package com.internlink.core.presentation.organization.controller;
 
 import com.internlink.core.application.organization.ReportTemplateService;
+import com.internlink.core.application.organization.TemplateDownload;
 import com.internlink.core.domain.auth.User;
 import com.internlink.core.infrastructure.persistence.jpa.JpaUserRepository;
 import com.internlink.core.infrastructure.security.CustomUserDetail;
@@ -96,13 +97,32 @@ public class ReportTemplateController {
 
     @GetMapping("/{id}/download")
     public ResponseEntity<Resource> downloadTemplate(@PathVariable UUID id) {
-        Resource resource = templateService.loadTemplateResource(id);
-        String filename = resource.getFilename() != null ? resource.getFilename() : "bieu-mau.docx";
-        String encodedFilename = URLEncoder.encode(filename, StandardCharsets.UTF_8).replace("+", "%20");
+        TemplateDownload download = templateService.loadTemplateDownload(id);
+        return buildDownloadResponse(download.resource(), download.fileName(), download.mimeType());
+    }
+
+    @GetMapping("/fallback/{reportType}")
+    public ResponseEntity<Resource> downloadFallback(
+        @PathVariable ReportTemplateType reportType,
+        @RequestParam(required = false, defaultValue = "DEFAULT") String programCode
+    ) {
+        TemplateDownload download = templateService.generateFallbackDownload(reportType, programCode);
+        return buildDownloadResponse(download.resource(), download.fileName(), download.mimeType());
+    }
+
+    private ResponseEntity<Resource> buildDownloadResponse(Resource resource, String filename, String mimeType) {
+        String safeName = (filename != null && !filename.isBlank()) ? filename : "bieu-mau.docx";
+        String encoded = URLEncoder.encode(safeName, StandardCharsets.UTF_8).replace("+", "%20");
+        MediaType mediaType = MediaType.APPLICATION_OCTET_STREAM;
+        try {
+            if (mimeType != null && !mimeType.isBlank()) {
+                mediaType = MediaType.parseMediaType(mimeType);
+            }
+        } catch (Exception ignored) {}
 
         return ResponseEntity.ok()
-            .contentType(MediaType.APPLICATION_OCTET_STREAM)
-            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + encodedFilename + "\"; filename*=UTF-8''" + encodedFilename)
+            .contentType(mediaType)
+            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + encoded + "\"; filename*=UTF-8''" + encoded)
             .body(resource);
     }
 }
