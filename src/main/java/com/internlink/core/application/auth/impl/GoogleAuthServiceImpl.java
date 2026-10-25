@@ -24,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -42,6 +43,9 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
     private final CookieUtils cookieUtils;
     private final PasswordEncoder passwordEncoder;
     private final GoogleTokenVerifier tokenVerifier;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.internlink.core.application.system.AuditLogService auditLogService;
 
     @Override
     @Transactional
@@ -109,6 +113,31 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
 
         refreshTokenService.createSessionAndToken(user, httpRequest, response);
 
+        if (auditLogService != null) {
+            try {
+                String ip = extractClientIp(httpRequest);
+                String ua = httpRequest != null ? httpRequest.getHeader("User-Agent") : null;
+                java.util.Map<String, Object> authMeta = new java.util.HashMap<>();
+                authMeta.put("email", user.getEmail());
+                authMeta.put("role", user.getRole() != null ? user.getRole().name() : "STUDENT");
+                authMeta.put("authMethod", "GOOGLE");
+
+                auditLogService.logAction(
+                    user.getId(),
+                    "USER_LOGIN",
+                    "USER",
+                    user.getId(),
+                    "SUCCESS",
+                    authMeta,
+                    ip,
+                    ua,
+                    authMeta
+                );
+            } catch (Exception ex) {
+                log.debug("Lỗi ghi audit log Google login: {}", ex.getMessage());
+            }
+        }
+
         return AuthResponse.builder()
                 .userId(user.getId())
                 .email(user.getEmail())
@@ -116,5 +145,13 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
                 .role(user.getRole())
                 .mustChangePassword(user.getMustChangePassword())
                 .build();
+    }
+
+    private String extractClientIp(HttpServletRequest request) {
+        if (request == null) return null;
+        String ip = request.getHeader("X-Forwarded-For");
+        if (ip == null || ip.isBlank()) ip = request.getHeader("Proxy-Client-IP");
+        if (ip == null || ip.isBlank()) ip = request.getRemoteAddr();
+        return (ip != null && ip.contains(",")) ? ip.split(",")[0].trim() : ip;
     }
 }

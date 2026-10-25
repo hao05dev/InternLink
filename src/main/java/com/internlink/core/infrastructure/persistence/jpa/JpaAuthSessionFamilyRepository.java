@@ -16,6 +16,8 @@ public interface JpaAuthSessionFamilyRepository extends JpaRepository<AuthSessio
 
     List<AuthSessionFamily> findByUserIdAndRevokedAtIsNull(UUID userId);
 
+    long countByRevokedAtIsNullAndAbsoluteExpiresAtAfter(OffsetDateTime now);
+
     @Modifying
     @Query("UPDATE AuthSessionFamily f SET f.revokedAt = :revokedAt, f.revokeReason = :reason WHERE f.user.id = :userId AND f.revokedAt IS NULL")
     int revokeAllActiveFamiliesByUserId(

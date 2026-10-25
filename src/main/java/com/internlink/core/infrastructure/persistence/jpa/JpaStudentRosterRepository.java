@@ -15,6 +15,7 @@ public interface JpaStudentRosterRepository extends JpaRepository<StudentRoster,
     Optional<StudentRoster> findByTermIdAndStudentCode(UUID termId, String studentCode);
     Optional<StudentRoster> findByTermIdAndOfficialEmail(UUID termId, String officialEmail);
     List<StudentRoster> findByTermId(UUID termId);
+    List<StudentRoster> findByTermIdOrderByStudentCodeAsc(UUID termId);
     List<StudentRoster> findByTermIdAndEligibilityStatus(UUID termId, EligibilityStatus status);
     boolean existsByTermIdAndStudentCode(UUID termId, String studentCode);
     boolean existsByProgram_Id(UUID programId);

@@ -83,31 +83,39 @@ public class StudentRosterServiceImpl implements StudentRosterService {
                 throw new BadRequestException("Ngành học không thuộc khoa quản lý kỳ thực tập");
             }
 
+            String cleanStudentCode = sanitizeString(item.getStudentCode()).toUpperCase();
+            String cleanFullName = sanitizeString(item.getFullName());
+            String cleanEmail = sanitizeString(item.getOfficialEmail()).toLowerCase();
+            String cleanYear = sanitizeString(item.getAcademicYear());
+            String cleanClass = sanitizeString(item.getClassCode());
+            String cleanCourse = sanitizeString(item.getInternshipCourseCode()).toUpperCase();
+            String cleanNote = sanitizeString(item.getEligibilityNote());
+
             StudentRoster roster = rosterRepository
-                    .findByTermIdAndStudentCode(termId, item.getStudentCode().trim().toUpperCase())
+                    .findByTermIdAndStudentCode(termId, cleanStudentCode)
                     .orElse(StudentRoster.builder()
                             .term(term)
-                            .studentCode(item.getStudentCode().trim().toUpperCase())
+                            .studentCode(cleanStudentCode)
                             .build());
 
             roster.setProgram(program);
-            roster.setOfficialEmail(item.getOfficialEmail().trim().toLowerCase());
-            roster.setFullName(item.getFullName().trim());
-            roster.setAcademicYear(item.getAcademicYear().trim());
-            roster.setClassCode(item.getClassCode() != null ? item.getClassCode().trim() : null);
-            roster.setInternshipCourseCode(item.getInternshipCourseCode().trim().toUpperCase());
+            roster.setOfficialEmail(cleanEmail);
+            roster.setFullName(cleanFullName);
+            roster.setAcademicYear(cleanYear);
+            roster.setClassCode(cleanClass);
+            roster.setInternshipCourseCode(cleanCourse);
             roster.setEligibilityStatus(item.getEligibilityStatus());
-            roster.setEligibilityNote(item.getEligibilityNote());
+            roster.setEligibilityNote(cleanNote);
 
             // Ghi nhận thông tin Giảng viên hướng dẫn học phần
             if (item.getLecturerCode() != null && !item.getLecturerCode().isBlank()) {
-                roster.setLecturerCode(item.getLecturerCode().trim());
+                roster.setLecturerCode(sanitizeString(item.getLecturerCode()));
             }
             if (item.getLecturerName() != null && !item.getLecturerName().isBlank()) {
-                roster.setLecturerName(item.getLecturerName().trim());
+                roster.setLecturerName(sanitizeString(item.getLecturerName()));
             }
             if (item.getLecturerEmail() != null && !item.getLecturerEmail().isBlank()) {
-                String lecEmail = item.getLecturerEmail().trim().toLowerCase();
+                String lecEmail = sanitizeString(item.getLecturerEmail()).toLowerCase();
                 roster.setLecturerEmail(lecEmail);
                 userRepository.findByEmail(lecEmail).ifPresent(roster::setAssignedLecturer);
             }
@@ -171,6 +179,16 @@ public class StudentRosterServiceImpl implements StudentRosterService {
             return null;
         }
         return mapper.mapToResponse(roster);
+    }
+
+    private String sanitizeString(String input) {
+        if (input == null) return null;
+        String trimmed = input.trim();
+        while (trimmed.startsWith("=") || trimmed.startsWith("+") || trimmed.startsWith("-")
+                || trimmed.startsWith("@") || trimmed.startsWith("\t") || trimmed.startsWith("\r")) {
+            trimmed = trimmed.substring(1).trim();
+        }
+        return trimmed;
     }
 
     private void validateImportItem(StudentRosterImportItem item) {

@@ -105,13 +105,18 @@ abstract class RecruitmentTestFixture {
                         applicationRepository,
                         jobRepository,
                         userRepository,
-                        documentRepository,
-                        studentProfileRepository,
-                        studentRosterRepository,
-                        offerRepository,
                         securityGuard,
                         notificationService,
-                        new com.internlink.core.shared.api.PaginatedResponseMapper());
+                        new com.internlink.core.shared.api.PaginatedResponseMapper(),
+                        new InterviewInvitationNotifier(
+                                notificationService,
+                                null,
+                                null,
+                                new com.internlink.core.infrastructure.integration.email.EmailProperties()),
+                        new JobApplicationSubmissionValidator(
+                                applicationRepository, documentRepository, studentProfileRepository,
+                                studentRosterRepository, offerRepository),
+                        new JobApplicationMapper());
         offerService =
                 new PlacementOfferServiceImpl(
                         offerRepository,

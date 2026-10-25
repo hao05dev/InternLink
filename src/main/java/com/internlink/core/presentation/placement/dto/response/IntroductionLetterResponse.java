@@ -20,5 +20,53 @@ public record IntroductionLetterResponse(
         String processedByName,
         OffsetDateTime processedAt,
         OffsetDateTime receivedAt,
-        OffsetDateTime createdAt
-) {}
+        OffsetDateTime createdAt,
+        UUID rosterId,
+        String classCode,
+        String officialEmail,
+        boolean letterReceived,
+        OffsetDateTime letterReceivedAt
+) {
+    public IntroductionLetterResponse(
+            UUID id,
+            UUID studentId,
+            String studentName,
+            String studentCode,
+            UUID termId,
+            String termName,
+            String targetCompanyName,
+            String targetPosition,
+            String reason,
+            IntroductionLetterStatus status,
+            String issuedCode,
+            String issueNote,
+            String processedByName,
+            OffsetDateTime processedAt,
+            OffsetDateTime receivedAt,
+            OffsetDateTime createdAt
+    ) {
+        this(
+                id,
+                studentId,
+                studentName,
+                studentCode,
+                termId,
+                termName,
+                targetCompanyName,
+                targetPosition,
+                reason,
+                status,
+                issuedCode,
+                issueNote,
+                processedByName,
+                processedAt,
+                receivedAt,
+                createdAt,
+                null,
+                null,
+                null,
+                status == IntroductionLetterStatus.ISSUED,
+                receivedAt
+        );
+    }
+}

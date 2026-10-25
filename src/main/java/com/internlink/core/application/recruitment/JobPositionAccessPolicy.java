@@ -4,6 +4,7 @@ import com.internlink.core.domain.auth.User;
 import com.internlink.core.domain.recruitment.JobPosition;
 import com.internlink.core.infrastructure.persistence.jpa.*;
 import com.internlink.core.shared.enums.JobStatus;
+import com.internlink.core.shared.enums.UserRole;
 import com.internlink.core.shared.exception.ResourceNotFoundException;
 import com.internlink.core.shared.security.ResourceAuthorization;
 import com.internlink.core.shared.security.SecurityGuard;
@@ -19,6 +20,7 @@ import java.util.UUID;
 public class JobPositionAccessPolicy {
     private final JpaUserRepository userRepository;
     private final SecurityGuard securityGuard;
+
     public User currentActor() {
         UUID actorId = securityGuard.currentUser().getId();
         return userRepository
@@ -29,6 +31,7 @@ public class JobPositionAccessPolicy {
     public boolean canReadJob(User actor, JobPosition job) {
         return job.getStatus() == JobStatus.APPROVED
                 || ResourceAuthorization.isAdmin(actor)
+                || actor.getRole() == UserRole.BLOG_MANAGER
                 || ResourceAuthorization.managesDepartment(actor, job.getDepartment().getId())
                 || ResourceAuthorization.representsCompany(actor, job.getCompany().getId());
     }

@@ -16,6 +16,7 @@ public interface JpaReportTemplateVersionRepository extends JpaRepository<Report
     List<ReportTemplateVersion> findByTermIdOrderByCreatedAtDesc(UUID termId);
     List<ReportTemplateVersion> findByTermIdAndDepartmentIdOrderByCreatedAtDesc(UUID termId, UUID departmentId);
     List<ReportTemplateVersion> findByTermIdAndReportTypeOrderByVersionNumberDesc(UUID termId, ReportTemplateType reportType);
+    List<ReportTemplateVersion> findByReportTypeAndIsActiveTrue(ReportTemplateType reportType);
 
     Optional<ReportTemplateVersion> findFirstByTermIdAndReportTypeAndProgramCodeAndIsActiveTrueOrderByVersionNumberDesc(
             UUID termId, ReportTemplateType reportType, String programCode);

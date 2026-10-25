@@ -64,7 +64,7 @@ class NotificationJpaPostgresTest {
     @Autowired com.internlink.core.infrastructure.persistence.jdbc.JdbcReminderSource reminders;
 
     @Autowired
-    com.internlink.core.infrastructure.persistence.jdbc.NotificationCampaignRepository campaigns;
+    com.internlink.core.infrastructure.persistence.jdbc.NotificationCampaignAudienceRepository campaigns;
 
     @Autowired com.internlink.core.infrastructure.persistence.jdbc.UploadTicketRepository tickets;
 

@@ -9,6 +9,7 @@ import com.internlink.core.infrastructure.persistence.jpa.*;
 import com.internlink.core.presentation.recruitment.dto.request.JobPositionRequest;
 import com.internlink.core.presentation.recruitment.dto.response.JobPositionResponse;
 import com.internlink.core.shared.enums.JobStatus;
+import com.internlink.core.shared.enums.UserRole;
 import com.internlink.core.shared.enums.VerificationStatus;
 import com.internlink.core.shared.exception.BadRequestException;
 import com.internlink.core.shared.exception.ResourceNotFoundException;
@@ -84,9 +85,7 @@ public class JobPositionWriteService {
                                 () -> new ResourceNotFoundException("User", "id", createdByUserId));
         ResourceAuthorization.require(
                 createdByUserId.equals(securityGuard.currentUser().getId())
-                        && (ResourceAuthorization.isAdmin(createdBy)
-                                || ResourceAuthorization.representsCompany(
-                                        createdBy, company.getId())));
+                        && ResourceAuthorization.canManageJobs(createdBy, company.getId()));
 
         media.job(
                 company.getId(),
@@ -97,7 +96,11 @@ public class JobPositionWriteService {
                 ? request.getApplicationDeadline()
                 : term.getApplicationDeadline();
 
-        JobPosition job =
+        boolean isAutoApproved = createdBy.getRole() == UserRole.BLOG_MANAGER
+                || createdBy.getRole() == UserRole.FACULTY_ADMIN
+                || ResourceAuthorization.isAdmin(createdBy);
+
+        JobPosition.JobPositionBuilder jobBuilder =
                 JobPosition.builder()
                         .company(company)
                         .term(term)
@@ -123,10 +126,17 @@ public class JobPositionWriteService {
                                         : List.of())
                         .benefits(request.getBenefits() != null ? request.getBenefits() : List.of())
                         .stipendAmount(request.getStipendAmount())
-                        .status(JobStatus.DRAFT)
-                        .createdBy(createdBy)
-                        .build();
+                        .createdBy(createdBy);
 
+        if (isAutoApproved) {
+            jobBuilder.status(JobStatus.APPROVED)
+                    .approvedBy(createdBy)
+                    .approvedAt(OffsetDateTime.now());
+        } else {
+            jobBuilder.status(JobStatus.DRAFT);
+        }
+
+        JobPosition job = jobBuilder.build();
         locations.apply(job, request);
         JobPosition savedJob = jobPositionRepository.save(job);
         jobSkillAssignmentHandler.saveJobSkills(savedJob, request);
@@ -142,12 +152,16 @@ public class JobPositionWriteService {
                         .orElseThrow(() -> new ResourceNotFoundException("JobPosition", "id", id));
         TermGuard.requireNotClosed(job.getTerm());
         User actor = access.currentActor();
-        ResourceAuthorization.require(
-                ResourceAuthorization.isAdmin(actor)
-                        || ResourceAuthorization.representsCompany(
-                                actor, job.getCompany().getId()));
+        ResourceAuthorization.require(ResourceAuthorization.canManageJobs(actor, job.getCompany().getId()));
 
-        if (job.getStatus() != JobStatus.DRAFT && job.getStatus() != JobStatus.REJECTED) {
+        if (job.getStatus() == JobStatus.CLOSED) {
+            throw new BadRequestException("Không thể chỉnh sửa vị trí tuyển dụng đã đóng");
+        }
+        boolean isStaff = ResourceAuthorization.isAdmin(actor)
+                || actor.getRole() == UserRole.BLOG_MANAGER
+                || actor.getRole() == UserRole.FACULTY_ADMIN;
+
+        if (!isStaff && job.getStatus() != JobStatus.DRAFT && job.getStatus() != JobStatus.REJECTED) {
             throw new BadRequestException(
                     "Chỉ có thể chỉnh sửa vị trí ở trạng thái DRAFT hoặc REJECTED");
         }
@@ -193,5 +207,4 @@ public class JobPositionWriteService {
 
         return jobPositionMapper.toResponse(updatedJob);
     }
-
 }

@@ -27,6 +27,14 @@ public final class ResourceAuthorization {
             && actor.getCompany().getId().equals(companyId);
     }
 
+    public static boolean canManageJobs(User actor, UUID companyId) {
+        if (actor == null) return false;
+        return isAdmin(actor)
+            || actor.getRole() == UserRole.BLOG_MANAGER
+            || actor.getRole() == UserRole.FACULTY_ADMIN
+            || representsCompany(actor, companyId);
+    }
+
     public static boolean belongsToCompany(User actor, UUID companyId) {
         return (actor.getRole() == UserRole.COMPANY_REP || actor.getRole() == UserRole.COMPANY_MENTOR)
             && actor.getCompany() != null && actor.getCompany().getId().equals(companyId);

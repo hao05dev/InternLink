@@ -2,6 +2,7 @@ package com.internlink.core.presentation.system.controller;
 
 import com.internlink.core.application.system.AuditLogService;
 import com.internlink.core.presentation.system.dto.response.AuditLogResponse;
+import com.internlink.core.presentation.system.dto.response.LoginStatsResponse;
 import com.internlink.core.shared.api.ApiResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -24,5 +25,12 @@ public class AuditLogController {
     public ResponseEntity<ApiResponse<List<AuditLogResponse>>> getAllAuditLogs() {
         List<AuditLogResponse> logs = auditLogService.getAllLogs();
         return ResponseEntity.ok(ApiResponse.success(logs));
+    }
+
+    @GetMapping("/login-stats")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<LoginStatsResponse>> getLoginStats() {
+        LoginStatsResponse stats = auditLogService.getLoginStats();
+        return ResponseEntity.ok(ApiResponse.success(stats));
     }
 }

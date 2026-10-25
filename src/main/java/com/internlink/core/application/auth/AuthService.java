@@ -10,6 +10,9 @@ import com.internlink.core.presentation.auth.dto.request.RegisterCompanyRequest;
 
 public interface AuthService {
     AuthResponse login(LoginRequest request, HttpServletResponse response);
+    default AuthResponse login(LoginRequest request, HttpServletRequest httpRequest, HttpServletResponse response) {
+        return login(request, response);
+    }
     AuthResponse registerCompany(RegisterCompanyRequest request, HttpServletResponse response);
     void logout(HttpServletRequest request, HttpServletResponse response);
     UserSummaryDto getCurrentUser();

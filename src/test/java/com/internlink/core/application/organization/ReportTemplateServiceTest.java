@@ -21,6 +21,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mock.web.MockMultipartFile;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -108,9 +109,36 @@ class ReportTemplateServiceTest {
     void generateFallbackDownload_createsOfficialFormattedDoc() {
         TemplateDownload result = service.generateFallbackDownload(ReportTemplateType.M05, "DEFAULT");
 
-        assertThat(result.fileName()).isEqualTo("M-TT-05-Bao_cao_tong_ket_thuc_tap.doc");
+        assertThat(result.fileName()).isEqualTo("M-TT-05-Maubaocao.doc");
         assertThat(result.mimeType()).isEqualTo("application/msword");
         assertThat(result.resource()).isNotNull();
+    }
+
+    @Test
+    void updateTemplate_updatesTitleAndFileNameSuccessfully() {
+        UUID templateId = UUID.randomUUID();
+        User admin = User.builder().role(UserRole.FACULTY_ADMIN).build();
+        ReportTemplateVersion entity = ReportTemplateVersion.builder()
+            .title("Old Title")
+            .fileName("old.doc")
+            .programCode("DEFAULT")
+            .isMandatory(true)
+            .build();
+        entity.setId(templateId);
+
+        when(templateRepository.findById(templateId)).thenReturn(Optional.of(entity));
+        when(templateRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        var req = com.internlink.core.presentation.organization.dto.request.UpdateReportTemplateRequest.builder()
+            .title("New Title")
+            .fileName("new.doc")
+            .description("New Desc")
+            .build();
+
+        var res = service.updateTemplate(templateId, req, admin);
+        assertThat(res.title()).isEqualTo("New Title");
+        assertThat(res.fileName()).isEqualTo("new.doc");
+        assertThat(res.description()).isEqualTo("New Desc");
     }
 
     @Test
@@ -140,5 +168,46 @@ class ReportTemplateServiceTest {
         verify(templateRepository).save(argThat((ReportTemplateVersion entity) ->
             ("internlink/templates/" + termId + "/m04/cs/uuid.docx").equals(entity.getFileUrl())
         ));
+    }
+
+    @Test
+    void inheritTemplates_copiesActiveTemplatesToTargetTerm() {
+        UUID sourceTermId = UUID.randomUUID();
+        UUID targetTermId = UUID.randomUUID();
+        User admin = User.builder().role(UserRole.FACULTY_ADMIN).build();
+        InternshipTerm targetTerm = InternshipTerm.builder().build();
+
+        ReportTemplateVersion src1 = ReportTemplateVersion.builder()
+            .title("M-TT-01")
+            .reportType(ReportTemplateType.M01)
+            .programCode("DEFAULT")
+            .fileUrl("internlink/templates/src/m01.docx")
+            .fileName("M01.docx")
+            .fileSizeBytes(100L)
+            .mimeType("application/msword")
+            .isMandatory(true)
+            .isActive(true)
+            .build();
+
+        when(termRepository.findById(targetTermId)).thenReturn(Optional.of(targetTerm));
+        when(templateRepository.findByTermIdAndIsActiveTrue(sourceTermId)).thenReturn(List.of(src1));
+        when(templateRepository.findByTermIdAndIsActiveTrue(targetTermId)).thenReturn(List.of());
+        when(templateRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        var result = service.inheritTemplates(sourceTermId, targetTermId, false, admin);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).title()).isEqualTo("M-TT-01");
+        assertThat(result.get(0).fileUrl()).isEqualTo("internlink/templates/src/m01.docx");
+    }
+
+    @Test
+    void inheritTemplates_throwsWhenSourceAndTargetSame() {
+        UUID termId = UUID.randomUUID();
+        User admin = User.builder().role(UserRole.FACULTY_ADMIN).build();
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+            service.inheritTemplates(termId, termId, false, admin)
+        ).isInstanceOf(com.internlink.core.shared.exception.BadRequestException.class);
     }
 }

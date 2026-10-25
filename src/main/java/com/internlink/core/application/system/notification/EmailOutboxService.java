@@ -34,7 +34,8 @@ public class EmailOutboxService {
                         "notification:" + notification.getId(),
                         notification.getId(),
                         notification.getRecipient().getId(),
-                        notification.getNotificationType())
+                        notification.getNotificationType(),
+                        EmailDispatchContext.none())
                 ? "QUEUED"
                 : "DUPLICATE";
     }
@@ -52,6 +53,17 @@ public class EmailOutboxService {
     @Transactional
     public boolean enqueueNotice(
             String email, String subject, String body, String type, String key) {
+        return enqueueNotice(email, subject, body, type, key, EmailDispatchContext.none());
+    }
+
+    @Transactional
+    public boolean enqueueNotice(
+            String email,
+            String subject,
+            String body,
+            String type,
+            String key,
+            EmailDispatchContext context) {
         if (!settings.isEnabled()) return false;
         var registered = users.findByEmail(email);
         if (registered.isPresent() && !recipients.allows(registered.get(), type)) return false;
@@ -62,7 +74,8 @@ public class EmailOutboxService {
                 key,
                 null,
                 registered.map(user -> user.getId()).orElse(null),
-                type);
+                type,
+                context == null ? EmailDispatchContext.none() : context);
     }
 
     private boolean insert(
@@ -72,7 +85,8 @@ public class EmailOutboxService {
             String key,
             UUID notificationId,
             UUID userId,
-            String type) {
+            String type,
+            EmailDispatchContext context) {
         if (email == null
                 || email.length() > 254
                 || !email.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")
@@ -86,7 +100,11 @@ public class EmailOutboxService {
                 || key == null
                 || key.length() > 200)
             throw new IllegalArgumentException("Nội dung email không hợp lệ");
-        return store.insert(email, subject, body, key, notificationId, userId, type);
+        return store.insert(email, subject, body, key, notificationId, userId, type, context);
+    }
+
+    public void attachContext(UUID notificationId, EmailDispatchContext context) {
+        if (notificationId != null && context != null) store.attachContext(notificationId, context);
     }
 
     private static String digest(String value) {

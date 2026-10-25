@@ -32,13 +32,22 @@ public class EmailDeliveryAdminService {
                 store.metrics());
     }
 
-    public EmailDeliveryResponse.Page page(String status, int page, int size) {
+    public EmailDeliveryResponse.Page page(
+            String status, String scopeType, String sourceType, UUID templateVersionId,
+            String recipient, int page, int size) {
         guard.requireRole(UserRole.ADMIN);
         if (status != null
                 && !status.isBlank()
                 && !Set.of("PENDING", "SENDING", "RETRY", "SENT", "FAILED", "UNKNOWN", "SKIPPED")
                         .contains(status)) throw new BadRequestException("Trạng thái không hợp lệ");
-        return store.page(status, Math.max(0, page), Math.max(1, Math.min(100, size)));
+        if (scopeType != null && !scopeType.isBlank()
+                && !Set.of("SYSTEM", "DEPARTMENT", "COMPANY").contains(scopeType))
+            throw new BadRequestException("Phạm vi email không hợp lệ");
+        if (sourceType != null && sourceType.length() > 40)
+            throw new BadRequestException("Nguồn gửi không hợp lệ");
+        return store.page(
+                new EmailDeliveryFilter(status, scopeType, sourceType, templateVersionId, recipient),
+                Math.max(0, page), Math.max(1, Math.min(100, size)));
     }
 
     @Transactional

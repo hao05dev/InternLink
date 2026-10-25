@@ -18,6 +18,12 @@ public final class EmailDeliveryResponse {
             int attempts,
             String errorCode,
             String providerMessageId,
+            UUID templateVersionId,
+            UUID initiatedBy,
+            String sourceType,
+            UUID sourceId,
+            String scopeType,
+            UUID scopeId,
             OffsetDateTime createdAt,
             OffsetDateTime nextAttemptAt,
             OffsetDateTime sentAt) {}

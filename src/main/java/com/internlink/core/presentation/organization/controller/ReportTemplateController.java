@@ -72,6 +72,18 @@ public class ReportTemplateController {
         ));
     }
 
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('FACULTY_ADMIN', 'ADMIN')")
+    public ResponseEntity<ApiResponse<ReportTemplateResponse>> updateTemplate(
+        @PathVariable UUID id,
+        @RequestBody com.internlink.core.presentation.organization.dto.request.UpdateReportTemplateRequest request,
+        @AuthenticationPrincipal CustomUserDetail principal
+    ) {
+        User actor = userRepository.findById(principal.getId())
+            .orElseThrow(() -> new ResourceNotFoundException("User", "id", principal.getId()));
+        return ResponseEntity.ok(ApiResponse.success(templateService.updateTemplate(id, request, actor)));
+    }
+
     @PatchMapping("/{id}/toggle-active")
     @PreAuthorize("hasAnyRole('FACULTY_ADMIN', 'ADMIN')")
     public ResponseEntity<ApiResponse<ReportTemplateResponse>> toggleActive(
@@ -95,9 +107,32 @@ public class ReportTemplateController {
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 
+    @PostMapping("/inherit")
+    @PreAuthorize("hasAnyRole('FACULTY_ADMIN', 'ADMIN')")
+    public ResponseEntity<ApiResponse<List<ReportTemplateResponse>>> inheritTemplates(
+        @RequestParam UUID sourceTermId,
+        @RequestParam UUID targetTermId,
+        @RequestParam(required = false, defaultValue = "false") boolean overwrite,
+        @AuthenticationPrincipal CustomUserDetail principal
+    ) {
+        User actor = userRepository.findById(principal.getId())
+            .orElseThrow(() -> new ResourceNotFoundException("User", "id", principal.getId()));
+        List<ReportTemplateResponse> result = templateService.inheritTemplates(sourceTermId, targetTermId, overwrite, actor);
+        return ResponseEntity.ok(ApiResponse.success("Kế thừa biểu mẫu thành công", result));
+    }
+
     @GetMapping("/{id}/download")
     public ResponseEntity<Resource> downloadTemplate(@PathVariable UUID id) {
         TemplateDownload download = templateService.loadTemplateDownload(id);
+        return buildDownloadResponse(download.resource(), download.fileName(), download.mimeType());
+    }
+
+    @GetMapping("/official/{templateCode}/download")
+    public ResponseEntity<Resource> downloadOfficialTemplate(
+        @PathVariable String templateCode,
+        @RequestParam(required = false, defaultValue = "DEFAULT") String programCode
+    ) {
+        TemplateDownload download = templateService.loadOfficialTemplate(templateCode, programCode);
         return buildDownloadResponse(download.resource(), download.fileName(), download.mimeType());
     }
 

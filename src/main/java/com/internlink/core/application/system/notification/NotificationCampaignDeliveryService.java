@@ -73,9 +73,18 @@ public class NotificationCampaignDeliveryService {
                                             null,
                                             "BOTH".equals(campaign.channel()));
                             repository.attachNotification(row, notificationId);
+                            emails.attachContext(
+                                    notificationId,
+                                    new EmailDispatchContext(
+                                            campaign.templateVersionId(), campaign.creator(), "NOTIFICATION_CAMPAIGN",
+                                            campaign.id(), "DEPARTMENT", term.getDepartment().getId()));
                         } else if (!"IN_APP".equals(campaign.channel())) {
                             String key = "campaign:" + campaign.id() + ":" + row.id();
-                            email = emails.enqueueNotice(row.email(), subject, body, type, key);
+                            email = emails.enqueueNotice(
+                                    row.email(), subject, body, type, key,
+                                    new EmailDispatchContext(
+                                            campaign.templateVersionId(), campaign.creator(), "NOTIFICATION_CAMPAIGN",
+                                            campaign.id(), "DEPARTMENT", term.getDepartment().getId()));
                             repository.attach(row, key);
                         }
                         repository.finish(

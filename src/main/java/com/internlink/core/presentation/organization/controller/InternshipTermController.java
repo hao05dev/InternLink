@@ -41,6 +41,11 @@ public class InternshipTermController {
         return ResponseEntity.ok(ApiResponse.success(termService.getAllTerms()));
     }
 
+    @GetMapping("/active")
+    public ResponseEntity<ApiResponse<List<InternshipTermResponse>>> getActiveTerms() {
+        return ResponseEntity.ok(ApiResponse.success(termService.getActiveTerms()));
+    }
+
     @GetMapping("/by-department/{departmentId}")
     public ResponseEntity<ApiResponse<List<InternshipTermResponse>>> getTermsByDepartment(
             @PathVariable UUID departmentId

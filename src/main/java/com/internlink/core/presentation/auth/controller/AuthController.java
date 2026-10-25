@@ -27,8 +27,9 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthResponse>> login(
             @Valid @RequestBody LoginRequest request,
+            HttpServletRequest httpRequest,
             HttpServletResponse response) {
-        AuthResponse authResponse = authService.login(request, response);
+        AuthResponse authResponse = authService.login(request, httpRequest, response);
         return ResponseEntity.ok(ApiResponse.success("Đăng nhập thành công", authResponse));
     }
 

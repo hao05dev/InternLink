@@ -43,13 +43,17 @@ class PortfolioServicePrivacyTest {
     void setUp() {
         viewMapper = new PortfolioViewMapper(revisions, signedFiles);
         metadataHelper = new PortfolioMetadataHelper(rosters);
+        var fileStorage = mock(PortfolioFileStorage.class);
+        var formSupport = new PortfolioFormSupport(forms, revisions, daily, metadataHelper, viewMapper);
+        var signedWorkflow = new PortfolioSignedFileWorkflow(
+                placements, users, forms, revisions, signedFiles, security,
+                viewMapper, fileStorage, formSupport);
         service =
                 new PortfolioService(
                         placements,
                         users,
                         forms,
                         revisions,
-                        signedFiles,
                         reports,
                         security,
                         daily,
@@ -60,7 +64,8 @@ class PortfolioServicePrivacyTest {
                         scoring,
                         metadataHelper,
                         viewMapper,
-                        mock(PortfolioFileStorage.class),
+                        formSupport,
+                        signedWorkflow,
                         mock(
                                 com.internlink.core.application.system.notification
                                         .PlacementWorkflowNotificationHelper.class));

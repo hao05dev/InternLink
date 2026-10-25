@@ -43,10 +43,7 @@ public class JobPositionLifecycleService {
                         .orElseThrow(() -> new ResourceNotFoundException("JobPosition", "id", id));
         TermGuard.requireNotClosed(job.getTerm());
         User actor = access.currentActor();
-        ResourceAuthorization.require(
-                ResourceAuthorization.isAdmin(actor)
-                        || ResourceAuthorization.representsCompany(
-                                actor, job.getCompany().getId()));
+        ResourceAuthorization.require(ResourceAuthorization.canManageJobs(actor, job.getCompany().getId()));
         if (job.getStatus() != JobStatus.DRAFT && job.getStatus() != JobStatus.REJECTED) {
             throw new BadRequestException("Chỉ có thể gửi duyệt vị trí DRAFT hoặc REJECTED");
         }
@@ -69,10 +66,7 @@ public class JobPositionLifecycleService {
                         .orElseThrow(() -> new ResourceNotFoundException("JobPosition", "id", id));
         TermGuard.requireNotClosed(job.getTerm());
         User actor = access.currentActor();
-        ResourceAuthorization.require(
-                ResourceAuthorization.isAdmin(actor)
-                        || ResourceAuthorization.representsCompany(
-                                actor, job.getCompany().getId()));
+        ResourceAuthorization.require(ResourceAuthorization.canManageJobs(actor, job.getCompany().getId()));
 
         if (job.getStatus() == JobStatus.CLOSED) {
             throw new BadRequestException("Vị trí tuyển dụng này đã đóng trước đó");
@@ -147,5 +141,4 @@ public class JobPositionLifecycleService {
 
         return jobPositionMapper.toResponse(saved);
     }
-
 }

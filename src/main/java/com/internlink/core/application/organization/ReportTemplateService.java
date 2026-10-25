@@ -25,7 +25,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -137,6 +139,92 @@ public class ReportTemplateService {
     }
 
     @Transactional
+    public List<ReportTemplateResponse> inheritTemplates(
+        UUID sourceTermId, UUID targetTermId, boolean overwrite, User actor
+    ) {
+        verifyFacultyAdminOrAdmin(actor);
+        if (sourceTermId == null || targetTermId == null) {
+            throw new BadRequestException("Học kỳ nguồn và học kỳ đích không được để trống");
+        }
+        if (sourceTermId.equals(targetTermId)) {
+            throw new BadRequestException("Học kỳ nguồn và học kỳ đích phải khác nhau");
+        }
+
+        InternshipTerm targetTerm = termRepository.findById(targetTermId)
+            .orElseThrow(() -> new ResourceNotFoundException("InternshipTerm", "id", targetTermId));
+
+        List<ReportTemplateVersion> sourceTemplates = templateRepository
+            .findByTermIdAndIsActiveTrue(sourceTermId);
+        if (sourceTemplates.isEmpty()) {
+            throw new BadRequestException("Học kỳ nguồn không có biểu mẫu nào đang áp dụng để kế thừa");
+        }
+
+        List<ReportTemplateVersion> existingInTarget = templateRepository
+            .findByTermIdAndIsActiveTrue(targetTermId);
+        List<ReportTemplateVersion> inheritedList = new ArrayList<>();
+
+        for (ReportTemplateVersion src : sourceTemplates) {
+            boolean alreadyExists = existingInTarget.stream().anyMatch(e ->
+                e.getReportType() == src.getReportType()
+                && Objects.equals(e.getProgramCode(), src.getProgramCode())
+            );
+            if (alreadyExists && !overwrite) {
+                continue;
+            }
+
+            int nextVersion = templateRepository
+                .findFirstByTermIdAndReportTypeAndProgramCodeOrderByVersionNumberDesc(
+                    targetTermId, src.getReportType(), src.getProgramCode())
+                .map(t -> t.getVersionNumber() + 1).orElse(1);
+
+            ReportTemplateVersion inherited = ReportTemplateVersion.builder()
+                .term(targetTerm)
+                .department(src.getDepartment() != null ? src.getDepartment() : targetTerm.getDepartment())
+                .program(src.getProgram())
+                .programCode(src.getProgramCode() != null ? src.getProgramCode() : "DEFAULT")
+                .title(src.getTitle())
+                .description(src.getDescription())
+                .reportType(src.getReportType())
+                .fileUrl(src.getFileUrl())
+                .fileName(src.getFileName())
+                .fileSizeBytes(src.getFileSizeBytes())
+                .mimeType(src.getMimeType())
+                .versionNumber(nextVersion)
+                .isMandatory(src.getIsMandatory() != null ? src.getIsMandatory() : true)
+                .isActive(true)
+                .createdBy(actor)
+                .build();
+
+            inheritedList.add(templateRepository.save(inherited));
+        }
+
+        return inheritedList.stream().map(ReportTemplateResponse::fromEntity).toList();
+    }
+
+    @Transactional
+    public ReportTemplateResponse updateTemplate(UUID templateId, com.internlink.core.presentation.organization.dto.request.UpdateReportTemplateRequest request, User actor) {
+        verifyFacultyAdminOrAdmin(actor);
+        ReportTemplateVersion entity = templateRepository.findById(templateId)
+            .orElseThrow(() -> new ResourceNotFoundException("ReportTemplateVersion", "id", templateId));
+        if (request.getTitle() != null && !request.getTitle().isBlank()) {
+            entity.setTitle(request.getTitle().trim());
+        }
+        if (request.getDescription() != null) {
+            entity.setDescription(request.getDescription().trim());
+        }
+        if (request.getFileName() != null && !request.getFileName().isBlank()) {
+            entity.setFileName(request.getFileName().trim());
+        }
+        if (request.getProgramCode() != null && !request.getProgramCode().isBlank()) {
+            entity.setProgramCode(request.getProgramCode().trim());
+        }
+        if (request.getIsMandatory() != null) {
+            entity.setIsMandatory(request.getIsMandatory());
+        }
+        return ReportTemplateResponse.fromEntity(templateRepository.save(entity));
+    }
+
+    @Transactional
     public ReportTemplateResponse toggleActive(UUID templateId, User actor) {
         verifyFacultyAdminOrAdmin(actor);
         ReportTemplateVersion entity = templateRepository.findById(templateId)
@@ -160,18 +248,23 @@ public class ReportTemplateService {
         String rawKey = entity.getFileUrl();
         String key = extractStorageKey(rawKey);
 
-        Resource resource;
-        if (key.isBlank() || key.startsWith("/api/v1/storage/")) {
-            resource = sampleGenerator.generateSample(entity.getTitle(), entity.getReportType(), entity.getProgramCode());
-        } else {
+        Resource resource = null;
+        if (!key.isBlank() && !key.startsWith("/api/v1/storage/")) {
             try {
                 StorageService storage = storageServiceRouter.getActiveStorageService();
                 resource = storage.loadAsResource(key);
             } catch (Exception ex) {
                 log.warn("Storage template fetch failed for id={}, key={}. Falling back to sample generator: {}",
                     templateId, key, ex.getMessage());
-                resource = sampleGenerator.generateSample(entity.getTitle(), entity.getReportType(), entity.getProgramCode());
             }
+        }
+
+        if (resource == null) {
+            resource = sampleGenerator.loadResourceByFileName(entity.getFileName());
+        }
+
+        if (resource == null) {
+            resource = sampleGenerator.generateSample(entity.getTitle(), entity.getReportType(), entity.getProgramCode());
         }
         return new TemplateDownload(resource, entity.getFileName(), entity.getMimeType());
     }
@@ -184,6 +277,38 @@ public class ReportTemplateService {
     public TemplateDownload generateFallbackDownload(ReportTemplateType reportType, String programCode) {
         Resource resource = sampleGenerator.generateSample(null, reportType, programCode);
         String fileName = sampleGenerator.resolveDefaultFileName(reportType, programCode);
+        return new TemplateDownload(resource, fileName, "application/msword");
+    }
+
+    public TemplateDownload loadOfficialTemplate(String templateCode, String programCode) {
+        ReportTemplateType type;
+        try {
+            type = ReportTemplateType.valueOf(templateCode.trim().toUpperCase());
+        } catch (Exception ex) {
+            type = switch (templateCode.trim().toUpperCase()) {
+                case "04", "FORM_04", "FORM_04_8W" -> ReportTemplateType.FORM_04_RECEPTION_8W;
+                case "04_12W", "FORM_04_12W" -> ReportTemplateType.FORM_04_RECEPTION_12W;
+                case "M-TT-01", "M01_12W" -> ReportTemplateType.M01;
+                case "M-TT-02" -> ReportTemplateType.M02;
+                case "M-TT-03" -> ReportTemplateType.M03;
+                case "M-TT-04", "M-TT-04-KHMT" -> ReportTemplateType.M04_LECTURER_KHMT;
+                case "M-TT-04-MMT" -> ReportTemplateType.M04_LECTURER_MMT;
+                case "M-TT-05" -> ReportTemplateType.M05;
+                default -> ReportTemplateType.OTHER;
+            };
+        }
+        // Ưu tiên tải tệp thật do Khoa đã upload lên hệ thống lưu trữ (R2/Storage)
+        List<ReportTemplateVersion> uploaded = templateRepository.findByReportTypeAndIsActiveTrue(type);
+        if (!uploaded.isEmpty()) {
+            ReportTemplateVersion matched = uploaded.stream()
+                .filter(t -> programCode != null && programCode.equalsIgnoreCase(t.getProgramCode()))
+                .findFirst()
+                .orElse(uploaded.get(0));
+            return loadTemplateDownload(matched.getId());
+        }
+
+        Resource resource = sampleGenerator.generateSample(null, type, programCode);
+        String fileName = sampleGenerator.resolveDefaultFileName(type, programCode);
         return new TemplateDownload(resource, fileName, "application/msword");
     }
 

@@ -61,6 +61,21 @@ public class InternshipTermServiceImpl implements InternshipTermService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<InternshipTermResponse> getActiveTerms() {
+        List<InternshipTerm> terms = termRepository.findByStatus(TermStatus.ACTIVE);
+        if (terms.isEmpty()) {
+            terms = termRepository.findAll().stream()
+                .filter(t -> t.getStatus() != TermStatus.CLOSED)
+                .toList();
+        }
+        if (terms.isEmpty()) {
+            terms = termRepository.findAll();
+        }
+        return terms.stream().map(this::mapToResponse).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<InternshipTermResponse> getTermsByDepartment(UUID departmentId) {
         return termRepository.findByDepartmentId(departmentId).stream()
             .map(this::mapToResponse)

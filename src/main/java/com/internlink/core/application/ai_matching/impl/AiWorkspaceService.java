@@ -19,8 +19,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.util.*;
 
 @Service
@@ -218,7 +216,7 @@ public class AiWorkspaceService {
                 "jobId",
                 id,
                 "sourceHash",
-                hash(job.getDescription()),
+                ContentHash.sha256(job.getDescription()),
                 "requiresReview",
                 true);
     }
@@ -243,7 +241,7 @@ public class AiWorkspaceService {
                                             "text",
                                             text,
                                             "version",
-                                            hash(text),
+                                            ContentHash.sha256(text),
                                             "verification",
                                             row.getMentorReviewedAt() != null
                                                             && (row.getStatus()
@@ -347,14 +345,4 @@ public class AiWorkspaceService {
         return report;
     }
 
-    private static String hash(String value) {
-        try {
-            return HexFormat.of()
-                    .formatHex(
-                            MessageDigest.getInstance("SHA-256")
-                                    .digest(value.getBytes(StandardCharsets.UTF_8)));
-        } catch (java.security.NoSuchAlgorithmException impossible) {
-            throw new IllegalStateException(impossible);
-        }
-    }
 }

@@ -26,7 +26,7 @@ public class CompanyController {
     private final CompanyService companyService;
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'FACULTY_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'FACULTY_ADMIN', 'BLOG_MANAGER')")
     public ResponseEntity<ApiResponse<List<CompanyResponse>>> getAllCompanies(
         @RequestParam(required = false) VerificationStatus status
     ) {

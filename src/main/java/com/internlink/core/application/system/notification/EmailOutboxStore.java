@@ -14,7 +14,8 @@ public interface EmailOutboxStore {
             String key,
             UUID notificationId,
             UUID userId,
-            String type);
+            String type,
+            EmailDispatchContext context);
 
     EmailDelivery claim();
 
@@ -27,7 +28,7 @@ public interface EmailOutboxStore {
 
     EmailDeliveryResponse.Metrics metrics();
 
-    EmailDeliveryResponse.Page page(String status, int page, int size);
+    EmailDeliveryResponse.Page page(EmailDeliveryFilter filter, int page, int size);
 
     EmailDeliveryResponse.Controls controls();
 
@@ -36,4 +37,6 @@ public interface EmailOutboxStore {
     boolean retry(UUID id, boolean confirmedNotAccepted);
 
     boolean cancel(UUID id);
+
+    void attachContext(UUID notificationId, EmailDispatchContext context);
 }

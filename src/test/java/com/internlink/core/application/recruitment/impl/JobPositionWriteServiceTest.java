@@ -5,40 +5,20 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-import com.internlink.core.application.system.AuditLogService;
-import com.internlink.core.application.system.NotificationService;
 import com.internlink.core.domain.auth.User;
 import com.internlink.core.domain.company.Company;
-import com.internlink.core.domain.organization.AcademicProgram;
 import com.internlink.core.domain.organization.Department;
 import com.internlink.core.domain.organization.InternshipTerm;
-import com.internlink.core.domain.organization.StudentRoster;
-import com.internlink.core.domain.recruitment.JobApplication;
 import com.internlink.core.domain.recruitment.JobPosition;
-import com.internlink.core.domain.recruitment.PlacementOffer;
-import com.internlink.core.domain.student.StudentProfile;
-import com.internlink.core.domain.system.Document;
-import com.internlink.core.infrastructure.persistence.jpa.*;
-import com.internlink.core.infrastructure.persistence.jpa.JpaStudentProfileRepository;
-import com.internlink.core.infrastructure.persistence.jpa.JpaStudentRosterRepository;
 import com.internlink.core.infrastructure.security.CustomUserDetail;
-import com.internlink.core.presentation.recruitment.dto.request.JobApplicationRequest;
 import com.internlink.core.presentation.recruitment.dto.request.JobPositionRequest;
-import com.internlink.core.presentation.recruitment.dto.request.PlacementOfferRequest;
+import com.internlink.core.presentation.recruitment.dto.response.JobPositionResponse;
 import com.internlink.core.shared.enums.*;
 import com.internlink.core.shared.exception.BadRequestException;
 import com.internlink.core.shared.exception.ForbiddenException;
-import com.internlink.core.shared.security.SecurityGuard;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDate;
-import java.time.OffsetDateTime;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -62,6 +42,25 @@ class JobPositionWriteServiceTest extends RecruitmentTestFixture {
 
         assertThat(jobService.createJob(request, representative.getId()).getStatus())
                 .isEqualTo(JobStatus.DRAFT);
+    }
+
+    @Test
+    void blogManagerCanCreateJobForPartnerCompanyWithAutoApproval() {
+        Department department = department();
+        InternshipTerm term = term(department);
+        Company company = company();
+        User blogManager = user(UserRole.BLOG_MANAGER);
+        when(companyRepository.findById(company.getId())).thenReturn(Optional.of(company));
+        when(termRepository.findById(term.getId())).thenReturn(Optional.of(term));
+        when(departmentRepository.findById(department.getId())).thenReturn(Optional.of(department));
+        when(userRepository.findById(blogManager.getId()))
+                .thenReturn(Optional.of(blogManager));
+        when(securityGuard.currentUser()).thenReturn(CustomUserDetail.create(blogManager));
+
+        JobPositionRequest request = jobRequest(company.getId(), term.getId(), department.getId());
+
+        JobPositionResponse response = jobService.createJob(request, blogManager.getId());
+        assertThat(response.getStatus()).isEqualTo(JobStatus.APPROVED);
     }
 
     @Test
@@ -112,5 +111,4 @@ class JobPositionWriteServiceTest extends RecruitmentTestFixture {
                 .isInstanceOf(ForbiddenException.class);
         verify(jobRepository, never()).save(any());
     }
-
 }

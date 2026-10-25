@@ -25,9 +25,14 @@ public class EmailDeliveryAdminController {
     @GetMapping
     public ApiResponse<EmailDeliveryResponse.Page> page(
             @RequestParam(defaultValue = "") String status,
+            @RequestParam(defaultValue = "") String scopeType,
+            @RequestParam(defaultValue = "") String sourceType,
+            @RequestParam(required = false) UUID templateVersionId,
+            @RequestParam(defaultValue = "") String recipient,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return ApiResponse.success(service.page(status, page, size));
+        return ApiResponse.success(
+                service.page(status, scopeType, sourceType, templateVersionId, recipient, page, size));
     }
 
     @PutMapping("/controls")

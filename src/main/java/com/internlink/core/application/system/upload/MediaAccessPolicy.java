@@ -43,9 +43,17 @@ public class MediaAccessPolicy {
         if (purpose.job() || purpose.company()) {
             if (context == null || !companies.existsById(context))
                 throw new BadRequestException("Chọn doanh nghiệp trước khi tải ảnh/tệp");
-            ResourceAuthorization.require(
-                    ResourceAuthorization.isAdmin(user)
-                            || ResourceAuthorization.representsCompany(user, context));
+            if (purpose.job()) {
+                ResourceAuthorization.require(
+                        ResourceAuthorization.isAdmin(user)
+                                || user.getRole() == UserRole.BLOG_MANAGER
+                                || user.getRole() == UserRole.FACULTY_ADMIN
+                                || ResourceAuthorization.representsCompany(user, context));
+            } else {
+                ResourceAuthorization.require(
+                        ResourceAuthorization.isAdmin(user)
+                                || ResourceAuthorization.representsCompany(user, context));
+            }
             return context;
         }
         if (purpose.post()) {
@@ -111,6 +119,8 @@ public class MediaAccessPolicy {
         if (assets.publicReference(asset)) return true;
         if (user == null) return false;
         if (user.getId().equals(asset.owner()) || ResourceAuthorization.isAdmin(user)) return true;
+        if (asset.purpose().job() && (user.getRole() == UserRole.BLOG_MANAGER || user.getRole() == UserRole.FACULTY_ADMIN))
+            return true;
         if ((asset.purpose().job() || asset.purpose().company()) && ResourceAuthorization.representsCompany(user, asset.context()))
             return true;
         if (asset.purpose().company()) return false;

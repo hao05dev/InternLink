@@ -21,12 +21,10 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.text.Normalizer;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
-import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
@@ -38,9 +36,6 @@ public class CareerGuidePostServiceImpl implements CareerGuidePostService {
     private final CareerGuidePostMapper postMapper;
     private final com.internlink.core.application.system.upload.MediaReferencePolicy media;
     private final com.internlink.core.application.system.PostViewGuardService postViewGuardService;
-
-    private static final Pattern NONLATIN = Pattern.compile("[^\\w-]");
-    private static final Pattern WHITESPACE = Pattern.compile("[\\s]");
 
     private static final Sort DEFAULT_POST_SORT =
             Sort.by(
@@ -136,7 +131,7 @@ public class CareerGuidePostServiceImpl implements CareerGuidePostService {
 
         String targetSlug =
                 (request.getSlug() != null && !request.getSlug().isBlank())
-                        ? toSlug(request.getSlug())
+                        ? PostSlugNormalizer.normalize(request.getSlug())
                         : generateUniqueSlug(request.getTitle(), null);
 
         if (postRepository.existsBySlug(targetSlug)) {
@@ -204,7 +199,7 @@ public class CareerGuidePostServiceImpl implements CareerGuidePostService {
         }
 
         if (request.getSlug() != null && !request.getSlug().isBlank()) {
-            String newSlug = toSlug(request.getSlug());
+            String newSlug = PostSlugNormalizer.normalize(request.getSlug());
             if (postRepository.existsBySlugAndIdNot(newSlug, id)) {
                 throw new BadRequestException(
                         "Đường dẫn (slug) '" + newSlug + "' đã tồn tại ở bài viết khác.");
@@ -320,7 +315,7 @@ public class CareerGuidePostServiceImpl implements CareerGuidePostService {
     }
 
     private String generateUniqueSlug(String title, UUID currentId) {
-        String baseSlug = toSlug(title);
+        String baseSlug = PostSlugNormalizer.normalize(title);
         if (baseSlug.isBlank()) {
             baseSlug = "bai-viet-" + System.currentTimeMillis();
         }
@@ -341,18 +336,4 @@ public class CareerGuidePostServiceImpl implements CareerGuidePostService {
         }
     }
 
-    private String toSlug(String input) {
-        if (input == null) return "";
-        String nowhitespace = WHITESPACE.matcher(input.trim()).replaceAll("-");
-        String normalized = Normalizer.normalize(nowhitespace, Normalizer.Form.NFD);
-        String slug =
-                Pattern.compile("\\p{InCombiningDiacriticalMarks}+")
-                        .matcher(normalized)
-                        .replaceAll("");
-        slug = slug.replace('đ', 'd').replace('Đ', 'D');
-        slug = NONLATIN.matcher(slug).replaceAll("");
-        slug = Pattern.compile("-+").matcher(slug).replaceAll("-");
-        slug = Pattern.compile("^-|-$").matcher(slug).replaceAll("");
-        return slug.toLowerCase(Locale.ROOT);
-    }
 }

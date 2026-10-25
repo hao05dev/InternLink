@@ -71,4 +71,14 @@ public class StudentRoster extends BaseEntity {
 
     @Column(name = "lecturer_email", length = 150)
     private String lecturerEmail;
+
+    @Builder.Default
+    @Column(name = "letter_received", nullable = false)
+    private boolean letterReceived = false;
+
+    @Column(name = "letter_received_at")
+    private OffsetDateTime letterReceivedAt;
+
+    @Column(name = "letter_notes", columnDefinition = "text")
+    private String letterNotes;
 }

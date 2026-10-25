@@ -33,6 +33,9 @@ public class StudentRosterMapper {
                         : (entity.getAssignedLecturer() != null ? entity.getAssignedLecturer().getFullName() : null))
                 .lecturerEmail(entity.getLecturerEmail() != null ? entity.getLecturerEmail()
                         : (entity.getAssignedLecturer() != null ? entity.getAssignedLecturer().getEmail() : null))
+                .letterReceived(entity.isLetterReceived())
+                .letterReceivedAt(entity.getLetterReceivedAt())
+                .letterNotes(entity.getLetterNotes())
                 .createdAt(entity.getCreatedAt())
                 .build();
     }

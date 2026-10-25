@@ -170,7 +170,8 @@ class NotificationCampaignPostgresTest {
                 "ELIGIBLE",
                 subject,
                 "Chào {{studentName}}, kỳ {{termName}}",
-                "BOTH");
+                "BOTH",
+                null);
     }
 
     @Test

@@ -33,6 +33,9 @@ public class StudentRosterResponse {
     private String lecturerCode;
     private String lecturerName;
     private String lecturerEmail;
+    private boolean letterReceived;
+    private OffsetDateTime letterReceivedAt;
+    private String letterNotes;
     private OffsetDateTime createdAt;
     private String defaultPassword; // Only returned when newly provisioned
 }

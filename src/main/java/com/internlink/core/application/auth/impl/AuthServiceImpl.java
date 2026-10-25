@@ -62,6 +62,10 @@ public class AuthServiceImpl implements AuthService {
     private final TokenRevocationService tokenRevocationService;
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private com.internlink.core.application.auth.RefreshTokenService refreshTokenService;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.internlink.core.application.system.AuditLogService auditLogService;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.internlink.core.application.auth.CompanyRegistrationService companyRegistrationService;
 
     private static final int MAX_FAILED_ATTEMPTS = 5;
     private static final long LOCKOUT_DURATION_MINUTES = 15;
@@ -69,8 +73,16 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public AuthResponse login(LoginRequest request, HttpServletResponse response) {
+        return login(request, null, response);
+    }
+
+    @Override
+    @Transactional
+    public AuthResponse login(LoginRequest request, HttpServletRequest httpRequest, HttpServletResponse response) {
         String cleanEmail = request.getEmail() != null ? request.getEmail().trim().toLowerCase() : "";
         Optional<User> existingUserOpt = userRepository.findByEmail(cleanEmail);
+        String ipAddress = extractClientIp(httpRequest);
+        String userAgent = httpRequest != null ? httpRequest.getHeader("User-Agent") : null;
 
         if (existingUserOpt.isPresent()) {
             User existingUser = existingUserOpt.get();
@@ -79,12 +91,13 @@ public class AuthServiceImpl implements AuthService {
                 if (lockedUntil.isAfter(OffsetDateTime.now())) {
                     long secondsRemaining = Duration.between(OffsetDateTime.now(), lockedUntil).getSeconds();
                     long minutesRemaining = Math.max(1, (secondsRemaining + 59) / 60);
+                    recordLoginAudit(existingUser.getId(), "USER_LOGIN_FAILED", "FAILURE", ipAddress, userAgent,
+                            Map.of("attemptedEmail", cleanEmail, "reason", "Tài khoản đang bị tạm khóa"));
                     throw new AccountLockedException(
                         String.format("Tài khoản đã bị tạm khóa do nhập sai mật khẩu quá %d lần. Vui lòng thử lại sau %d phút.", MAX_FAILED_ATTEMPTS, minutesRemaining),
                         secondsRemaining
                     );
                 } else {
-                    // Thời gian khóa đã hết hạn -> reset để cho phép thử lại
                     existingUser.setFailedLoginAttempts(0);
                     existingUser.setLockedUntil(null);
                     userRepository.save(existingUser);
@@ -100,7 +113,6 @@ public class AuthServiceImpl implements AuthService {
             SecurityContextHolder.getContext().setAuthentication(authentication);
             CustomUserDetail principal = (CustomUserDetail) authentication.getPrincipal();
 
-            // Cập nhật last_login_at và reset bộ đếm failed_login_attempts
             User user = userRepository.findById(principal.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", principal.getId()));
             user.setLastLoginAt(OffsetDateTime.now());
@@ -108,14 +120,16 @@ public class AuthServiceImpl implements AuthService {
             user.setLockedUntil(null);
             userRepository.save(user);
 
-            // Tạo JWT và đính kèm vào HttpOnly Cookie
             String token = jwtUtil.generateToken(principal);
             ResponseCookie cookie = cookieUtils.createAccessTokenCookie(token, jwtUtil.getExpirationMs());
             response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 
             if (refreshTokenService != null) {
-                refreshTokenService.createSessionAndToken(user, null, response);
+                refreshTokenService.createSessionAndToken(user, httpRequest, response);
             }
+
+            recordLoginAudit(user.getId(), "USER_LOGIN", "SUCCESS", ipAddress, userAgent,
+                    Map.of("email", user.getEmail(), "role", user.getRole().name(), "authMethod", "PASSWORD"));
 
             return AuthResponse.builder()
                 .userId(principal.getId())
@@ -126,6 +140,10 @@ public class AuthServiceImpl implements AuthService {
                 .build();
 
         } catch (BadCredentialsException ex) {
+            UUID userId = existingUserOpt.map(User::getId).orElse(null);
+            recordLoginAudit(userId, "USER_LOGIN_FAILED", "FAILURE", ipAddress, userAgent,
+                    Map.of("attemptedEmail", cleanEmail, "reason", "Sai email hoặc mật khẩu"));
+
             if (existingUserOpt.isPresent()) {
                 User user = existingUserOpt.get();
                 int attempts = (user.getFailedLoginAttempts() == null ? 0 : user.getFailedLoginAttempts()) + 1;
@@ -149,8 +167,14 @@ public class AuthServiceImpl implements AuthService {
             }
             throw new UnauthorizedException("Email hoặc mật khẩu không chính xác");
         } catch (DisabledException ex) {
+            UUID userId = existingUserOpt.map(User::getId).orElse(null);
+            recordLoginAudit(userId, "USER_LOGIN_FAILED", "FAILURE", ipAddress, userAgent,
+                    Map.of("attemptedEmail", cleanEmail, "reason", "Tài khoản bị vô hiệu hóa"));
             throw new UnauthorizedException("Tài khoản đã bị khóa hoặc chưa kích hoạt");
         } catch (LockedException ex) {
+            UUID userId = existingUserOpt.map(User::getId).orElse(null);
+            recordLoginAudit(userId, "USER_LOGIN_FAILED", "FAILURE", ipAddress, userAgent,
+                    Map.of("attemptedEmail", cleanEmail, "reason", "Tài khoản đang bị tạm khóa"));
             throw new AccountLockedException("Tài khoản đang bị tạm khóa hoặc bị vô hiệu hóa.");
         }
     }
@@ -158,67 +182,10 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public AuthResponse registerCompany(RegisterCompanyRequest request, HttpServletResponse response) {
-        String cleanEmail = request.getEmail().trim().toLowerCase();
-        if (userRepository.existsByEmail(cleanEmail)) {
-            throw new BadRequestException("Email '" + cleanEmail + "' đã được sử dụng trong hệ thống");
+        if (companyRegistrationService != null) {
+            return companyRegistrationService.registerCompany(request, response);
         }
-
-        String cleanTaxCode = request.getTaxCode().trim();
-        if (companyRepository.existsByTaxCode(cleanTaxCode)) {
-            throw new BadRequestException("Mã số thuế '" + cleanTaxCode + "' đã tồn tại trong hệ thống");
-        }
-
-        Company company = Company.builder()
-            .companyName(request.getCompanyName().trim())
-            .taxCode(cleanTaxCode)
-            .industry(request.getIndustry())
-            .website(request.getWebsite())
-            .address(request.getAddress())
-            .verificationStatus(VerificationStatus.PENDING)
-            .verificationDetail(Map.of("registeredBy", cleanEmail, "registeredAt", OffsetDateTime.now().toString()))
-            .build();
-        Company savedCompany = companyRepository.save(company);
-
-        User user = User.builder()
-            .email(cleanEmail)
-            .passwordHash(passwordEncoder.encode(request.getPassword()))
-            .fullName(request.getFullName().trim())
-            .phoneNumber(request.getPhoneNumber() != null ? request.getPhoneNumber().trim() : null)
-            .role(UserRole.COMPANY_REP)
-            .company(savedCompany)
-            .mustChangePassword(false)
-            .isActive(true)
-            .build();
-        User savedUser = userRepository.save(user);
-
-        for (UserRole role : List.of(UserRole.FACULTY_ADMIN, UserRole.ADMIN)) {
-            userRepository.findByRole(role).forEach(admin ->
-                notificationService.sendNotification(
-                    admin.getId(),
-                    "COMPANY_REGISTERED",
-                    "Doanh nghiệp mới chờ thẩm định",
-                    savedCompany.getCompanyName() + " đã đăng ký tài khoản tham gia hệ thống.",
-                    role == UserRole.ADMIN ? "/admin/companies" : "/faculty/companies"
-                )
-            );
-        }
-
-        CustomUserDetail principal = CustomUserDetail.create(savedUser);
-        String token = jwtUtil.generateToken(principal);
-        ResponseCookie cookie = cookieUtils.createAccessTokenCookie(token, jwtUtil.getExpirationMs());
-        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
-
-        if (refreshTokenService != null) {
-            refreshTokenService.createSessionAndToken(savedUser, null, response);
-        }
-
-        return AuthResponse.builder()
-            .userId(savedUser.getId())
-            .email(savedUser.getEmail())
-            .fullName(savedUser.getFullName())
-            .role(savedUser.getRole())
-            .mustChangePassword(savedUser.getMustChangePassword())
-            .build();
+        throw new IllegalStateException("CompanyRegistrationService chưa sẵn sàng");
     }
 
     @Override
@@ -233,10 +200,52 @@ public class AuthServiceImpl implements AuthService {
             if (refreshTokenService != null) {
                 refreshTokenService.revokeSession(request, response);
             }
+            recordLogoutAudit(request);
         }
         ResponseCookie deleteCookie = cookieUtils.deleteAccessTokenCookie();
         response.addHeader(HttpHeaders.SET_COOKIE, deleteCookie.toString());
         SecurityContextHolder.clearContext();
+    }
+
+    private void recordLoginAudit(UUID userId, String action, String result, String ip, String userAgent, Map<String, Object> meta) {
+        if (auditLogService != null) {
+            try {
+                auditLogService.logAction(userId, action, "USER", userId, result, meta, ip, userAgent, meta);
+            } catch (Exception ex) {
+                log.debug("Lỗi ghi audit log đăng nhập: {}", ex.getMessage());
+            }
+        }
+    }
+
+    private void recordLogoutAudit(HttpServletRequest request) {
+        if (auditLogService != null) {
+            try {
+                Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+                if (auth != null && auth.getPrincipal() instanceof CustomUserDetail principal) {
+                    auditLogService.logAction(
+                        principal.getId(),
+                        "USER_LOGOUT",
+                        "USER",
+                        principal.getId(),
+                        "SUCCESS",
+                        Map.of("email", principal.getEmail()),
+                        extractClientIp(request),
+                        request.getHeader("User-Agent"),
+                        Map.of("email", principal.getEmail())
+                    );
+                }
+            } catch (Exception ex) {
+                log.debug("Lỗi ghi audit log đăng xuất: {}", ex.getMessage());
+            }
+        }
+    }
+
+    private String extractClientIp(HttpServletRequest request) {
+        if (request == null) return null;
+        String ip = request.getHeader("X-Forwarded-For");
+        if (ip == null || ip.isBlank()) ip = request.getHeader("Proxy-Client-IP");
+        if (ip == null || ip.isBlank()) ip = request.getRemoteAddr();
+        return (ip != null && ip.contains(",")) ? ip.split(",")[0].trim() : ip;
     }
 
     private String extractToken(HttpServletRequest request) {

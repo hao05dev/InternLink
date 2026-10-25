@@ -1,0 +1,311 @@
+package com.internlink.core.application.ai_matching.impl;
+
+import com.internlink.core.application.ai_matching.RecommendationCandidateService;
+import com.internlink.core.application.ai_matching.RecommendationEligibilityService;
+import com.internlink.core.application.ai_matching.EligibilityResult;
+import com.internlink.core.domain.ai_matching.AiRun;
+import com.internlink.core.domain.ai_matching.SkillTaxonomy;
+import com.internlink.core.domain.ai_matching.StudentSkill;
+import com.internlink.core.domain.ai_matching.StudentSkillId;
+import com.internlink.core.domain.auth.User;
+import com.internlink.core.domain.company.Company;
+import com.internlink.core.domain.recruitment.JobPosition;
+import com.internlink.core.domain.recruitment.JobSkill;
+import com.internlink.core.domain.recruitment.JobSkillId;
+import com.internlink.core.domain.system.Document;
+import com.internlink.core.infrastructure.integration.ai.AiServiceClient;
+import com.internlink.core.infrastructure.persistence.jpa.*;
+import com.internlink.core.infrastructure.security.CustomUserDetail;
+import com.internlink.core.presentation.ai_matching.dto.response.AiMatchScoreResponse;
+import com.internlink.core.presentation.ai_matching.dto.response.StudentSkillResponse;
+import com.internlink.core.shared.enums.JobStatus;
+import com.internlink.core.shared.enums.AiRunType;
+import com.internlink.core.shared.enums.AiRunStatus;
+import com.internlink.core.shared.exception.BadRequestException;
+import com.internlink.core.shared.enums.RequirementType;
+import com.internlink.core.shared.enums.SkillCategory;
+import com.internlink.core.shared.enums.SkillSource;
+import com.internlink.core.shared.enums.UserRole;
+import com.internlink.core.shared.enums.DocumentType;
+import com.internlink.core.shared.exception.ForbiddenException;
+import com.internlink.core.shared.exception.ResourceNotFoundException;
+import com.internlink.core.shared.security.SecurityGuard;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+class AiMatchingServiceScoringTest {
+
+    @Mock
+    private JpaSkillTaxonomyRepository taxonomyRepository;
+
+    @Mock
+    private JpaStudentSkillRepository studentSkillRepository;
+
+    @Mock
+    private JpaAiRunRepository aiRunRepository;
+
+    @Mock
+    private JpaJobPositionRepository jobPositionRepository;
+
+    @Mock
+    private JpaJobSkillRepository jobSkillRepository;
+
+    @Mock
+    private JpaUserRepository userRepository;
+
+    @Mock
+    private JpaDocumentRepository documentRepository;
+
+    @Mock
+    private JpaJobApplicationRepository applicationRepository;
+
+    @Mock
+    private JpaInternshipPlacementRepository placementRepository;
+
+    @Mock
+    private JpaStudentProfileRepository studentProfileRepository;
+
+    @Mock
+    private AiServiceClient aiServiceClient;
+
+    @Mock
+    private EmbeddingPreparationService embeddingPreparationService;
+
+    @Mock
+    private SecurityGuard securityGuard;
+    @Mock
+    private RecommendationCandidateService recommendationCandidateService;
+    @Mock
+    private RecommendationEligibilityService recommendationEligibilityService;
+
+    private AiMatchingMapper mapper;
+    private AiCvProcessingHandler cvProcessingHandler;
+    private AiMatchScoringHandler matchScoringHandler;
+    private AiMatchingServiceImpl service;
+
+    @BeforeEach
+    void setUp() {
+        mapper = new AiMatchingMapper();
+        cvProcessingHandler = new AiCvProcessingHandler(
+            userRepository, documentRepository, aiRunRepository,
+            taxonomyRepository, studentSkillRepository, aiServiceClient, mapper, securityGuard
+        );
+        matchScoringHandler = new AiMatchScoringHandler(
+            jobPositionRepository, jobSkillRepository, studentSkillRepository,
+            studentProfileRepository, aiServiceClient, embeddingPreparationService, mapper, recommendationCandidateService, recommendationEligibilityService);
+        service = new AiMatchingServiceImpl(
+            taxonomyRepository, studentSkillRepository, userRepository,
+            applicationRepository, placementRepository, studentProfileRepository,
+            securityGuard, mapper, cvProcessingHandler, matchScoringHandler
+        );
+        lenient().when(embeddingPreparationService.prepare(any())).thenReturn(Map.of());
+    }
+
+    @Test
+    void syncCvSkillsRejectsDocumentOwnedByAnotherStudent() {
+        UUID studentId = UUID.randomUUID();
+        UUID documentId = UUID.randomUUID();
+        User student = student(studentId);
+        Document foreignCv = Document.builder().owner(student(UUID.randomUUID()))
+            .documentType(DocumentType.CV).build();
+        when(securityGuard.currentUser()).thenReturn(CustomUserDetail.create(student));
+        when(userRepository.findById(studentId)).thenReturn(Optional.of(student));
+        when(documentRepository.findById(documentId)).thenReturn(Optional.of(foreignCv));
+
+        assertThatThrownBy(() -> service.syncCvSkills(studentId, documentId, "Java"))
+            .isInstanceOf(ForbiddenException.class);
+        verify(aiServiceClient, never()).extractSkills(any());
+    }
+
+    @Test
+    void unrelatedCompanyCannotReadStudentSkills() {
+        UUID studentId = UUID.randomUUID();
+        User representative = student(UUID.randomUUID());
+        representative.setRole(UserRole.COMPANY_REP);
+        when(securityGuard.currentUser()).thenReturn(CustomUserDetail.create(representative));
+        when(userRepository.findById(representative.getId())).thenReturn(Optional.of(representative));
+
+        assertThatThrownBy(() -> service.getSkillsByStudent(studentId))
+            .isInstanceOf(ForbiddenException.class);
+        verify(studentSkillRepository, never()).findByIdStudentId(studentId);
+    }
+
+    @Test
+    void confirmStudentSkillPersistsConfirmationFlag() {
+        UUID studentId = UUID.randomUUID();
+        SkillTaxonomy java = taxonomy("skill-java", "Java");
+        StudentSkill skill = StudentSkill.builder()
+            .id(new StudentSkillId(studentId, "skill-java"))
+            .student(student(studentId))
+            .skill(java)
+            .source(SkillSource.CV_AI)
+            .isConfirmed(true)
+            .build();
+
+        CustomUserDetail userDetail = CustomUserDetail.builder()
+            .id(studentId)
+            .email("student@example.com")
+            .role(UserRole.STUDENT)
+            .build();
+        when(securityGuard.currentUser()).thenReturn(userDetail);
+        when(studentSkillRepository.findById(new StudentSkillId(studentId, "skill-java"))).thenReturn(Optional.of(skill));
+        when(studentSkillRepository.save(skill)).thenReturn(skill);
+
+        StudentSkillResponse response = service.confirmStudentSkill(studentId, "skill-java", false);
+
+        assertThat(response.getIsConfirmed()).isFalse();
+        verify(studentSkillRepository).save(skill);
+        verify(securityGuard).requireSelf(studentId, studentId, "StudentSkill");
+    }
+
+    @Test
+    void calculateMatchScoreUsesConfirmedStudentSkillsAndJobSkills() {
+        UUID studentId = UUID.randomUUID();
+        UUID jobId = UUID.randomUUID();
+        JobPosition job = job(jobId, "Backend Intern", "InternLink Co");
+
+        SkillTaxonomy java = taxonomy("skill-java", "Java");
+        SkillTaxonomy spring = taxonomy("skill-spring", "Spring Boot");
+        SkillTaxonomy docker = taxonomy("skill-docker", "Docker");
+
+        when(jobPositionRepository.findById(jobId)).thenReturn(Optional.of(job));
+        when(recommendationEligibilityService.evaluateJobEligibility(eq(studentId), eq(job), any()))
+            .thenReturn(EligibilityResult.eligible());
+        when(studentSkillRepository.findByIdStudentIdAndIsConfirmedTrue(studentId))
+            .thenReturn(List.of(studentSkill(studentId, java), studentSkill(studentId, spring)));
+        when(jobSkillRepository.findByIdJobId(jobId))
+            .thenReturn(List.of(jobSkill(jobId, java, RequirementType.MANDATORY), jobSkill(jobId, docker, RequirementType.OPTIONAL)));
+        when(aiServiceClient.rankJobs(any(), any())).thenReturn(List.of(Map.of(
+            "job_id", jobId.toString(),
+            "match_percentage", "76.5",
+            "matched_skills", List.of("skill-java"),
+            "missing_skills", List.of("skill-docker"),
+            "explanation", Map.of("recommendation", "Review Docker")
+        )));
+
+        AiMatchScoreResponse response = service.calculateMatchScoreForJob(studentId, jobId);
+
+        assertThat(response.getJobId()).isEqualTo(jobId);
+        assertThat(response.getJobTitle()).isEqualTo("Backend Intern");
+        assertThat(response.getCompanyName()).isEqualTo("InternLink Co");
+        assertThat(response.getMatchScore()).isEqualByComparingTo("76.5");
+        assertThat(response.getMatchedSkills()).containsExactly("skill-java");
+        assertThat(response.getMissingSkills()).containsExactly("skill-docker");
+        assertThat(response.getExplanation()).containsEntry("recommendation", "Review Docker");
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> studentPayload = ArgumentCaptor.forClass(Map.class);
+        verify(aiServiceClient).rankJobs(studentPayload.capture(), any());
+        assertThat(studentPayload.getValue().get("skill_ids"))
+            .isEqualTo(List.of("skill-java", "skill-spring"));
+    }
+
+    @Test
+    void recommendationsUseOneBatchAndSortAvailableScoresFirst() {
+        UUID studentId = UUID.randomUUID(), termId = UUID.randomUUID();
+        JobPosition high = job(UUID.randomUUID(), "High Match", "A");
+        JobPosition low = job(UUID.randomUUID(), "Low Match", "B");
+        when(recommendationCandidateService.findEligibleCandidateJobs(studentId, termId)).thenReturn(List.of(low, high));
+        when(aiServiceClient.rankJobs(any(), any())).thenReturn(List.of(
+            Map.of("job_id", low.getId().toString(), "match_score", 0.0, "score_available", false, "mode", "insufficient_data"),
+            Map.of("job_id", high.getId().toString(), "match_score", 90.0, "score_available", true, "mode", "skill_only")
+        ));
+        var responses = service.recommendJobsForStudent(studentId, termId);
+        assertThat(responses).extracting(AiMatchScoreResponse::getJobTitle).containsExactly("High Match", "Low Match");
+        assertThat(responses.getFirst().getMode()).isEqualTo("skill_only");
+        verify(aiServiceClient, times(1)).rankJobs(any(), any());
+        verify(jobSkillRepository).findByIdJobIdIn(List.of(low.getId(), high.getId()));
+        verify(jobPositionRepository, never()).findById(any());
+    }
+
+    @Test
+    void negatedSkillCannotBeConfirmed() {
+        UUID id = UUID.randomUUID();
+        StudentSkill skill = studentSkill(id, taxonomy("SK-DOCKER", "Docker"));
+        skill.setAiEvidence(Map.of("assertionStatus", "negated"));
+        when(securityGuard.currentUser()).thenReturn(CustomUserDetail.create(student(id)));
+        when(studentSkillRepository.findById(new StudentSkillId(id, "SK-DOCKER"))).thenReturn(Optional.of(skill));
+        assertThatThrownBy(() -> service.confirmStudentSkill(id, "SK-DOCKER", true)).isInstanceOf(BadRequestException.class);
+        verify(studentSkillRepository, never()).save(any());
+    }
+
+    @Test
+    void unpublishedJobCannotBeScored() {
+        UUID jobId = UUID.randomUUID();
+        JobPosition job = job(jobId, "Draft", "A");
+        job.setStatus(JobStatus.DRAFT);
+        when(jobPositionRepository.findById(jobId)).thenReturn(Optional.of(job));
+        assertThatThrownBy(() -> service.calculateMatchScoreForJob(UUID.randomUUID(), jobId))
+            .isInstanceOf(ResourceNotFoundException.class);
+        verifyNoInteractions(aiServiceClient);
+    }
+
+    private User student(UUID id) {
+        User user = User.builder()
+            .email("student@example.com")
+            .passwordHash("hash")
+            .fullName("Student")
+            .role(UserRole.STUDENT)
+            .build();
+        user.setId(id);
+        return user;
+    }
+
+    private SkillTaxonomy taxonomy(String id, String name) {
+        return SkillTaxonomy.builder()
+            .id(id)
+            .skillName(name)
+            .category(SkillCategory.TECHNICAL)
+            .build();
+    }
+
+    private StudentSkill studentSkill(UUID studentId, SkillTaxonomy taxonomy) {
+        return StudentSkill.builder()
+            .id(new StudentSkillId(studentId, taxonomy.getId()))
+            .student(student(studentId))
+            .skill(taxonomy)
+            .source(SkillSource.CV_AI)
+            .isConfirmed(true)
+            .build();
+    }
+
+    private JobSkill jobSkill(UUID jobId, SkillTaxonomy taxonomy, RequirementType reqType) {
+        return JobSkill.builder()
+            .id(new JobSkillId(jobId, taxonomy.getId()))
+            .skill(taxonomy)
+            .requirementType(reqType != null ? reqType : RequirementType.MANDATORY)
+            .build();
+    }
+
+    private JobPosition job(UUID id, String title, String companyName) {
+        Company company = Company.builder()
+            .companyName(companyName)
+            .taxCode("tax-" + id)
+            .address(Map.of())
+            .build();
+        JobPosition job = JobPosition.builder()
+            .company(company)
+            .title(title)
+            .status(JobStatus.APPROVED)
+            .description("Description")
+            .build();
+        job.setId(id);
+        return job;
+    }
+}

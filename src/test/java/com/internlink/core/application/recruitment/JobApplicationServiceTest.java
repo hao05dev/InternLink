@@ -1,6 +1,7 @@
 package com.internlink.core.application.recruitment;
 
 import com.internlink.core.application.recruitment.impl.JobApplicationServiceImpl;
+import com.internlink.core.application.recruitment.impl.InterviewInvitationNotifier;
 import com.internlink.core.application.system.NotificationService;
 import com.internlink.core.domain.auth.User;
 import com.internlink.core.domain.company.Company;
@@ -65,13 +66,18 @@ class JobApplicationServiceTest {
             applicationRepository,
             jobPositionRepository,
             userRepository,
-            documentRepository,
-            studentProfileRepository,
-            studentRosterRepository,
-            offerRepository,
             securityGuard,
             notifications,
-            new com.internlink.core.shared.api.PaginatedResponseMapper()
+            new com.internlink.core.shared.api.PaginatedResponseMapper(),
+            new InterviewInvitationNotifier(
+                notifications,
+                null,
+                null,
+                new com.internlink.core.infrastructure.integration.email.EmailProperties()),
+            new com.internlink.core.application.recruitment.impl.JobApplicationSubmissionValidator(
+                applicationRepository, documentRepository, studentProfileRepository,
+                studentRosterRepository, offerRepository),
+            new com.internlink.core.application.recruitment.impl.JobApplicationMapper()
         );
 
         department = Department.builder().name("Khoa CNTT").code("DI").build();

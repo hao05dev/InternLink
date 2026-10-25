@@ -4,6 +4,7 @@ import com.internlink.core.application.system.AuditLogService;
 import com.internlink.core.domain.auth.User;
 import com.internlink.core.domain.organization.InternshipTerm;
 import com.internlink.core.infrastructure.persistence.jdbc.NotificationCampaignRepository;
+import com.internlink.core.infrastructure.persistence.jdbc.NotificationCampaignAudienceRepository;
 import com.internlink.core.infrastructure.persistence.jpa.*;
 import com.internlink.core.presentation.system.dto.request.NotificationCampaignRequest;
 import com.internlink.core.presentation.system.dto.response.NotificationCampaignResponse.*;
@@ -24,18 +25,20 @@ import java.util.*;
 @RequiredArgsConstructor
 public class NotificationCampaignService {
     private final NotificationCampaignRepository repository;
+    private final NotificationCampaignAudienceRepository audiences;
     private final JpaInternshipTermRepository terms;
     private final JpaUserRepository users;
     private final SecurityGuard guard;
     private final AuditLogService audit;
     private final EmailRecipientPolicy recipients;
+    private final EmailTemplateService templates;
 
     @Transactional(readOnly = true)
     public Preview preview(NotificationCampaignRequest request) {
         validate(request);
         var term = authorize(request.termId());
         TermGuard.requireNotClosed(term);
-        var targets = repository.audience(request.termId(), request.audience());
+        var targets = audiences.audience(request.termId(), request.audience());
         int eligible = 0;
         for (var target : targets)
             if (target.userId() == null
@@ -76,9 +79,10 @@ public class NotificationCampaignService {
                 throw new BadRequestException("Request key đã được dùng với nội dung khác");
             return repository.detail((UUID) previous.get().get("id"), 0, 20);
         }
-        var targets = repository.audience(request.termId(), request.audience());
+        var targets = audiences.audience(request.termId(), request.audience());
         if (targets.isEmpty()) throw new BadRequestException("Không có người nhận phù hợp");
-        UUID id = repository.create(actor.getId(), hash, request, targets);
+        UUID templateVersionId = templates.versionForCampaign(request.templateId());
+        UUID id = repository.create(actor.getId(), hash, request, targets, templateVersionId);
         audit.logAction(
                 actor.getId(),
                 "CREATE_NOTIFICATION_CAMPAIGN",
@@ -218,7 +222,9 @@ public class NotificationCampaignService {
                                                             + "\n"
                                                             + r.subject()
                                                             + "\n"
-                                                            + r.body())
+                                                            + r.body()
+                                                            + "\n"
+                                                            + Objects.toString(r.templateId(), ""))
                                                     .getBytes(StandardCharsets.UTF_8)));
         } catch (java.security.NoSuchAlgorithmException ex) {
             throw new IllegalStateException(ex);

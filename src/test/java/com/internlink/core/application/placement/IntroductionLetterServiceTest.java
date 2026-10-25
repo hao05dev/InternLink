@@ -4,6 +4,7 @@ import com.internlink.core.application.system.NotificationService;
 import com.internlink.core.domain.auth.User;
 import com.internlink.core.domain.organization.Department;
 import com.internlink.core.domain.organization.InternshipTerm;
+import com.internlink.core.domain.organization.StudentRoster;
 import com.internlink.core.domain.placement.IntroductionLetterRequest;
 import com.internlink.core.infrastructure.persistence.jpa.JpaInternshipTermRepository;
 import com.internlink.core.infrastructure.persistence.jpa.JpaIntroductionLetterRequestRepository;
@@ -155,6 +156,49 @@ class IntroductionLetterServiceTest {
 
         actAs(user(UserRole.LECTURER, ownDepartment));
         assertThat(service.byTerm(term.getId())).isEmpty();
+
+        actAs(user(UserRole.BLOG_MANAGER, ownDepartment));
+        assertThat(service.byTerm(term.getId())).isEmpty();
+    }
+
+    @Test
+    void blogManagerCanReviewAndConfirmReceivedInSameDepartment() {
+        var request = pendingRequest();
+        when(letterRequests.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        actAs(user(UserRole.BLOG_MANAGER, ownDepartment));
+        var reviewed = service.review(request.getId(), new ReviewIntroductionLetterRequest(IntroductionLetterStatus.APPROVED, "GGT-001", null));
+        assertThat(reviewed.status()).isEqualTo(IntroductionLetterStatus.APPROVED);
+
+        var issued = service.confirmReceived(request.getId());
+        assertThat(issued.status()).isEqualTo(IntroductionLetterStatus.ISSUED);
+    }
+
+    @Test
+    void toggleRosterLetterReceivedFlipsStatusAndSetsTimestamp() {
+        StudentRoster roster = StudentRoster.builder()
+                .term(term)
+                .studentCode("B2110940")
+                .fullName("Lê Hoàng Nam")
+                .officialEmail("b2110940@student.ctu.edu.vn")
+                .academicYear("2026-2027")
+                .letterReceived(false)
+                .build();
+        roster.setId(UUID.randomUUID());
+
+        when(rosters.findById(roster.getId())).thenReturn(Optional.of(roster));
+        when(rosters.save(any(StudentRoster.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        actAs(user(UserRole.FACULTY_ADMIN, ownDepartment));
+
+        var response = service.toggleRosterLetterReceived(roster.getId());
+        assertThat(response.letterReceived()).isTrue();
+        assertThat(response.letterReceivedAt()).isNotNull();
+        assertThat(roster.isLetterReceived()).isTrue();
+
+        var flipped = service.toggleRosterLetterReceived(roster.getId());
+        assertThat(flipped.letterReceived()).isFalse();
+        assertThat(flipped.letterReceivedAt()).isNull();
+        assertThat(roster.isLetterReceived()).isFalse();
     }
 
     private IntroductionLetterRequest pendingRequest() {

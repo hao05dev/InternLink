@@ -34,11 +34,13 @@ public class JdbcEmailOutboxStore implements EmailOutboxStore {
             String key,
             UUID notificationId,
             UUID userId,
-            String type) {
+            String type,
+            EmailDispatchContext context) {
         return jdbc.update(
                         """
-INSERT INTO email_outbox(id,notification_id,recipient_user_id,recipient_email,subject,body,event_type,idempotency_key,status)
-VALUES(?,?,?,?,?,?,?,?,'PENDING') ON CONFLICT(idempotency_key) DO NOTHING
+INSERT INTO email_outbox(id,notification_id,recipient_user_id,recipient_email,subject,body,event_type,idempotency_key,status,
+    template_version_id,initiated_by,source_type,source_id,scope_type,scope_id)
+VALUES(?,?,?,?,?,?,?,?,'PENDING',?,?,?,?,?,?) ON CONFLICT(idempotency_key) DO NOTHING
 """,
                         UUID.randomUUID(),
                         notificationId,
@@ -47,7 +49,13 @@ VALUES(?,?,?,?,?,?,?,?,'PENDING') ON CONFLICT(idempotency_key) DO NOTHING
                         subject,
                         body,
                         type,
-                        key)
+                        key,
+                        context.templateVersionId(),
+                        context.initiatedBy(),
+                        context.sourceType(),
+                        context.sourceId(),
+                        context.scopeType(),
+                        context.scopeId())
                 > 0;
     }
 
@@ -172,14 +180,35 @@ FROM email_outbox
                 limit);
     }
 
-    public EmailDeliveryResponse.Page page(String status, int page, int size) {
-        String where = status == null || status.isBlank() ? "" : " WHERE status=?";
-        Object[] args = where.isEmpty() ? new Object[] {} : new Object[] {status};
+    public EmailDeliveryResponse.Page page(EmailDeliveryFilter filter, int page, int size) {
+        var clauses = new ArrayList<String>();
+        var args = new ArrayList<Object>();
+        if (filter.status() != null && !filter.status().isBlank()) {
+            clauses.add("status=?");
+            args.add(filter.status());
+        }
+        if (filter.scopeType() != null && !filter.scopeType().isBlank()) {
+            clauses.add("scope_type=?");
+            args.add(filter.scopeType());
+        }
+        if (filter.sourceType() != null && !filter.sourceType().isBlank()) {
+            clauses.add("source_type=?");
+            args.add(filter.sourceType());
+        }
+        if (filter.templateVersionId() != null) {
+            clauses.add("template_version_id=?");
+            args.add(filter.templateVersionId());
+        }
+        if (filter.recipient() != null && !filter.recipient().isBlank()) {
+            clauses.add("lower(recipient_email) LIKE ?");
+            args.add("%" + filter.recipient().strip().toLowerCase(Locale.ROOT) + "%");
+        }
+        String where = clauses.isEmpty() ? "" : " WHERE " + String.join(" AND ", clauses);
         long count =
                 Objects.requireNonNull(
                         jdbc.queryForObject(
-                                "SELECT count(*) FROM email_outbox" + where, Long.class, args));
-        var params = new ArrayList<Object>(Arrays.asList(args));
+                                "SELECT count(*) FROM email_outbox" + where, Long.class, args.toArray()));
+        var params = new ArrayList<Object>(args);
         params.add(size);
         params.add((long) page * size);
         var rows =
@@ -197,6 +226,12 @@ FROM email_outbox
                                         rs.getInt("attempts"),
                                         rs.getString("last_error_code"),
                                         rs.getString("provider_message_id"),
+                                        uuid(rs, "template_version_id"),
+                                        uuid(rs, "initiated_by"),
+                                        rs.getString("source_type"),
+                                        uuid(rs, "source_id"),
+                                        rs.getString("scope_type"),
+                                        uuid(rs, "scope_id"),
                                         rs.getObject("created_at", OffsetDateTime.class),
                                         rs.getObject("next_attempt_at", OffsetDateTime.class),
                                         rs.getObject("sent_at", OffsetDateTime.class)),
@@ -213,6 +248,14 @@ FROM email_outbox
 
     public boolean cancel(UUID id) {
         return transition(id, "SKIPPED", List.of("PENDING", "RETRY", "FAILED", "UNKNOWN"));
+    }
+
+    public void attachContext(UUID notificationId, EmailDispatchContext context) {
+        jdbc.update("""
+UPDATE email_outbox SET template_version_id=?,initiated_by=?,source_type=?,source_id=?,scope_type=?,scope_id=?
+WHERE notification_id=?
+""", context.templateVersionId(), context.initiatedBy(), context.sourceType(), context.sourceId(),
+                context.scopeType(), context.scopeId(), notificationId);
     }
 
     private boolean transition(UUID id, String target, List<String> allowed) {

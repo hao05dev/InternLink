@@ -18,11 +18,15 @@ public class AuditLogResponse {
     private UUID id;
     private UUID actorUserId;
     private String actorName;
+    private String actorEmail;
+    private String actorRole;
     private String action;
     private String entityType;
     private UUID entityId;
     private String ipAddress;
+    private String userAgent;
     private String result;
     private Map<String, Object> changedFields;
+    private Map<String, Object> metadata;
     private OffsetDateTime createdAt;
 }

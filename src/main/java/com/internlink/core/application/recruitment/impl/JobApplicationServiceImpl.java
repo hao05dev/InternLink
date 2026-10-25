@@ -2,34 +2,23 @@ package com.internlink.core.application.recruitment.impl;
 
 import com.internlink.core.application.recruitment.JobApplicationService;
 import com.internlink.core.domain.auth.User;
-import com.internlink.core.domain.organization.StudentRoster;
 import com.internlink.core.domain.recruitment.JobApplication;
 import com.internlink.core.domain.recruitment.JobPosition;
-import com.internlink.core.domain.student.StudentProfile;
 import com.internlink.core.domain.system.Document;
-import com.internlink.core.infrastructure.persistence.jpa.JpaDocumentRepository;
 import com.internlink.core.infrastructure.persistence.jpa.JpaJobApplicationRepository;
 import com.internlink.core.infrastructure.persistence.jpa.JpaJobPositionRepository;
-import com.internlink.core.infrastructure.persistence.jpa.JpaPlacementOfferRepository;
-import com.internlink.core.infrastructure.persistence.jpa.JpaStudentProfileRepository;
-import com.internlink.core.infrastructure.persistence.jpa.JpaStudentRosterRepository;
 import com.internlink.core.infrastructure.persistence.jpa.JpaUserRepository;
 import com.internlink.core.presentation.recruitment.dto.request.JobApplicationRequest;
 import com.internlink.core.presentation.recruitment.dto.request.RecordInterviewResultRequest;
 import com.internlink.core.presentation.recruitment.dto.request.ScheduleInterviewRequest;
-import com.internlink.core.presentation.recruitment.dto.response.InterviewRoundDto;
 import com.internlink.core.presentation.recruitment.dto.response.JobApplicationResponse;
 import com.internlink.core.shared.api.PageParam;
 import com.internlink.core.shared.api.PageResponse;
 import com.internlink.core.shared.api.PaginatedResponseMapper;
 import com.internlink.core.shared.enums.ApplicationStatus;
 import org.springframework.data.domain.Page;
-import com.internlink.core.shared.enums.DocumentType;
-import com.internlink.core.shared.enums.EligibilityStatus;
 import com.internlink.core.shared.enums.InterviewFormat;
 import com.internlink.core.shared.enums.InterviewRoundResult;
-import com.internlink.core.shared.enums.JobStatus;
-import com.internlink.core.shared.enums.TermStatus;
 import com.internlink.core.shared.enums.UserRole;
 import com.internlink.core.shared.exception.BadRequestException;
 import com.internlink.core.shared.exception.ResourceNotFoundException;
@@ -46,7 +35,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -56,16 +44,12 @@ public class JobApplicationServiceImpl implements JobApplicationService {
     private final JpaJobApplicationRepository applicationRepository;
     private final JpaJobPositionRepository jobPositionRepository;
     private final JpaUserRepository userRepository;
-    private final JpaDocumentRepository documentRepository;
-    private final JpaStudentProfileRepository studentProfileRepository;
-    private final JpaStudentRosterRepository studentRosterRepository;
-    private final JpaPlacementOfferRepository offerRepository;
     private final SecurityGuard securityGuard;
     private final com.internlink.core.application.system.NotificationService notifications;
     private final PaginatedResponseMapper paginatedResponseMapper;
-
-    /** Giới hạn số đơn ứng tuyển đang hoạt động trong một kỳ. */
-    private static final int MAX_ACTIVE_APPLICATIONS_PER_TERM = 5;
+    private final InterviewInvitationNotifier interviewNotifier;
+    private final JobApplicationSubmissionValidator submissionValidator;
+    private final JobApplicationMapper mapper;
 
     @Override
     @Transactional(readOnly = true)
@@ -73,7 +57,7 @@ public class JobApplicationServiceImpl implements JobApplicationService {
         User actor = currentActor();
         ResourceAuthorization.require(ResourceAuthorization.isAdmin(actor) || actor.getId().equals(studentId));
         return applicationRepository.findByStudentId(studentId).stream()
-            .map(this::mapToResponse)
+            .map(mapper::map)
             .toList();
     }
 
@@ -83,7 +67,7 @@ public class JobApplicationServiceImpl implements JobApplicationService {
         User actor = currentActor();
         ResourceAuthorization.require(ResourceAuthorization.isAdmin(actor) || actor.getId().equals(studentId));
         Page<JobApplication> page = applicationRepository.findByStudentId(studentId, pageParam.toPageable());
-        return paginatedResponseMapper.toPageResponse(page, this::mapToResponse);
+        return paginatedResponseMapper.toPageResponse(page, mapper::map);
     }
 
     @Override
@@ -95,7 +79,7 @@ public class JobApplicationServiceImpl implements JobApplicationService {
         ResourceAuthorization.require(ResourceAuthorization.representsCompany(actor, job.getCompany().getId())
             || ResourceAuthorization.managesDepartment(actor, job.getDepartment().getId()));
         return applicationRepository.findByJobId(jobId).stream()
-            .map(this::mapToResponse)
+            .map(mapper::map)
             .toList();
     }
 
@@ -108,7 +92,7 @@ public class JobApplicationServiceImpl implements JobApplicationService {
         ResourceAuthorization.require(ResourceAuthorization.representsCompany(actor, job.getCompany().getId())
             || ResourceAuthorization.managesDepartment(actor, job.getDepartment().getId()));
         Page<JobApplication> page = applicationRepository.findByJobId(jobId, pageParam.toPageable());
-        return paginatedResponseMapper.toPageResponse(page, this::mapToResponse);
+        return paginatedResponseMapper.toPageResponse(page, mapper::map);
     }
 
     @Override
@@ -117,7 +101,7 @@ public class JobApplicationServiceImpl implements JobApplicationService {
         User actor = currentActor();
         ResourceAuthorization.require(actor.getRole() == UserRole.COMPANY_REP && actor.getCompany() != null);
         return applicationRepository.findByJobCompanyId(actor.getCompany().getId()).stream()
-            .map(this::mapToResponse)
+            .map(mapper::map)
             .toList();
     }
 
@@ -127,7 +111,7 @@ public class JobApplicationServiceImpl implements JobApplicationService {
         JobApplication app = applicationRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("JobApplication", "id", id));
         ResourceAuthorization.require(ResourceAuthorization.canReadApplication(currentActor(), app));
-        return mapToResponse(app);
+        return mapper.map(app);
     }
 
     @Override
@@ -142,87 +126,7 @@ public class JobApplicationServiceImpl implements JobApplicationService {
         JobPosition job = jobPositionRepository.findById(request.getJobId())
             .orElseThrow(() -> new ResourceNotFoundException("JobPosition", "id", request.getJobId()));
 
-        if (job.getStatus() != JobStatus.APPROVED || job.getClosedEarlyAt() != null) {
-            throw new BadRequestException("Vị trí tuyển dụng chưa được Khoa phê duyệt hoặc đã đóng nhận hồ sơ");
-        }
-
-        OffsetDateTime now = OffsetDateTime.now();
-
-        if (job.getApplicationDeadline() != null && now.isAfter(job.getApplicationDeadline())) {
-            throw new BadRequestException(String.format(
-                "Vị trí tuyển dụng '%s' đã hết hạn nộp hồ sơ vào lúc %s",
-                job.getTitle(), job.getApplicationDeadline()
-            ));
-        }
-
-        var term = job.getTerm();
-        TermGuard.requireNotClosed(term);
-        if (term.getStatus() != TermStatus.REGISTRATION_OPEN
-            && term.getStatus() != TermStatus.APPLICATION_OPEN
-            && term.getStatus() != TermStatus.ACTIVE) {
-            throw new BadRequestException(String.format(
-                "Kỳ thực tập '%s' hiện không tiếp nhận hồ sơ ứng tuyển (trạng thái: %s)",
-                term.getCode(), term.getStatus()
-            ));
-        }
-
-        StudentProfile studentProfile = studentProfileRepository.findByUserId(studentId)
-            .orElseThrow(() -> new BadRequestException("Chưa có hồ sơ sinh viên. Vui lòng hoàn thiện hồ sơ trước khi ứng tuyển"));
-
-        StudentRoster roster = studentRosterRepository
-            .findByTermIdAndClaimedUserId(term.getId(), studentId)
-            .orElseThrow(() -> new BadRequestException(String.format(
-                "Sinh viên chưa được thêm vào danh sách kỳ thực tập '%s'. Liên hệ Khoa để cập nhật.",
-                term.getCode()
-            )));
-
-        if (roster.getEligibilityStatus() != EligibilityStatus.ELIGIBLE) {
-            throw new BadRequestException(String.format(
-                "Sinh viên chưa đủ điều kiện tham gia kỳ thực tập '%s' (trạng thái: %s). %s",
-                term.getCode(),
-                roster.getEligibilityStatus(),
-                roster.getEligibilityNote() != null ? roster.getEligibilityNote() : ""
-            ));
-        }
-
-        List<String> targetProgramCodes = job.getTargetProgramCodes();
-        if (targetProgramCodes != null && !targetProgramCodes.isEmpty()) {
-            String studentProgramCode = studentProfile.getProgram().getCode();
-            if (!targetProgramCodes.contains(studentProgramCode)) {
-                throw new BadRequestException(String.format(
-                    "Vị trí '%s' yêu cầu ngành %s, sinh viên thuộc ngành %s",
-                    job.getTitle(), targetProgramCodes, studentProgramCode
-                ));
-            }
-        }
-
-        long activeCount = offerRepository.countReservedPlaces(job.getId(), now);
-        if (activeCount >= job.getVacancies()) {
-            throw new BadRequestException(String.format(
-                "Vị trí '%s' đã đủ chỉ tiêu tuyển dụng (%d/%d)",
-                job.getTitle(), activeCount, job.getVacancies()
-            ));
-        }
-
-        if (applicationRepository.existsByJobIdAndStudentId(request.getJobId(), studentId)) {
-            throw new BadRequestException("Bạn đã nộp hồ sơ ứng tuyển vào vị trí này rồi");
-        }
-
-        long activeAppsInTerm = applicationRepository
-            .countActiveApplicationsByStudentInTerm(studentId, term.getId());
-        if (activeAppsInTerm >= MAX_ACTIVE_APPLICATIONS_PER_TERM) {
-            throw new BadRequestException(String.format(
-                "Bạn đang có %d hồ sơ đang xử lý trong kỳ '%s' (tối đa %d). Rút bớt hồ sơ trước khi nộp thêm.",
-                activeAppsInTerm, term.getCode(), MAX_ACTIVE_APPLICATIONS_PER_TERM
-            ));
-        }
-
-        Document cvDoc = documentRepository.findById(request.getSubmittedCvDocumentId())
-            .orElseThrow(() -> new ResourceNotFoundException("Document", "id", request.getSubmittedCvDocumentId()));
-
-        if (!cvDoc.getOwner().getId().equals(studentId) || cvDoc.getDocumentType() != DocumentType.CV) {
-            throw new BadRequestException("Tài liệu nộp kèm phải là CV thuộc sở hữu của sinh viên");
-        }
+        Document cvDoc = submissionValidator.validate(studentId, request, job);
 
         JobApplication application = JobApplication.builder()
             .job(job)
@@ -236,7 +140,7 @@ public class JobApplicationServiceImpl implements JobApplicationService {
         JobApplication saved = applicationRepository.save(application);
         notifyCompany(saved, "APPLICATION_SUBMITTED", "Hồ sơ ứng tuyển mới",
             student.getFullName() + " đã ứng tuyển vị trí " + job.getTitle());
-        return mapToResponse(saved);
+        return mapper.map(saved);
     }
 
     @Override
@@ -257,7 +161,7 @@ public class JobApplicationServiceImpl implements JobApplicationService {
         JobApplication saved = applicationRepository.save(app);
         notifications.sendNotification(saved.getStudent().getId(), "APPLICATION_STATUS_CHANGED", "Cập nhật hồ sơ ứng tuyển",
             "Hồ sơ vị trí " + saved.getJob().getTitle() + " chuyển sang " + status.name() + ".", "/student/applications");
-        return mapToResponse(saved);
+        return mapper.map(saved);
     }
 
     @Override
@@ -315,15 +219,9 @@ public class JobApplicationServiceImpl implements JobApplicationService {
             ? String.format("Công ty %s mời bạn phỏng vấn Online vị trí '%s' vào lúc %s. Link phòng họp: %s", companyName, jobTitle, timeStr, request.getMeetingUrl())
             : String.format("Công ty %s mời bạn phỏng vấn vị trí '%s' vào lúc %s tại %s", companyName, jobTitle, timeStr, request.getLocation());
 
-        notifications.sendNotification(
-            saved.getStudent().getId(),
-            "INTERVIEW_SCHEDULED",
-            "Mời phỏng vấn: " + jobTitle,
-            notifMsg,
-            "/student/applications"
-        );
+        interviewNotifier.send(saved, actor, request, roundNum, timeStr, notifMsg);
 
-        return mapToResponse(saved);
+        return mapper.map(saved);
     }
 
     @Override
@@ -369,7 +267,7 @@ public class JobApplicationServiceImpl implements JobApplicationService {
             "/student/applications"
         );
 
-        return mapToResponse(saved);
+        return mapper.map(saved);
     }
 
     @Override
@@ -390,7 +288,7 @@ public class JobApplicationServiceImpl implements JobApplicationService {
         JobApplication saved = applicationRepository.save(app);
         notifyCompany(saved, "APPLICATION_WITHDRAWN", "Sinh viên rút hồ sơ",
             saved.getStudent().getFullName() + " đã rút hồ sơ vị trí " + saved.getJob().getTitle());
-        return mapToResponse(saved);
+        return mapper.map(saved);
     }
 
     private void notifyCompany(JobApplication app, String type, String title, String message) {
@@ -414,61 +312,4 @@ public class JobApplicationServiceImpl implements JobApplicationService {
         };
     }
 
-    private JobApplicationResponse mapToResponse(JobApplication entity) {
-        List<InterviewRoundDto> roundDtos = new ArrayList<>();
-        if (entity.getInterviewRounds() != null) {
-            for (Map<String, Object> roundMap : entity.getInterviewRounds()) {
-                try {
-                    Integer roundNumber = roundMap.get("roundNumber") != null ? Integer.parseInt(roundMap.get("roundNumber").toString()) : null;
-                    InterviewFormat format = roundMap.get("format") != null ? InterviewFormat.valueOf(roundMap.get("format").toString()) : null;
-                    OffsetDateTime scheduledAt = roundMap.get("scheduledAt") != null ? OffsetDateTime.parse(roundMap.get("scheduledAt").toString()) : null;
-                    String meetingUrl = Objects.toString(roundMap.get("meetingUrl"), null);
-                    String location = Objects.toString(roundMap.get("location"), null);
-                    String interviewer = Objects.toString(roundMap.get("interviewer"), null);
-                    String notes = Objects.toString(roundMap.get("notes"), null);
-                    InterviewRoundResult result = roundMap.get("result") != null ? InterviewRoundResult.valueOf(roundMap.get("result").toString()) : null;
-                    String feedback = Objects.toString(roundMap.get("feedback"), null);
-                    OffsetDateTime recordedAt = roundMap.get("recordedAt") != null ? OffsetDateTime.parse(roundMap.get("recordedAt").toString()) : null;
-
-                    roundDtos.add(InterviewRoundDto.builder()
-                        .roundNumber(roundNumber)
-                        .format(format)
-                        .scheduledAt(scheduledAt)
-                        .meetingUrl(meetingUrl)
-                        .location(location)
-                        .interviewer(interviewer)
-                        .notes(notes)
-                        .result(result)
-                        .feedback(feedback)
-                        .recordedAt(recordedAt)
-                        .build());
-                } catch (Exception ignored) {
-                }
-            }
-        }
-
-        var job = entity.getJob();
-        var term = job != null ? job.getTerm() : null;
-
-        return JobApplicationResponse.builder()
-            .id(entity.getId())
-            .jobId(job != null ? job.getId() : null)
-            .jobTitle(job != null ? job.getTitle() : null)
-            .companyName(job != null && job.getCompany() != null ? job.getCompany().getCompanyName() : null)
-            .studentId(entity.getStudent() != null ? entity.getStudent().getId() : null)
-            .studentName(entity.getStudent() != null ? entity.getStudent().getFullName() : null)
-            .studentEmail(entity.getStudent() != null ? entity.getStudent().getEmail() : null)
-            .submittedCvDocumentId(entity.getSubmittedCvDocument() != null ? entity.getSubmittedCvDocument().getId() : null)
-            .coverLetter(entity.getCoverLetter())
-            .aiMatchDetail(entity.getAiMatchDetail())
-            .interviewRounds(roundDtos)
-            .termId(term != null ? term.getId() : null)
-            .termName(term != null ? term.getTermName() : null)
-            .academicYear(term != null ? term.getAcademicYear() : null)
-            .semester(term != null ? term.getSemester() : null)
-            .status(entity.getStatus())
-            .submittedAt(entity.getSubmittedAt())
-            .updatedAt(entity.getUpdatedAt())
-            .build();
-    }
 }

@@ -17,8 +17,6 @@ public class NotificationCampaignRepository {
     private final JdbcTemplate jdbc;
     private final TransactionTemplate transaction;
 
-    public record Target(UUID userId, String email, String name, String studentCode) {}
-
     public record Campaign(
             UUID id,
             UUID termId,
@@ -27,7 +25,8 @@ public class NotificationCampaignRepository {
             String body,
             String channel,
             String purpose,
-            String status) {}
+            String status,
+            UUID templateVersionId) {}
 
     public record Work(
             UUID id,
@@ -42,76 +41,6 @@ public class NotificationCampaignRepository {
             JdbcTemplate jdbc, PlatformTransactionManager transactions) {
         this.jdbc = jdbc;
         this.transaction = new TransactionTemplate(transactions);
-    }
-
-    public List<Target> audience(UUID term, String audience) {
-        if (Set.of("ELIGIBLE", "INELIGIBLE", "ALL_STUDENTS").contains(audience)) {
-            String filter =
-                    switch (audience) {
-                        case "ELIGIBLE" -> " AND r.eligibility_status='ELIGIBLE'";
-                        case "INELIGIBLE" -> " AND r.eligibility_status='INELIGIBLE'";
-                        default -> "";
-                    };
-            return jdbc.query(
-                    """
-SELECT coalesce(claimed.id,registered.id) AS user_id,coalesce(claimed.email,registered.email,r.official_email) AS email,
-    r.full_name AS name,r.student_code
-FROM student_rosters r
-LEFT JOIN users claimed ON claimed.id=r.claimed_user_id
-LEFT JOIN users registered ON r.claimed_user_id IS NULL AND registered.email=r.official_email
-WHERE r.term_id=? AND coalesce(claimed.is_active,registered.is_active,true)=true
-"""
-                            + filter
-                            + " ORDER BY r.student_code",
-                    (rs, i) ->
-                            new Target(
-                                    uuid(rs, "user_id"),
-                                    rs.getString("email"),
-                                    rs.getString("name"),
-                                    rs.getString("student_code")),
-                    term);
-        }
-        String role =
-                switch (audience) {
-                    case "MENTORS" -> "COMPANY_MENTOR";
-                    case "LECTURERS" -> "LECTURER";
-                    case "COMPANY_REPS" -> "COMPANY_REP";
-                    case "FACULTY_ADMINS" -> "FACULTY_ADMIN";
-                    case "ADMINS" -> "ADMIN";
-                    default -> throw new IllegalArgumentException("invalid audience");
-                };
-        String scope =
-                switch (audience) {
-                    case "MENTORS" ->
-                            "u.id IN (SELECT mentor_id FROM internship_placements WHERE term_id=?)";
-                    case "LECTURERS" ->
-                            "u.id IN (SELECT lecturer_id FROM internship_placements WHERE"
-                                    + " term_id=?)";
-                    case "COMPANY_REPS" ->
-                            "u.company_id IN (SELECT company_id FROM internship_placements WHERE"
-                                    + " term_id=? UNION SELECT company_id FROM job_positions WHERE"
-                                    + " term_id=?)";
-                    case "FACULTY_ADMINS" ->
-                            "u.department_id IN (SELECT department_id FROM internship_terms WHERE"
-                                    + " id=?)";
-                    default -> "EXISTS(SELECT 1 FROM internship_terms WHERE id=?)";
-                };
-        Object[] params =
-                audience.equals("COMPANY_REPS")
-                        ? new Object[] {role, term, term}
-                        : new Object[] {role, term};
-        return jdbc.query(
-                "SELECT u.id AS user_id,u.email,u.full_name AS name,NULL AS student_code FROM users"
-                        + " u WHERE u.role=? AND u.is_active=true AND "
-                        + scope
-                        + " ORDER BY u.id",
-                (rs, i) ->
-                        new Target(
-                                uuid(rs, "user_id"),
-                                rs.getString("email"),
-                                rs.getString("name"),
-                                null),
-                params);
     }
 
     public void lockRequest(UUID creator, UUID key) {
@@ -133,12 +62,14 @@ WHERE r.term_id=? AND coalesce(claimed.is_active,registered.is_active,true)=true
     }
 
     public UUID create(
-            UUID creator, String hash, NotificationCampaignRequest request, List<Target> targets) {
+            UUID creator, String hash, NotificationCampaignRequest request,
+            List<NotificationCampaignAudienceRepository.Target> targets,
+            UUID templateVersionId) {
         UUID id = UUID.randomUUID();
         jdbc.update(
                 """
-INSERT INTO notification_campaigns(id,term_id,created_by,request_key,request_hash,purpose,audience,subject,body,channel)
-VALUES(?,?,?,?,?,?,?,?,?,?)
+INSERT INTO notification_campaigns(id,term_id,created_by,request_key,request_hash,purpose,audience,subject,body,channel,template_version_id)
+VALUES(?,?,?,?,?,?,?,?,?,?,?)
 """,
                 id,
                 request.termId(),
@@ -149,7 +80,8 @@ VALUES(?,?,?,?,?,?,?,?,?,?)
                 request.audience(),
                 request.subject(),
                 request.body(),
-                request.channel());
+                request.channel(),
+                templateVersionId);
         for (var target : targets)
             jdbc.update(
                     """
@@ -179,7 +111,8 @@ ON CONFLICT(campaign_id,email) DO NOTHING
                                         rs.getString("body"),
                                         rs.getString("channel"),
                                         rs.getString("purpose"),
-                                        rs.getString("status")),
+                                        rs.getString("status"),
+                                        uuid(rs, "template_version_id")),
                         id);
         if (rows.isEmpty())
             throw new com.internlink.core.shared.exception.ResourceNotFoundException(

@@ -18,6 +18,8 @@ public interface JpaIntroductionLetterRequestRepository extends JpaRepository<In
 
     List<IntroductionLetterRequest> findByStudentIdOrderByCreatedAtDesc(UUID studentId);
 
+    Optional<IntroductionLetterRequest> findFirstByStudentIdAndTermIdOrderByCreatedAtDesc(UUID studentId, UUID termId);
+
     List<IntroductionLetterRequest> findByTermIdOrderByCreatedAtDesc(UUID termId);
 
     @Query("SELECT r FROM IntroductionLetterRequest r WHERE r.student.id = :studentId AND r.term.id = :termId AND r.status IN :statuses")
