@@ -1,0 +1,199 @@
+package com.internlink.core.application.organization.impl;
+
+import com.internlink.core.application.system.AuditLogService;
+import com.internlink.core.application.organization.FacultyLecturerManagementService;
+import com.internlink.core.domain.auth.User;
+import com.internlink.core.domain.organization.Department;
+import com.internlink.core.domain.organization.FacultyLecturerQuota;
+import com.internlink.core.domain.organization.InternshipTerm;
+import com.internlink.core.domain.placement.InternshipPlacement;
+import com.internlink.core.infrastructure.persistence.jpa.JpaDepartmentRepository;
+import com.internlink.core.infrastructure.persistence.jpa.JpaFacultyLecturerQuotaRepository;
+import com.internlink.core.infrastructure.persistence.jpa.JpaInternshipPlacementRepository;
+import com.internlink.core.infrastructure.persistence.jpa.JpaInternshipTermRepository;
+import com.internlink.core.infrastructure.persistence.jpa.JpaUserRepository;
+import com.internlink.core.presentation.organization.dto.request.CreateLecturerRequest;
+import com.internlink.core.presentation.organization.dto.request.LecturerImportItem;
+import com.internlink.core.presentation.organization.dto.response.BatchLecturerImportResponse;
+import com.internlink.core.presentation.organization.dto.response.FacultyLecturerResponse;
+import com.internlink.core.shared.enums.UserRole;
+import com.internlink.core.shared.exception.ResourceNotFoundException;
+import com.internlink.core.shared.util.SecurePasswordGenerator;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.*;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class FacultyLecturerManagementServiceImpl implements FacultyLecturerManagementService {
+
+    private final JpaUserRepository userRepository;
+    private final JpaDepartmentRepository departmentRepository;
+    private final JpaInternshipTermRepository termRepository;
+    private final JpaFacultyLecturerQuotaRepository quotaRepository;
+    private final JpaInternshipPlacementRepository placementRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final LecturerProvisionEmailNotifier emailNotifier;
+    private final AuditLogService auditLogService;
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<FacultyLecturerResponse> getLecturers(UUID departmentId, UUID termId) {
+        List<User> lecturers = userRepository.findByDepartmentIdAndRole(departmentId, UserRole.LECTURER).stream()
+                .filter(u -> Boolean.TRUE.equals(u.getIsActive()))
+                .toList();
+
+        Map<UUID, Integer> quotaMap = new HashMap<>();
+        Map<UUID, Long> assignmentCountMap = new HashMap<>();
+
+        if (termId != null) {
+            quotaRepository.findByTermId(termId).forEach(q -> quotaMap.put(q.getLecturer().getId(), q.getMaxStudents()));
+            List<InternshipPlacement> placements = placementRepository.findByTermId(termId);
+            for (InternshipPlacement p : placements) {
+                if (p.getLecturer() != null) {
+                    assignmentCountMap.merge(p.getLecturer().getId(), 1L, Long::sum);
+                }
+            }
+        }
+
+        return lecturers.stream().map(lecturer -> FacultyLecturerResponse.builder()
+                .id(lecturer.getId())
+                .fullName(lecturer.getFullName())
+                .email(lecturer.getEmail())
+                .phoneNumber(lecturer.getPhoneNumber())
+                .departmentName(lecturer.getDepartment() != null ? lecturer.getDepartment().getName() : "")
+                .title("Giảng viên")
+                .maxStudents(quotaMap.getOrDefault(lecturer.getId(), 15))
+                .assignedCount(assignmentCountMap.getOrDefault(lecturer.getId(), 0L).intValue())
+                .build()).toList();
+    }
+
+    @Override
+    @Transactional
+    public FacultyLecturerResponse createLecturer(UUID departmentId, UUID termId, CreateLecturerRequest req, UUID actorId) {
+        Department dept = departmentRepository.findById(departmentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Department", "id", departmentId));
+
+        InternshipTerm term = termId != null ? termRepository.findById(termId).orElse(null) : null;
+        String email = req.getEmail().trim().toLowerCase();
+
+        User user = userRepository.findByEmail(email).orElse(null);
+        boolean isNew = false;
+        if (user == null) {
+            String rawPassword = SecurePasswordGenerator.generateRandomPassword(10);
+            user = User.builder()
+                    .email(email)
+                    .fullName(req.getFullName().trim())
+                    .phoneNumber(req.getPhoneNumber() != null ? req.getPhoneNumber().trim() : null)
+                    .passwordHash(passwordEncoder.encode(rawPassword))
+                    .role(UserRole.LECTURER)
+                    .department(dept)
+                    .mustChangePassword(true)
+                    .isActive(true)
+                    .build();
+            user = userRepository.save(user);
+            isNew = true;
+            emailNotifier.sendProvisionEmail(email, user.getFullName(), rawPassword, term != null ? term.getTermName() : null);
+        } else {
+            if (user.getRole() != UserRole.LECTURER) user.setRole(UserRole.LECTURER);
+            if (user.getDepartment() == null) user.setDepartment(dept);
+            if (req.getPhoneNumber() != null && !req.getPhoneNumber().isBlank()) user.setPhoneNumber(req.getPhoneNumber().trim());
+            userRepository.save(user);
+        }
+
+        int maxStudents = req.getMaxStudents() != null && req.getMaxStudents() > 0 ? req.getMaxStudents() : 15;
+        if (term != null) {
+            upsertQuota(user, term, maxStudents);
+        }
+
+        auditLogService.logAction(actorId, "CREATE_OR_UPDATE_LECTURER", "User", user.getId(), "SUCCESS",
+                Map.of("email", email, "isNew", isNew, "maxStudents", maxStudents), null);
+
+        return FacultyLecturerResponse.builder()
+                .id(user.getId())
+                .fullName(user.getFullName())
+                .email(user.getEmail())
+                .phoneNumber(user.getPhoneNumber())
+                .departmentName(dept.getName())
+                .title(req.getTitle() != null ? req.getTitle() : "Giảng viên")
+                .maxStudents(maxStudents)
+                .assignedCount(0)
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public BatchLecturerImportResponse importLecturers(UUID departmentId, UUID termId, List<LecturerImportItem> items, UUID actorId) {
+        Department dept = departmentRepository.findById(departmentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Department", "id", departmentId));
+        InternshipTerm term = termId != null ? termRepository.findById(termId).orElse(null) : null;
+
+        int newlyCreated = 0;
+        int updated = 0;
+        List<String> errors = new ArrayList<>();
+
+        for (LecturerImportItem item : items) {
+            try {
+                String email = item.getEmail().trim().toLowerCase();
+                User user = userRepository.findByEmail(email).orElse(null);
+                if (user == null) {
+                    String rawPassword = SecurePasswordGenerator.generateRandomPassword(10);
+                    user = User.builder()
+                            .email(email)
+                            .fullName(item.getFullName().trim())
+                            .phoneNumber(item.getPhoneNumber() != null ? item.getPhoneNumber().trim() : null)
+                            .passwordHash(passwordEncoder.encode(rawPassword))
+                            .role(UserRole.LECTURER)
+                            .department(dept)
+                            .mustChangePassword(true)
+                            .isActive(true)
+                            .build();
+                    user = userRepository.save(user);
+                    newlyCreated++;
+                    emailNotifier.sendProvisionEmail(email, user.getFullName(), rawPassword, term != null ? term.getTermName() : null);
+                } else {
+                    if (user.getRole() != UserRole.LECTURER) user.setRole(UserRole.LECTURER);
+                    if (user.getDepartment() == null) user.setDepartment(dept);
+                    if (item.getPhoneNumber() != null && !item.getPhoneNumber().isBlank()) {
+                        user.setPhoneNumber(item.getPhoneNumber().trim());
+                    }
+                    userRepository.save(user);
+                    updated++;
+                }
+
+                int maxStudents = item.getMaxStudents() != null && item.getMaxStudents() > 0 ? item.getMaxStudents() : 15;
+                if (term != null) {
+                    upsertQuota(user, term, maxStudents);
+                }
+            } catch (Exception ex) {
+                log.error("Lỗi khi import GVHD {}: {}", item.getEmail(), ex.getMessage());
+                errors.add(item.getEmail() + ": " + ex.getMessage());
+            }
+        }
+
+        auditLogService.logAction(actorId, "IMPORT_LECTURERS", "Department", departmentId, "SUCCESS",
+                Map.of("total", items.size(), "newlyCreated", newlyCreated, "updated", updated), null);
+
+        return BatchLecturerImportResponse.builder()
+                .totalProcessed(items.size())
+                .newlyCreatedCount(newlyCreated)
+                .updatedCount(updated)
+                .errors(errors)
+                .build();
+    }
+
+    private void upsertQuota(User lecturer, InternshipTerm term, int maxStudents) {
+        FacultyLecturerQuota quota = quotaRepository.findByLecturerIdAndTermId(lecturer.getId(), term.getId())
+                .orElseGet(() -> FacultyLecturerQuota.builder()
+                        .lecturer(lecturer)
+                        .term(term)
+                        .build());
+        quota.setMaxStudents(maxStudents);
+        quotaRepository.save(quota);
+    }
+}

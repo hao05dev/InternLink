@@ -1,16 +1,19 @@
 package com.internlink.core.presentation.organization.controller;
 
+import com.internlink.core.application.organization.FacultyLecturerManagementService;
+import com.internlink.core.domain.auth.User;
 import com.internlink.core.infrastructure.persistence.jpa.JpaUserRepository;
+import com.internlink.core.presentation.organization.dto.request.CreateLecturerRequest;
+import com.internlink.core.presentation.organization.dto.request.LecturerImportItem;
+import com.internlink.core.presentation.organization.dto.response.BatchLecturerImportResponse;
+import com.internlink.core.presentation.organization.dto.response.FacultyLecturerResponse;
 import com.internlink.core.shared.api.ApiResponse;
-import com.internlink.core.shared.enums.UserRole;
 import com.internlink.core.shared.security.SecurityGuard;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
@@ -19,21 +22,42 @@ import java.util.UUID;
 @RequestMapping("/api/v1/faculty/lecturers")
 @RequiredArgsConstructor
 public class FacultyLecturerController {
+
+    private final FacultyLecturerManagementService facultyLecturerService;
     private final JpaUserRepository users;
     private final SecurityGuard securityGuard;
 
-    public record LecturerOption(UUID id, String fullName, String departmentName) {}
-
     @GetMapping
     @PreAuthorize("hasRole('FACULTY_ADMIN')")
-    @Transactional(readOnly = true)
-    public ResponseEntity<ApiResponse<List<LecturerOption>>> list() {
-        var actor = users.findById(securityGuard.currentUser().getId()).orElseThrow();
-        if (actor.getDepartment() == null) return ResponseEntity.ok(ApiResponse.success(List.of()));
-        var list = users.findByDepartmentIdAndRole(actor.getDepartment().getId(), UserRole.LECTURER).stream()
-            .filter(user -> Boolean.TRUE.equals(user.getIsActive()))
-            .map(user -> new LecturerOption(user.getId(), user.getFullName(), user.getDepartment().getName()))
-            .toList();
-        return ResponseEntity.ok(ApiResponse.success(list));
+    public ResponseEntity<ApiResponse<List<FacultyLecturerResponse>>> list(
+            @RequestParam(required = false) UUID termId) {
+        User actor = users.findById(securityGuard.currentUser().getId()).orElseThrow();
+        if (actor.getDepartment() == null) {
+            return ResponseEntity.ok(ApiResponse.success(List.of()));
+        }
+        List<FacultyLecturerResponse> result = facultyLecturerService.getLecturers(actor.getDepartment().getId(), termId);
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    @PostMapping
+    @PreAuthorize("hasRole('FACULTY_ADMIN')")
+    public ResponseEntity<ApiResponse<FacultyLecturerResponse>> createLecturer(
+            @RequestParam(required = false) UUID termId,
+            @Valid @RequestBody CreateLecturerRequest request) {
+        User actor = users.findById(securityGuard.currentUser().getId()).orElseThrow();
+        FacultyLecturerResponse result = facultyLecturerService.createLecturer(
+                actor.getDepartment().getId(), termId, request, actor.getId());
+        return ResponseEntity.ok(ApiResponse.success("Đã thêm giảng viên hướng dẫn thành công", result));
+    }
+
+    @PostMapping("/import")
+    @PreAuthorize("hasRole('FACULTY_ADMIN')")
+    public ResponseEntity<ApiResponse<BatchLecturerImportResponse>> importLecturers(
+            @RequestParam(required = false) UUID termId,
+            @Valid @RequestBody List<LecturerImportItem> items) {
+        User actor = users.findById(securityGuard.currentUser().getId()).orElseThrow();
+        BatchLecturerImportResponse result = facultyLecturerService.importLecturers(
+                actor.getDepartment().getId(), termId, items, actor.getId());
+        return ResponseEntity.ok(ApiResponse.success("Nhập danh sách giảng viên thành công", result));
     }
 }

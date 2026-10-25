@@ -22,6 +22,9 @@ public class StudentDossierResponse {
     private int submittedCount;
     private int missingCount;
     private int completionPercentage;
+    private boolean isLocked;
+    private String lockReason;
+    private OffsetDateTime deadline;
 
     @Builder.Default
     private List<StudentDossierItemDto> items = List.of();

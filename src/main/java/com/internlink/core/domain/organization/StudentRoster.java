@@ -5,6 +5,7 @@ import com.internlink.core.shared.enums.EligibilityStatus;
 import com.internlink.core.domain.auth.User;
 import jakarta.persistence.*;
 import lombok.*;
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 
 @Entity
@@ -81,4 +82,10 @@ public class StudentRoster extends BaseEntity {
 
     @Column(name = "letter_notes", columnDefinition = "text")
     private String letterNotes;
+
+    @Column(name = "gpa", precision = 3, scale = 2)
+    private BigDecimal gpa;
+
+    @Column(name = "phone_number", length = 20)
+    private String phoneNumber;
 }

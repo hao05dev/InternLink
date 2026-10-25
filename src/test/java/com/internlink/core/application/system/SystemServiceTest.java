@@ -49,6 +49,7 @@ class SystemServiceTest {
     @Mock private JpaStudentProfileRepository studentProfileRepository;
     @Mock private JpaUserRepository userRepository;
     @Mock private JpaAcademicProgramRepository programRepository;
+    @Mock private com.internlink.core.infrastructure.persistence.jpa.JpaStudentRosterRepository rosterRepository;
     @Mock private JpaNotificationRepository notificationRepository;
     @Mock private JpaDocumentRepository documentRepository;
     @Mock private StorageServiceRouter storageServiceRouter;
@@ -69,7 +70,7 @@ class SystemServiceTest {
 
     @BeforeEach
     void setUp() {
-        profileService = new StudentProfileServiceImpl(studentProfileRepository, userRepository, programRepository);
+        profileService = new StudentProfileServiceImpl(studentProfileRepository, userRepository, programRepository, rosterRepository);
         notificationService = new NotificationServiceImpl(notificationRepository, userRepository, mock(EmailOutboxService.class));
 
         DocumentAccessPolicy accessPolicy = new DocumentAccessPolicy(

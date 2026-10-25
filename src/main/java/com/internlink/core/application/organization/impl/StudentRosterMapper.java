@@ -36,6 +36,8 @@ public class StudentRosterMapper {
                 .letterReceived(entity.isLetterReceived())
                 .letterReceivedAt(entity.getLetterReceivedAt())
                 .letterNotes(entity.getLetterNotes())
+                .gpa(entity.getGpa())
+                .phoneNumber(entity.getPhoneNumber())
                 .createdAt(entity.getCreatedAt())
                 .build();
     }

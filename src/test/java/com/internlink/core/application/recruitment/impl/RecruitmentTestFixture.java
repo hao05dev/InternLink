@@ -52,6 +52,7 @@ abstract class RecruitmentTestFixture {
     @Mock JpaJobApplicationRepository applicationRepository;
     @Mock JpaDocumentRepository documentRepository;
     @Mock JpaPlacementOfferRepository offerRepository;
+    @Mock com.internlink.core.infrastructure.persistence.jpa.JpaInternshipPlacementRepository placementRepository;
     @Mock JpaStudentProfileRepository studentProfileRepository;
     @Mock JpaStudentRosterRepository studentRosterRepository;
     @Mock SecurityGuard securityGuard;
@@ -115,7 +116,7 @@ abstract class RecruitmentTestFixture {
                                 new com.internlink.core.infrastructure.integration.email.EmailProperties()),
                         new JobApplicationSubmissionValidator(
                                 applicationRepository, documentRepository, studentProfileRepository,
-                                studentRosterRepository, offerRepository),
+                                studentRosterRepository, offerRepository, placementRepository),
                         new JobApplicationMapper());
         offerService =
                 new PlacementOfferServiceImpl(

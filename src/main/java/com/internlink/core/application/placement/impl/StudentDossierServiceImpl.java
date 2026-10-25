@@ -1,5 +1,6 @@
 package com.internlink.core.application.placement.impl;
 
+import com.internlink.core.application.placement.ReportDeadlines;
 import com.internlink.core.application.placement.StudentDossierService;
 import com.internlink.core.domain.auth.User;
 import com.internlink.core.domain.placement.InternshipPlacement;
@@ -16,8 +17,11 @@ import com.internlink.core.presentation.placement.dto.response.StudentDossierRes
 import com.internlink.core.presentation.placement.dto.response.StudentDossierResponse.StudentDossierItemDto;
 import com.internlink.core.shared.enums.ContextType;
 import com.internlink.core.shared.enums.DocumentType;
+import com.internlink.core.shared.enums.PlacementStatus;
+import com.internlink.core.shared.enums.TermStatus;
 import com.internlink.core.shared.exception.BadRequestException;
 import com.internlink.core.shared.exception.ResourceNotFoundException;
+import com.internlink.core.shared.security.TermGuard;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -72,6 +76,21 @@ public class StudentDossierServiceImpl implements StudentDossierService {
         int missingCount = totalRequired - submittedCount;
         int completionPercent = totalRequired > 0 ? (int) Math.round((submittedCount * 100.0) / totalRequired) : 0;
 
+        boolean isTermClosed = placement != null && placement.getTerm() != null && placement.getTerm().getStatus() == TermStatus.CLOSED;
+        boolean isPlacementFinished = placement != null && placement.getStatus() != PlacementStatus.ACTIVE;
+        OffsetDateTime deadline = placement != null ? ReportDeadlines.due(placement, "FINAL") : null;
+        boolean isOverdue = deadline != null && OffsetDateTime.now().isAfter(deadline);
+
+        boolean isLocked = isTermClosed || isPlacementFinished || isOverdue;
+        String lockReason = null;
+        if (isTermClosed) {
+            lockReason = "Học kỳ thực tập đã chính thức kết thúc (CLOSED). Toàn bộ hồ sơ đã khóa lưu trữ học vụ.";
+        } else if (isPlacementFinished) {
+            lockReason = "Đợt thực tập của bạn đã hoàn tất/kết thúc (" + placement.getStatus() + "). Toàn bộ hồ sơ đã khóa lưu trữ.";
+        } else if (isOverdue) {
+            lockReason = "Đã quá thời hạn nộp hồ sơ thực tập quy định. Hệ thống đã khóa nộp hồ sơ.";
+        }
+
         return StudentDossierResponse.builder()
             .placementId(placementId)
             .placementTitle(placementTitle)
@@ -80,6 +99,9 @@ public class StudentDossierServiceImpl implements StudentDossierService {
             .submittedCount(submittedCount)
             .missingCount(missingCount)
             .completionPercentage(completionPercent)
+            .isLocked(isLocked)
+            .lockReason(lockReason)
+            .deadline(deadline)
             .items(items)
             .build();
     }
@@ -95,6 +117,19 @@ public class StudentDossierServiceImpl implements StudentDossierService {
 
         if (!placement.getStudent().getId().equals(student.getId())) {
             throw new BadRequestException("Bạn không có quyền nộp hồ sơ cho đợt thực tập này");
+        }
+
+        if (placement.getTerm() != null) {
+            TermGuard.requireNotClosed(placement.getTerm());
+        }
+
+        if (placement.getStatus() != PlacementStatus.ACTIVE) {
+            throw new BadRequestException("Đợt thực tập đã hoàn tất/kết thúc (" + placement.getStatus() + "). Toàn bộ hồ sơ đã chuyển sang chế độ lưu trữ khóa.");
+        }
+
+        OffsetDateTime deadline = ReportDeadlines.due(placement, "FINAL");
+        if (deadline != null && OffsetDateTime.now().isAfter(deadline)) {
+            throw new BadRequestException("Đã hết thời hạn nộp hồ sơ thực tập quy định (" + deadline + "). Hệ thống đã khóa nộp hồ sơ.");
         }
 
         DocumentType docType = resolveDocType(templateCode);

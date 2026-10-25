@@ -47,4 +47,8 @@ public class StudentRosterImportItem {
     private String lecturerName;
 
     private String lecturerEmail;
+
+    private java.math.BigDecimal gpa;
+
+    private String phoneNumber;
 }

@@ -106,6 +106,10 @@ public class StudentRosterServiceImpl implements StudentRosterService {
             roster.setInternshipCourseCode(cleanCourse);
             roster.setEligibilityStatus(item.getEligibilityStatus());
             roster.setEligibilityNote(cleanNote);
+            roster.setGpa(item.getGpa());
+            if (item.getPhoneNumber() != null && !item.getPhoneNumber().isBlank()) {
+                roster.setPhoneNumber(sanitizeString(item.getPhoneNumber()));
+            }
 
             // Ghi nhận thông tin Giảng viên hướng dẫn học phần
             if (item.getLecturerCode() != null && !item.getLecturerCode().isBlank()) {

@@ -23,6 +23,7 @@ public class StudentProfileResponse {
     private String email;
     private String phoneNumber;
     private UUID programId;
+    private String programCode;
     private String programName;
     private String departmentName;
     private BigDecimal gpa;
@@ -31,5 +32,7 @@ public class StudentProfileResponse {
     private List<Map<String, Object>> certificates;
     private List<Map<String, Object>> passedCourses;
     private Map<String, Object> preferences;
+    private UUID cvDocumentId;
+    private String cvFileName;
     private OffsetDateTime updatedAt;
 }

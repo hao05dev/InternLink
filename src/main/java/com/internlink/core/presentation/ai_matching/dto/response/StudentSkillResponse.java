@@ -1,5 +1,6 @@
 package com.internlink.core.presentation.ai_matching.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import com.internlink.core.shared.enums.ProficiencyLevel;
@@ -16,7 +17,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Phản hồi thông tin kỹ năng của sinh viên, định dạng snake_case đồng bộ.
+ * Phản hồi thông tin kỹ năng của sinh viên, hỗ trợ cả snake_case và camelCase đồng bộ.
  */
 @Data
 @Builder
@@ -36,4 +37,24 @@ public class StudentSkillResponse {
     private UUID evidenceDocumentId;
     private OffsetDateTime createdAt;
     private Map<String, Object> aiEvidence;
+
+    @JsonProperty("skillId")
+    public String getSkillIdCamel() {
+        return skillId;
+    }
+
+    @JsonProperty("skillName")
+    public String getSkillNameCamel() {
+        return skillName;
+    }
+
+    @JsonProperty("isConfirmed")
+    public Boolean getIsConfirmedCamel() {
+        return isConfirmed;
+    }
+
+    @JsonProperty("aiEvidence")
+    public Map<String, Object> getAiEvidenceCamel() {
+        return aiEvidence;
+    }
 }

@@ -36,6 +36,8 @@ public class StudentRosterResponse {
     private boolean letterReceived;
     private OffsetDateTime letterReceivedAt;
     private String letterNotes;
+    private java.math.BigDecimal gpa;
+    private String phoneNumber;
     private OffsetDateTime createdAt;
     private String defaultPassword; // Only returned when newly provisioned
 }

@@ -4,6 +4,8 @@ import com.internlink.core.application.system.AuditLogService;
 import com.internlink.core.domain.auth.User;
 import com.internlink.core.domain.organization.InternshipTerm;
 import com.internlink.core.domain.organization.StudentRoster;
+import com.internlink.core.domain.student.StudentProfile;
+import com.internlink.core.infrastructure.persistence.jpa.JpaStudentProfileRepository;
 import com.internlink.core.infrastructure.persistence.jpa.JpaStudentRosterRepository;
 import com.internlink.core.infrastructure.persistence.jpa.JpaUserRepository;
 import com.internlink.core.presentation.organization.dto.response.BatchProvisionResponse;
@@ -39,6 +41,7 @@ public class StudentRosterAccountProvisioner {
     private final AuditLogService auditLogService;
     private final PasswordEncoder passwordEncoder;
     private final StudentProvisionEmailNotifier emailNotifier;
+    private final JpaStudentProfileRepository studentProfileRepository;
 
     public StudentRosterResponse provisionSingleAccount(StudentRoster roster, StudentRosterMapper mapper) {
         if (roster.getClaimedUser() != null) {
@@ -51,6 +54,7 @@ public class StudentRosterAccountProvisioner {
             roster.setClaimedUser(existing);
             roster.setClaimedAt(OffsetDateTime.now());
             rosterRepository.save(roster);
+            ensureStudentProfile(existing, roster);
             auditLogService.logAction(
                     securityGuard.currentUser().getId(), "LINK_ROSTER_TO_EXISTING_USER",
                     "StudentRoster", roster.getId(), "SUCCESS",
@@ -62,6 +66,7 @@ public class StudentRosterAccountProvisioner {
         User newUser = User.builder()
                 .email(email)
                 .fullName(roster.getFullName())
+                .phoneNumber(roster.getPhoneNumber())
                 .passwordHash(passwordEncoder.encode(rawPassword))
                 .role(UserRole.STUDENT)
                 .department(roster.getTerm().getDepartment())
@@ -73,6 +78,7 @@ public class StudentRosterAccountProvisioner {
         roster.setClaimedUser(saved);
         roster.setClaimedAt(OffsetDateTime.now());
         rosterRepository.save(roster);
+        ensureStudentProfile(saved, roster);
 
         // Gửi email chứa mật khẩu ngẫu nhiên về hòm thư sinh viên
         emailNotifier.sendProvisionEmail(email, roster.getFullName(), roster.getStudentCode(), rawPassword, roster.getTerm().getTermName());
@@ -113,6 +119,7 @@ public class StudentRosterAccountProvisioner {
                 roster.setClaimedUser(existing);
                 roster.setClaimedAt(OffsetDateTime.now());
                 rostersToUpdate.add(roster);
+                ensureStudentProfile(existing, roster);
                 linkedExisting++;
                 accountDtos.add(BatchProvisionResponse.ProvisionedStudentAccountDto.builder()
                         .studentCode(roster.getStudentCode())
@@ -126,6 +133,7 @@ public class StudentRosterAccountProvisioner {
                 User newUser = User.builder()
                         .email(email)
                         .fullName(roster.getFullName())
+                        .phoneNumber(roster.getPhoneNumber())
                         .passwordHash(passwordEncoder.encode(rawPassword))
                         .role(UserRole.STUDENT)
                         .department(term.getDepartment())
@@ -137,6 +145,7 @@ public class StudentRosterAccountProvisioner {
                 roster.setClaimedUser(saved);
                 roster.setClaimedAt(OffsetDateTime.now());
                 rostersToUpdate.add(roster);
+                ensureStudentProfile(saved, roster);
                 newlyCreated++;
 
                 // Gửi email mật khẩu ngẫu nhiên
@@ -163,5 +172,33 @@ public class StudentRosterAccountProvisioner {
                 .linkedExistingCount(linkedExisting)
                 .accounts(accountDtos)
                 .build();
+    }
+
+    private void ensureStudentProfile(User user, StudentRoster roster) {
+        StudentProfile profile = studentProfileRepository.findById(user.getId())
+                .orElseGet(() -> StudentProfile.builder()
+                        .userId(user.getId())
+                        .user(user)
+                        .certificates(java.util.List.of())
+                        .passedCourses(java.util.List.of())
+                        .preferences(java.util.Map.of())
+                        .build());
+
+        boolean changed = false;
+        if (profile.getStudentCode() == null || profile.getStudentCode().isBlank()) {
+            profile.setStudentCode(roster.getStudentCode());
+            changed = true;
+        }
+        if (profile.getProgram() == null && roster.getProgram() != null) {
+            profile.setProgram(roster.getProgram());
+            changed = true;
+        }
+        if (profile.getGpa() == null && roster.getGpa() != null) {
+            profile.setGpa(roster.getGpa());
+            changed = true;
+        }
+        if (changed || profile.getVersion() == null) {
+            studentProfileRepository.save(profile);
+        }
     }
 }
