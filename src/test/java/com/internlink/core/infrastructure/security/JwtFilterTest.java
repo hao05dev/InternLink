@@ -83,7 +83,7 @@ class JwtFilterTest {
         when(jwtUtil.getUserIdFromToken(rawJwt)).thenReturn(userId);
         when(userDetailService.loadUserById(userId)).thenReturn(userDetails);
         when(jwtUtil.getIssuedAtFromToken(rawJwt)).thenReturn(issuedAt);
-        when(userSecurityStateValidator.isTokenValidForUser(userDetails, issuedAt)).thenReturn(true);
+        when(userSecurityStateValidator.isTokenValidForUser(userDetails, issuedAt, null)).thenReturn(true);
 
         jwtFilter.doFilter(request, response, filterChain);
 
@@ -114,7 +114,7 @@ class JwtFilterTest {
         when(jwtUtil.getUserIdFromToken(rawJwt)).thenReturn(userId);
         when(userDetailService.loadUserById(userId)).thenReturn(userDetails);
         when(jwtUtil.getIssuedAtFromToken(rawJwt)).thenReturn(issuedAt);
-        when(userSecurityStateValidator.isTokenValidForUser(userDetails, issuedAt)).thenReturn(true);
+        when(userSecurityStateValidator.isTokenValidForUser(userDetails, issuedAt, null)).thenReturn(true);
 
         jwtFilter.doFilter(request, response, filterChain);
 
@@ -157,7 +157,7 @@ class JwtFilterTest {
         when(jwtUtil.getUserIdFromToken(rawJwt)).thenReturn(userId);
         when(userDetailService.loadUserById(userId)).thenReturn(userDetails);
         when(jwtUtil.getIssuedAtFromToken(rawJwt)).thenReturn(issuedAt);
-        when(userSecurityStateValidator.isTokenValidForUser(userDetails, issuedAt)).thenReturn(false);
+        when(userSecurityStateValidator.isTokenValidForUser(userDetails, issuedAt, null)).thenReturn(false);
 
         jwtFilter.doFilter(request, response, filterChain);
 

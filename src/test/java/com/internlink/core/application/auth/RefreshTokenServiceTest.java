@@ -49,6 +49,8 @@ class RefreshTokenServiceTest {
 
     @Mock
     private JwtUtil jwtUtil;
+    @Mock
+    private com.internlink.core.infrastructure.persistence.jpa.JpaUserRepository users;
 
     @Mock
     private HttpServletRequest httpRequest;
@@ -65,7 +67,8 @@ class RefreshTokenServiceTest {
                 tokenRepository,
                 cryptoUtils,
                 cookieUtils,
-                jwtUtil
+                jwtUtil,
+                users
         );
     }
 
@@ -73,6 +76,8 @@ class RefreshTokenServiceTest {
     void shouldCreateSessionAndTokenSuccessfully() {
         User user = User.builder().email("student@internlink.vn").build();
         user.setId(UUID.randomUUID());
+
+        when(users.findByIdForUpdate(user.getId())).thenReturn(Optional.of(user));
 
         AuthSessionFamily family = AuthSessionFamily.builder().user(user).build();
         family.setId(UUID.randomUUID());

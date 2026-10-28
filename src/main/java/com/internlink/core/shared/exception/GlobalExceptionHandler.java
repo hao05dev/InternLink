@@ -101,6 +101,13 @@ public class GlobalExceptionHandler {
                         .build());
     }
 
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMalformedInput(
+            org.springframework.http.converter.HttpMessageNotReadableException ex) {
+        return ResponseEntity.badRequest().body(ApiResponse.error(ErrorCode.INVALID_INPUT_DATA,
+                "Dữ liệu gửi lên không đúng định dạng"));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGenericException(Exception ex) {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

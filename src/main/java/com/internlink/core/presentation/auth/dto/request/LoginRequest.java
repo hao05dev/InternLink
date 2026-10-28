@@ -20,6 +20,6 @@ public class LoginRequest {
     private String email;
 
     @NotBlank(message = "Mật khẩu không được để trống")
-    @Size(min = 6, message = "Mật khẩu phải từ 6 ký tự trở lên")
+    @Size(max = 256, message = "Mật khẩu không hợp lệ")
     private String password;
 }

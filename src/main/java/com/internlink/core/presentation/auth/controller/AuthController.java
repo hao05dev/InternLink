@@ -24,6 +24,11 @@ public class AuthController {
 
     private final AuthService authService;
 
+    @GetMapping("/csrf")
+    public ResponseEntity<ApiResponse<Void>> csrf() {
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthResponse>> login(
             @Valid @RequestBody LoginRequest request,

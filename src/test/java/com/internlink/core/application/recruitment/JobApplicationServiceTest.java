@@ -171,7 +171,7 @@ class JobApplicationServiceTest {
         assertThat(response.getInterviewRounds().get(0).getMeetingUrl()).isEqualTo("https://meet.google.com/abc-defg-hij");
         assertThat(response.getInterviewRounds().get(0).getResult()).isEqualTo(InterviewRoundResult.PENDING);
 
-        verify(notifications).sendNotification(
+        verify(notifications).sendInAppNotification(
             eq(studentUser.getId()),
             eq("INTERVIEW_SCHEDULED"),
             contains("Java Backend Intern"),

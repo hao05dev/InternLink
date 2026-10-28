@@ -24,7 +24,10 @@ public class JwtUtil {
 
     public JwtUtil(
             @Value("${internlink.jwt.secret}") String secret,
-            @Value("${internlink.jwt.expiration-ms:86400000}") long expirationMs) {
+            @Value("${internlink.jwt.expiration-ms:900000}") long expirationMs) {
+        if (secret.isBlank() || secret.length() < 32 || expirationMs <= 0) {
+            throw new IllegalStateException("JWT_SECRET cần ít nhất 32 ký tự và TTL phải dương");
+        }
         this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expirationMs = expirationMs;
     }
@@ -40,6 +43,8 @@ public class JwtUtil {
                 .claim("email", principal.getEmail())
                 .claim("role", principal.getRole().name())
                 .claim("fullName", principal.getFullName())
+                .claim("securityStamp", principal.getPasswordChangedAt() == null
+                        ? "initial" : principal.getPasswordChangedAt().toInstant().toString())
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(key)
@@ -60,6 +65,10 @@ public class JwtUtil {
 
     public String getJtiFromToken(String token) {
         return getClaimsFromToken(token).getId();
+    }
+
+    public String getSecurityStampFromToken(String token) {
+        return getClaimsFromToken(token).get("securityStamp", String.class);
     }
 
     public Date getIssuedAtFromToken(String token) {

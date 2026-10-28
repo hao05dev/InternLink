@@ -25,6 +25,7 @@ public interface NotificationService {
 
     void markAllAsRead(UUID recipientId);
 
+    /** Creates an in-app notification. Email must be requested explicitly via publishNotification. */
     void sendNotification(
             UUID recipientId, String type, String title, String message, String actionUrl);
 

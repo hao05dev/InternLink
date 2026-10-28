@@ -42,7 +42,7 @@ class EmailOutboxPostgresTest {
         jdbc.update("UPDATE email_outbox SET created_at=CURRENT_TIMESTAMP-INTERVAL '10 minutes'");
         queue.enqueueNotice(user.getEmail(), "Sent", "Body");
         jdbc.update(
-                "UPDATE email_outbox SET status='SENT',created_at=CURRENT_TIMESTAMP-INTERVAL '90"
+                "UPDATE email_outbox SET status='ACCEPTED',created_at=CURRENT_TIMESTAMP-INTERVAL '90"
                     + " seconds',sent_at=CURRENT_TIMESTAMP WHERE subject='Sent'");
         queue.enqueueNotice(user.getEmail(), "Skipped", "Body");
         jdbc.update(
@@ -80,6 +80,14 @@ class EmailOutboxPostgresTest {
                         new FileSystemResource(
                                 "src/main/resources/db/migration/V17__notification_email_outbox_and_r2.sql"))
                 .execute(ds);
+        jdbc.execute("ALTER TABLE email_outbox DROP CONSTRAINT email_outbox_status_check");
+        jdbc.execute(
+                "ALTER TABLE email_outbox ADD CONSTRAINT email_outbox_status_check CHECK"
+                        + " (status IN ('PENDING','SENDING','RETRY','ACCEPTED','DELIVERED',"
+                        + "'BOUNCED','FAILED','UNKNOWN','SKIPPED'))");
+        jdbc.execute(
+                "ALTER TABLE email_outbox ADD COLUMN delivered_at TIMESTAMPTZ,"
+                        + " ADD COLUMN bounced_at TIMESTAMPTZ");
         users = mock(JpaUserRepository.class);
         preferences = mock(JpaNotificationPreferenceRepository.class);
         sender = mock(GmailSender.class);
@@ -95,6 +103,8 @@ class EmailOutboxPostgresTest {
         when(users.findByEmail(user.getEmail())).thenReturn(Optional.of(user));
         var settings = new EmailProperties();
         settings.setEnabled(true);
+        settings.setDeliveryMode("ALLOWLIST");
+        settings.setAllowedRecipients(Set.of(user.getEmail()));
         settings.setPublicBaseUrl("https://internlink.example");
         store =
                 new com.internlink.core.infrastructure.persistence.jdbc.JdbcEmailOutboxStore(
@@ -178,13 +188,13 @@ class EmailOutboxPostgresTest {
         var row = worker.claim();
         when(sender.deliver(any(), anyString(), anyString(), anyString())).thenReturn("gmail-id");
         worker.deliver(row);
-        assertThat(state(row.id())).isEqualTo("SENT");
+        assertThat(state(row.id())).isEqualTo("ACCEPTED");
         assertThat(
                         jdbc.queryForObject(
                                 "SELECT delivery_status->>'email' FROM notifications WHERE id=?",
                                 String.class,
                                 n.getId()))
-                .isEqualTo("SENT");
+                .isEqualTo("ACCEPTED");
         assertThat(
                         jdbc.queryForObject(
                                 "SELECT provider_message_id FROM email_outbox WHERE id=?",
@@ -310,7 +320,7 @@ class EmailOutboxPostgresTest {
         assertThat(store.retry(row.id(), false)).isFalse();
         assertThat(store.retry(row.id(), true)).isTrue();
         assertThat(state(row.id())).isEqualTo("RETRY");
-        jdbc.update("UPDATE email_outbox SET status='SENT' WHERE id=?", row.id());
+        jdbc.update("UPDATE email_outbox SET status='ACCEPTED' WHERE id=?", row.id());
         assertThat(store.retry(row.id(), true)).isFalse();
         assertThat(store.cancel(row.id())).isFalse();
     }

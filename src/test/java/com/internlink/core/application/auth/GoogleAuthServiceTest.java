@@ -103,63 +103,14 @@ class GoogleAuthServiceTest {
     }
 
     @Test
-    void shouldLinkGoogleSubjectWhenEmailExistsWithoutGoogleSubject() {
-        GoogleTokenVerifier.GoogleUserInfo googleUser = new GoogleTokenVerifier.GoogleUserInfo(
-                "new-google-sub-789", "lecturer@internlink.vn", "Teacher B", true);
-
-        when(tokenVerifier.verify("valid-token")).thenReturn(googleUser);
-
-        User localUser = User.builder()
-                .email("lecturer@internlink.vn")
-                .fullName("Teacher B")
-                .role(UserRole.LECTURER)
-                .isActive(true)
-                .build();
-        localUser.setId(UUID.randomUUID());
-
-        when(userRepository.findByGoogleSubject("new-google-sub-789")).thenReturn(Optional.empty());
-        when(userRepository.findByEmail("lecturer@internlink.vn")).thenReturn(Optional.of(localUser));
-        when(userRepository.save(any(User.class))).thenAnswer(i -> i.getArgument(0));
-        when(jwtUtil.generateToken(any())).thenReturn("jwt-token");
-        when(cookieUtils.createAccessTokenCookie(any(), anyLong()))
-                .thenReturn(ResponseCookie.from("access_token", "jwt-token").build());
-
-        AuthResponse response = service.authenticateWithGoogle(
-                new GoogleLoginRequest("valid-token"), httpRequest, servletResponse);
-
-        assertThat(response).isNotNull();
-        assertThat(localUser.getGoogleSubject()).isEqualTo("new-google-sub-789");
-        assertThat(localUser.getEmailVerifiedAt()).isNotNull();
-    }
-
-    @Test
-    void shouldAutoProvisionNewUserWhenAccountDoesNotExist() {
-        GoogleTokenVerifier.GoogleUserInfo googleUser = new GoogleTokenVerifier.GoogleUserInfo(
-                "brand-new-google-sub", "newbie@internlink.vn", "Newbie Intern", true);
-
-        when(tokenVerifier.verify("google-token")).thenReturn(googleUser);
-        when(userRepository.findByGoogleSubject("brand-new-google-sub")).thenReturn(Optional.empty());
-        when(userRepository.findByEmail("newbie@internlink.vn")).thenReturn(Optional.empty());
-        when(passwordEncoder.encode(any())).thenReturn("encoded-password");
-
-        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
-        when(userRepository.save(userCaptor.capture())).thenAnswer(i -> {
-            User u = i.getArgument(0);
-            u.setId(UUID.randomUUID());
-            return u;
-        });
-        when(jwtUtil.generateToken(any())).thenReturn("jwt-token");
-        when(cookieUtils.createAccessTokenCookie(any(), anyLong()))
-                .thenReturn(ResponseCookie.from("access_token", "jwt-token").build());
-
-        AuthResponse response = service.authenticateWithGoogle(
-                new GoogleLoginRequest("google-token"), httpRequest, servletResponse);
-
-        assertThat(response).isNotNull();
-        User createdUser = userCaptor.getValue();
-        assertThat(createdUser.getEmail()).isEqualTo("newbie@internlink.vn");
-        assertThat(createdUser.getRole()).isEqualTo(UserRole.STUDENT);
-        assertThat(createdUser.getAuthProvider()).isEqualTo("GOOGLE");
+    void refusesUnlinkedIdentityWithoutProvisioningOrEmailLink() {
+        when(tokenVerifier.verify("token")).thenReturn(
+                new GoogleTokenVerifier.GoogleUserInfo("new-sub", "admin@ctu.edu.vn", "Name", true));
+        when(userRepository.findByGoogleSubject("new-sub")).thenReturn(Optional.empty());
+        assertThatThrownBy(() -> service.authenticateWithGoogle(new GoogleLoginRequest("token"), httpRequest, servletResponse))
+                .isInstanceOf(UnauthorizedException.class);
+        verify(userRepository, never()).findByEmail(any());
+        verify(userRepository, never()).save(any());
     }
 
     @Test

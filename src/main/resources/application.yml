@@ -14,7 +14,7 @@ spring:
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:internlink_db}
     username: ${DB_USER:postgres}
-    password: ${DB_PASSWORD:hp12345}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
   jpa:
     open-in-view: false
@@ -36,8 +36,15 @@ internlink:
     service-account-key-path: ${GOOGLE_SERVICE_ACCOUNT_KEY_PATH:}
     gmail-sender: ${GOOGLE_GMAIL_SENDER:}
   jwt:
-    secret: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
-    expiration-ms: 86400000 # 24 hours
+    secret: ${JWT_SECRET}
+    expiration-ms: ${JWT_EXPIRATION_MS:900000}
+  auth:
+    google:
+      enabled: ${GOOGLE_AUTH_ENABLED:false}
+      client-id: ${GOOGLE_CLIENT_ID:}
+      hosted-domains: ${GOOGLE_HOSTED_DOMAINS:}
+  security:
+    trusted-proxies: ${TRUSTED_PROXY_IPS:}
   cookie:
     secure: ${COOKIE_SECURE:false}
     same-site: ${COOKIE_SAME_SITE:Lax}
@@ -80,6 +87,10 @@ internlink:
     from: ${EMAIL_FROM:}
     smtp-username: ${GMAIL_SMTP_USERNAME:}
     smtp-app-password: ${GMAIL_SMTP_APP_PASSWORD:}
+    delivery-mode: ${EMAIL_DELIVERY_MODE:DISABLED}
+    redirect-to: ${EMAIL_REDIRECT_TO:}
+    allowed-recipients: ${EMAIL_ALLOWED_RECIPIENTS:}
+    event-webhook-secret: ${EMAIL_EVENT_WEBHOOK_SECRET:}
     public-base-url: ${APP_PUBLIC_URL:http://localhost:3000}
     max-attempts: 5
     poll-interval-ms: 15000

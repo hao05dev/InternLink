@@ -25,23 +25,31 @@ public class RegisterCompanyRequest {
     @Size(max = 50, message = "Mã số thuế không quá 50 ký tự")
     private String taxCode;
 
+    @Size(max = 150)
     private String industry;
+    @Size(max = 255)
+    @jakarta.validation.constraints.Pattern(regexp = "^$|https?://[^\\s]+", message = "Website cần dùng http hoặc https")
     private String website;
 
     @NotNull(message = "Địa chỉ doanh nghiệp không được để trống")
-    private Map<String, Object> address;
+    @jakarta.validation.Valid
+    private CompanyRegistrationAddress address;
 
     @NotBlank(message = "Họ tên người đại diện không được để trống")
+    @Size(max = 150)
     private String fullName;
 
     @NotBlank(message = "Email không được để trống")
     @Email(message = "Email không đúng định dạng")
+    @Size(max = 150)
     private String email;
 
     @NotBlank(message = "Số điện thoại không được để trống")
+    @Size(max = 20)
+    @jakarta.validation.constraints.Pattern(regexp = "\\+?[0-9 ()-]{8,20}", message = "Số điện thoại không hợp lệ")
     private String phoneNumber;
 
     @NotBlank(message = "Mật khẩu không được để trống")
-    @Size(min = 6, message = "Mật khẩu phải từ 6 ký tự trở lên")
+    @Size(min = 15, max = 72, message = "Mật khẩu phải từ 15 đến 72 ký tự")
     private String password;
 }

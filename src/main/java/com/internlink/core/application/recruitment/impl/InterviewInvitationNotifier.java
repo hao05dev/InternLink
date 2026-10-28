@@ -28,16 +28,12 @@ public class InterviewInvitationNotifier {
             String notificationMessage) {
         String jobTitle = application.getJob().getTitle();
         boolean email = !Boolean.FALSE.equals(request.getSendEmail());
-        if (request.getEmailTemplateId() == null && email) {
-            notifications.sendNotification(
-                    application.getStudent().getId(), "INTERVIEW_SCHEDULED",
-                    "Mời phỏng vấn: " + jobTitle, notificationMessage, "/student/applications");
-            return;
-        }
         notifications.sendInAppNotification(
                 application.getStudent().getId(), "INTERVIEW_SCHEDULED",
                 "Mời phỏng vấn: " + jobTitle, notificationMessage, "/student/applications");
-        if (!email) return;
+        if (!email
+                || !settings.isEnabled()
+                || "DISABLED".equalsIgnoreCase(settings.getDeliveryMode())) return;
 
         String companyName = application.getJob().getCompany().getCompanyName();
         String destination = request.getFormat() == InterviewFormat.ONLINE

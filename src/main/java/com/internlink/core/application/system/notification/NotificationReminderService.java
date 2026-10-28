@@ -60,12 +60,13 @@ public class NotificationReminderService {
                                                                                           + " thời"
                                                                                           + " điểm"
                                                                                           + " này.");
-                                                    notifications.sendNotification(
-                                                            candidate.recipientId(),
-                                                            candidate.type(),
-                                                            candidate.title(),
-                                                            message,
-                                                            candidate.path());
+                                                notifications.publishNotification(
+                                                        candidate.recipientId(),
+                                                        candidate.type(),
+                                                        candidate.title(),
+                                                        message,
+                                                        candidate.path(),
+                                                        true);
                                                     return true;
                                                 }));
                 if (sent) count++;

@@ -37,6 +37,10 @@ public class EmailOutboxWorker {
     }
 
     void deliver(EmailDelivery row) {
+        if (!settings.accepts(row.email())) {
+            finish(row, "SKIPPED", "environment_recipient_blocked", null, 0);
+            return;
+        }
         if (!recipients.allows(row)) {
             finish(row, "SKIPPED", "email_preference_or_recipient_changed", null, 0);
             return;
@@ -44,9 +48,13 @@ public class EmailOutboxWorker {
         try {
             finish(
                     row,
-                    "SENT",
+                    "ACCEPTED",
                     null,
-                    sender.deliver(row.id(), row.email(), row.subject(), row.body()),
+                    sender.deliver(
+                            row.id(),
+                            settings.routeRecipient(row.email()),
+                            settings.routeSubject(row.email(), row.subject()),
+                            row.body()),
                     0);
         } catch (EmailDeliveryException ex) {
             String result =

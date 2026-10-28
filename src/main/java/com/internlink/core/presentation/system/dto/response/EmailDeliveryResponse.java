@@ -26,7 +26,9 @@ public final class EmailDeliveryResponse {
             UUID scopeId,
             OffsetDateTime createdAt,
             OffsetDateTime nextAttemptAt,
-            OffsetDateTime sentAt) {}
+            OffsetDateTime acceptedAt,
+            OffsetDateTime deliveredAt,
+            OffsetDateTime bouncedAt) {}
 
     public record Page(List<Item> items, long totalElements, int totalPages) {}
 

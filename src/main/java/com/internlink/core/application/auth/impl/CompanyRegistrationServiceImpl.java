@@ -47,6 +47,7 @@ public class CompanyRegistrationServiceImpl implements CompanyRegistrationServic
     @Override
     @Transactional
     public AuthResponse registerCompany(RegisterCompanyRequest request, HttpServletResponse response) {
+        com.internlink.core.application.auth.PasswordPolicy.validate(request.getPassword());
         String cleanEmail = request.getEmail().trim().toLowerCase();
         if (userRepository.existsByEmail(cleanEmail)) {
             throw new BadRequestException("Email '" + cleanEmail + "' đã được sử dụng trong hệ thống");
@@ -62,7 +63,7 @@ public class CompanyRegistrationServiceImpl implements CompanyRegistrationServic
             .taxCode(cleanTaxCode)
             .industry(request.getIndustry())
             .website(request.getWebsite())
-            .address(request.getAddress())
+            .address(request.getAddress().toMap())
             .verificationStatus(VerificationStatus.PENDING)
             .verificationDetail(Map.of("registeredBy", cleanEmail, "registeredAt", OffsetDateTime.now().toString()))
             .build();
@@ -95,7 +96,7 @@ public class CompanyRegistrationServiceImpl implements CompanyRegistrationServic
         CustomUserDetail principal = CustomUserDetail.create(savedUser);
         String token = jwtUtil.generateToken(principal);
         ResponseCookie cookie = cookieUtils.createAccessTokenCookie(token, jwtUtil.getExpirationMs());
-        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+        com.internlink.core.infrastructure.security.AuthCookieWriter.add(response, HttpHeaders.SET_COOKIE, cookie.toString());
 
         if (refreshTokenService != null) {
             refreshTokenService.createSessionAndToken(savedUser, null, response);

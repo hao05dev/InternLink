@@ -34,6 +34,7 @@ public class PasswordResetServiceImpl implements PasswordResetService {
     private final TokenCryptoUtils cryptoUtils;
     private final PasswordEncoder passwordEncoder;
     private final EmailOutboxService emailOutboxService;
+    private final com.internlink.core.application.auth.RecoveryRequestLimiter recoveryLimits;
 
     @Value("${internlink.email.public-base-url:http://localhost:3000}")
     private String publicBaseUrl;
@@ -44,6 +45,7 @@ public class PasswordResetServiceImpl implements PasswordResetService {
     @Transactional
     public void forgotPassword(ForgotPasswordRequest request) {
         String cleanEmail = request.getEmail().trim().toLowerCase();
+        if (!recoveryLimits.allow(cleanEmail)) return;
         var userOpt = userRepository.findByEmail(cleanEmail);
 
         if (userOpt.isEmpty()) {
@@ -66,6 +68,7 @@ public class PasswordResetServiceImpl implements PasswordResetService {
                 .user(user)
                 .tokenHash(tokenHash)
                 .expiresAt(expiresAt)
+                .purpose("PASSWORD_RESET")
                 .build();
         tokenRepository.save(resetToken);
 
@@ -90,6 +93,7 @@ public class PasswordResetServiceImpl implements PasswordResetService {
     @Override
     @Transactional
     public void resetPassword(ResetPasswordRequest request) {
+        com.internlink.core.application.auth.PasswordPolicy.validate(request.getNewPassword());
         if (!request.getNewPassword().equals(request.getConfirmPassword())) {
             throw new BadRequestException("Mật khẩu xác nhận không khớp với mật khẩu mới");
         }
@@ -98,18 +102,25 @@ public class PasswordResetServiceImpl implements PasswordResetService {
         PasswordResetToken resetToken = tokenRepository.findValidToken(tokenHash, OffsetDateTime.now())
                 .orElseThrow(() -> new BadRequestException("Mã xác thực đặt lại mật khẩu không hợp lệ hoặc đã hết hạn"));
 
-        User user = resetToken.getUser();
+        User user = userRepository.findByIdForUpdate(resetToken.getUser().getId())
+                .orElseThrow(() -> new BadRequestException("Tài khoản không hợp lệ"));
+        if (!Boolean.TRUE.equals(user.getIsActive()) || !resetToken.getPurpose().equals(request.getPurpose())) {
+            throw new BadRequestException("Liên kết không hợp lệ hoặc không còn hiệu lực");
+        }
         OffsetDateTime now = OffsetDateTime.now();
 
+        if (tokenRepository.consume(resetToken.getId(), now) != 1) {
+            throw new BadRequestException("Liên kết đã được sử dụng hoặc hết hạn");
+        }
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         user.setPasswordChangedAt(now);
         user.setMustChangePassword(false);
+        if ("ACCOUNT_ACTIVATION".equals(request.getPurpose())) user.setEmailVerifiedAt(now);
         user.setFailedLoginAttempts(0);
         user.setLockedUntil(null);
         userRepository.save(user);
 
-        resetToken.setUsedAt(now);
-        tokenRepository.save(resetToken);
+        tokenRepository.invalidateAllForUser(user.getId(), now);
 
         sessionFamilyRepository.revokeAllActiveFamiliesByUserId(user.getId(), now, "PASSWORD_RESET");
         log.info("Người dùng [{}] đã đặt lại mật khẩu thành công qua email token", user.getId());

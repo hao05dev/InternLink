@@ -36,7 +36,7 @@ class OAuthControllerTest {
 
     @BeforeEach
     void setUp() {
-        controller = new OAuthController(googleAuthService);
+        controller = new OAuthController(googleAuthService, mock(com.internlink.core.application.auth.GoogleAccountLinkService.class));
     }
 
     @Test

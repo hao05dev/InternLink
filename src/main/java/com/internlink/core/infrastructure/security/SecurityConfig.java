@@ -34,6 +34,7 @@ public class SecurityConfig {
 
     private final JwtFilter jwtFilter;
     private final RateLimitingFilter rateLimitingFilter;
+    private final CookieProperties cookieProperties;
 
     @Value("${internlink.cors.allowed-origins:http://localhost:3000,http://127.0.0.1:3000}")
     private List<String> allowedOrigins;
@@ -51,6 +52,9 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        var csrfCookies = CookieCsrfTokenRepository.withHttpOnlyFalse();
+        csrfCookies.setCookieCustomizer(cookie -> cookie.secure(cookieProperties.isSecure())
+                .sameSite(cookieProperties.getSameSite()).path("/"));
         CsrfTokenRequestAttributeHandler csrfRequestHandler = new CsrfTokenRequestAttributeHandler();
         csrfRequestHandler.setCsrfRequestAttributeName(null);
 
@@ -61,16 +65,12 @@ public class SecurityConfig {
                         )
                 )
                 .csrf(csrf -> csrf
-                        .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                        .csrfTokenRepository(csrfCookies)
                         .csrfTokenRequestHandler(csrfRequestHandler)
                         .ignoringRequestMatchers(
-                                "/api/v1/auth/login",
                                 "/api/v1/auth/session",
-                                "/api/v1/auth/register/**",
                                 "/api/v1/auth/forgot-password",
                                 "/api/v1/auth/reset-password",
-                                "/api/v1/auth/refresh",
-                                "/api/v1/auth/google",
                                 "/api/v1/public/**",
                                 "/api/v1/jobs/public/**",
                                 "/api/v1/terms",
@@ -93,6 +93,8 @@ public class SecurityConfig {
                                         .requestMatchers(
                                                 "/api/v1/auth/login",
                                                 "/api/v1/auth/session",
+                                                "/api/v1/auth/csrf",
+                                                "/api/v1/auth/logout",
                                                 "/api/v1/auth/register/**",
                                                 "/api/v1/auth/forgot-password",
                                                 "/api/v1/auth/reset-password",
@@ -112,6 +114,7 @@ public class SecurityConfig {
                                         .authenticated())
                 .addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(new PasswordChangeRequiredFilter(), JwtFilter.class)
                 .addFilterAfter(new SpaCsrfTokenFilter(), CsrfFilter.class);
 
         return http.build();

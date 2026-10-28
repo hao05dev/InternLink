@@ -41,6 +41,8 @@ public class EmbeddingPreparationService {
                 () -> missing.add(document));
         }
 
+        if (missing.isEmpty()) return prepared;
+
         List<AiEmbeddingInput> inputs = missing.stream()
             .map(document -> new AiEmbeddingInput(document.id(), document.text(), document.task()))
             .toList();

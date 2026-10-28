@@ -24,12 +24,12 @@ public class EmailOutboxService {
 
     @Transactional
     public String enqueue(Notification notification) {
-        if (!settings.isEnabled()) return "DISABLED";
+        if (!canQueue()) return "DISABLED";
         if (!recipients.allows(notification.getRecipient(), notification.getNotificationType()))
             return "SKIPPED";
         return insert(
                         notification.getRecipient().getEmail(),
-                        notification.getTitle(),
+                        branded(notification.getTitle()),
                         composer.body(notification),
                         "notification:" + notification.getId(),
                         notification.getId(),
@@ -64,7 +64,7 @@ public class EmailOutboxService {
             String type,
             String key,
             EmailDispatchContext context) {
-        if (!settings.isEnabled()) return false;
+        if (!canQueue()) return false;
         var registered = users.findByEmail(email);
         if (registered.isPresent() && !recipients.allows(registered.get(), type)) return false;
         return insert(
@@ -105,6 +105,14 @@ public class EmailOutboxService {
 
     public void attachContext(UUID notificationId, EmailDispatchContext context) {
         if (notificationId != null && context != null) store.attachContext(notificationId, context);
+    }
+
+    private boolean canQueue() {
+        return settings.isEnabled() && !"DISABLED".equals(settings.getDeliveryMode());
+    }
+
+    private String branded(String subject) {
+        return subject.startsWith("[InternLink]") ? subject : "[InternLink] " + subject;
     }
 
     private static String digest(String value) {

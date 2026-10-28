@@ -31,11 +31,12 @@ public class PasswordManagementServiceImpl implements PasswordManagementService 
     @Override
     @Transactional
     public void changePassword(UUID userId, ChangePasswordRequest request) {
+        com.internlink.core.application.auth.PasswordPolicy.validate(request.getNewPassword());
         if (!request.getNewPassword().equals(request.getConfirmPassword())) {
             throw new BadRequestException("Mật khẩu xác nhận không khớp với mật khẩu mới");
         }
 
-        User user = userRepository.findById(userId)
+        User user = userRepository.findByIdForUpdate(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
 
         if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPasswordHash())) {

@@ -6,7 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 /**
- * Đảm nhiệm duy nhất 1 nhiệm vụ: Soạn và đưa thư kích hoạt tài khoản sinh viên kèm mật khẩu ngẫu nhiên vào hàng đợi email outbox.
+ * Soạn và đưa thư kích hoạt tài khoản sinh viên vào email outbox.
  */
 @Slf4j
 @Component
@@ -15,7 +15,13 @@ public class StudentProvisionEmailNotifier {
 
     private final EmailOutboxService emailOutboxService;
 
-    public void sendProvisionEmail(String studentEmail, String studentName, String studentCode, String rawPassword, String termName) {
+    public void sendProvisionEmail(
+            String studentEmail,
+            String studentName,
+            String studentCode,
+            String activationUrl,
+            long ttlHours,
+            String termName) {
         String subject = "[InternLink] Kích hoạt tài khoản Cổng thực tập tốt nghiệp - " + termName;
         String body = String.format(
                 """
@@ -23,19 +29,20 @@ public class StudentProvisionEmailNotifier {
 
                 Khoa đã xác nhận và kích hoạt tài khoản của bạn trên Cổng thông tin Thực tập tốt nghiệp InternLink cho học kỳ %s.
 
-                Thông tin đăng nhập của bạn:
-                - Tài khoản (Email): %s
-                - Mật khẩu tạm thời: %s
+                Tài khoản của bạn: %s
+
+                Vui lòng mở liên kết một lần dưới đây để tự đặt mật khẩu. Liên kết có hiệu lực trong %d giờ:
+                %s
 
                 LƯU Ý QUAN TRỌNG:
-                1. Đây là mật khẩu ngẫu nhiên bảo mật được hệ thống khởi tạo tự động.
-                2. Để đảm bảo an toàn thông tin, hệ thống sẽ yêu cầu bạn ĐỔI MẬT KHẨU MỚI ngay trong lần đăng nhập đầu tiên.
-                3. Sau khi đăng nhập, vui lòng kiểm tra thông tin Giảng viên hướng dẫn học phần được phân công.
+                1. Không chuyển tiếp liên kết kích hoạt cho người khác.
+                2. Liên kết chỉ sử dụng được một lần. Nếu hết hạn, dùng chức năng Quên mật khẩu.
+                3. Sau khi kích hoạt, vui lòng kiểm tra thông tin Giảng viên hướng dẫn được phân công.
 
                 Trân trọng,
                 Ban Quản lý Thực tập Khoa / Trường CNTT-TT
                 """,
-                studentName, studentCode, termName, studentEmail, rawPassword
+                studentName, studentCode, termName, studentEmail, ttlHours, activationUrl
         );
 
         boolean enqueued = emailOutboxService.enqueueNotice(studentEmail, subject, body);

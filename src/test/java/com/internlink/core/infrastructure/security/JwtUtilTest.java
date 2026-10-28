@@ -51,19 +51,11 @@ class JwtUtilTest {
 
     @Test
     void shouldRejectExpiredToken() {
-        // Cấu hình JwtUtil với thời gian sống âm (đã hết hạn ngay khi sinh)
-        JwtUtil expiredJwtUtil = new JwtUtil(TEST_SECRET, -1000L);
-        UUID userId = UUID.randomUUID();
-        CustomUserDetail principal = CustomUserDetail.builder()
-                .id(userId)
-                .email("user@internlink.vn")
-                .fullName("Test User")
-                .role(UserRole.ADMIN)
-                .authorities(List.of())
-                .isActive(true)
-                .build();
-
-        String expiredToken = expiredJwtUtil.generateToken(principal);
+        String expiredToken = io.jsonwebtoken.Jwts.builder()
+                .subject(UUID.randomUUID().toString())
+                .expiration(new java.util.Date(System.currentTimeMillis() - 1000))
+                .signWith(io.jsonwebtoken.security.Keys.hmacShaKeyFor(
+                        TEST_SECRET.getBytes(java.nio.charset.StandardCharsets.UTF_8))).compact();
 
         assertThat(jwtUtil.validateToken(expiredToken)).isFalse();
     }

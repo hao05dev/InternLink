@@ -25,11 +25,26 @@ class NotificationAccessTest {
         when(users.findById(user.getId())).thenReturn(Optional.of(user));
         when(repository.saveAndFlush(any())).thenAnswer(call->{ Notification n=call.getArgument(0); n.setId(UUID.randomUUID()); return n; });
         when(outbox.enqueue(any())).thenReturn("QUEUED");
-        service.sendNotification(user.getId(),"SYSTEM_UPDATE","Cập nhật","Nội dung","//example.com");
+        service.publishNotification(user.getId(),"SYSTEM_UPDATE","Cập nhật","Nội dung","//example.com",true);
         var ordered=inOrder(repository,outbox);
         ordered.verify(repository).saveAndFlush(any());
         ordered.verify(outbox).enqueue(argThat(n->n.getId()!=null && n.getActionUrl().equals(NotificationLinks.home(role))));
         ordered.verify(repository).save(argThat(n->"QUEUED".equals(n.getDeliveryStatus().get("email"))));
+    }
+    @Test void genericNotificationDoesNotEnqueueEmail() {
+        User user=User.builder().role(UserRole.STUDENT).isActive(true).build();
+        user.setId(UUID.randomUUID());
+        when(users.findById(user.getId())).thenReturn(Optional.of(user));
+        when(repository.saveAndFlush(any())).thenAnswer(call->{
+            Notification n=call.getArgument(0);
+            n.setId(UUID.randomUUID());
+            return n;
+        });
+
+        service.sendNotification(user.getId(),"APPLICATION_SUBMITTED","Đã ứng tuyển","Nội dung","/student/applications");
+
+        verifyNoInteractions(outbox);
+        verify(repository).save(argThat(n->"SEPARATE_NOTICE".equals(n.getDeliveryStatus().get("email"))));
     }
     @Test void anotherRecipientCannotMarkRead() {
         var owner=User.builder().build(); owner.setId(UUID.randomUUID());

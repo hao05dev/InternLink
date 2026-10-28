@@ -12,7 +12,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -29,6 +28,7 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     private final RateLimiterService rateLimiterService;
     private final RateLimitProperties properties;
     private final ObjectMapper objectMapper;
+    private final ClientIpResolver clientIps;
 
     @Override
     protected void doFilterInternal(
@@ -44,7 +44,7 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         RateLimiterService.LimitCategory category = resolveCategory(path);
 
         if (category != null) {
-            String clientIp = extractClientIp(request);
+            String clientIp = clientIps.resolve(request);
             ConsumptionProbe probe = rateLimiterService.tryConsume(clientIp, category);
 
             if (!probe.isConsumed()) {
@@ -72,6 +72,15 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         if (path.startsWith("/api/v1/auth/login")) {
             return RateLimiterService.LimitCategory.LOGIN;
         }
+        if (path.startsWith("/api/v1/auth/forgot-password") || path.startsWith("/api/v1/auth/register")) {
+            return RateLimiterService.LimitCategory.RECOVERY;
+        }
+        if (path.startsWith("/api/v1/auth/google") || path.startsWith("/api/v1/auth/reset-password")) {
+            return RateLimiterService.LimitCategory.LOGIN;
+        }
+        if (path.startsWith("/api/v1/auth/refresh")) {
+            return RateLimiterService.LimitCategory.DEFAULT;
+        }
         if (path.startsWith("/api/v1/documents/uploads")) {
             return RateLimiterService.LimitCategory.UPLOAD;
         }
@@ -81,11 +90,4 @@ public class RateLimitingFilter extends OncePerRequestFilter {
         return null;
     }
 
-    private String extractClientIp(HttpServletRequest request) {
-        String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (StringUtils.hasText(xForwardedFor)) {
-            return xForwardedFor.split(",")[0].trim();
-        }
-        return request.getRemoteAddr();
-    }
 }

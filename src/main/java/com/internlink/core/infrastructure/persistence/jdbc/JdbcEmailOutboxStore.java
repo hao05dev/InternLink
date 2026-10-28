@@ -123,7 +123,7 @@ WHERE status='SENDING' AND lease_until<CURRENT_TIMESTAMP RETURNING notification_
                                     jdbc.update(
                                             """
 UPDATE email_outbox SET status=?,last_error_code=?,provider_message_id=?,next_attempt_at=?,
-    sent_at=CASE WHEN ?='SENT' THEN CURRENT_TIMESTAMP ELSE sent_at END,lease_token=NULL,lease_until=NULL
+    sent_at=CASE WHEN ?='ACCEPTED' THEN CURRENT_TIMESTAMP ELSE sent_at END,lease_token=NULL,lease_until=NULL
 WHERE id=? AND status='SENDING' AND lease_token=?
 """,
                                             result,
@@ -151,7 +151,7 @@ WHERE id=? AND status='SENDING' AND lease_token=?
         return jdbc.queryForObject(
                 """
 SELECT greatest(0,extract(epoch FROM CURRENT_TIMESTAMP-min(created_at) FILTER (WHERE status IN ('PENDING','RETRY','SENDING')))) AS oldest_seconds,
-    avg(greatest(0,extract(epoch FROM sent_at-created_at))) FILTER (WHERE status='SENT' AND sent_at>=CURRENT_TIMESTAMP-INTERVAL '24 hours') AS average_seconds
+    avg(greatest(0,extract(epoch FROM sent_at-created_at))) FILTER (WHERE status IN ('ACCEPTED','DELIVERED','BOUNCED') AND sent_at>=CURRENT_TIMESTAMP-INTERVAL '24 hours') AS average_seconds
 FROM email_outbox
 """,
                 (rs, index) -> {
@@ -234,7 +234,9 @@ FROM email_outbox
                                         uuid(rs, "scope_id"),
                                         rs.getObject("created_at", OffsetDateTime.class),
                                         rs.getObject("next_attempt_at", OffsetDateTime.class),
-                                        rs.getObject("sent_at", OffsetDateTime.class)),
+                                        rs.getObject("sent_at", OffsetDateTime.class),
+                                        rs.getObject("delivered_at", OffsetDateTime.class),
+                                        rs.getObject("bounced_at", OffsetDateTime.class)),
                         params.toArray());
         return new EmailDeliveryResponse.Page(rows, count, (int) ((count + size - 1) / size));
     }
@@ -243,11 +245,14 @@ FROM email_outbox
         return transition(
                 id,
                 "RETRY",
-                confirmedNotAccepted ? List.of("FAILED", "UNKNOWN") : List.of("FAILED"));
+                confirmedNotAccepted
+                        ? List.of("FAILED", "UNKNOWN", "BOUNCED")
+                        : List.of("FAILED", "BOUNCED"));
     }
 
     public boolean cancel(UUID id) {
-        return transition(id, "SKIPPED", List.of("PENDING", "RETRY", "FAILED", "UNKNOWN"));
+        return transition(
+                id, "SKIPPED", List.of("PENDING", "RETRY", "FAILED", "UNKNOWN", "BOUNCED"));
     }
 
     public void attachContext(UUID notificationId, EmailDispatchContext context) {

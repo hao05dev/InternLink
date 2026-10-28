@@ -64,7 +64,7 @@ class GmailSenderTest {
                         Session.getInstance(new Properties()), new ByteArrayInputStream(raw));
         assertThat(message.getSubject()).isEqualTo("Kết quả thực tập");
         assertThat(message.getContent()).isEqualTo("Hồ sơ đã được duyệt");
-        assertThat(message.getMessageID()).isEqualTo("<" + id + "@internlink.local>");
+        assertThat(message.getMessageID()).isEqualTo("<" + id + "@example.edu>");
     }
 
     @Test
@@ -156,9 +156,12 @@ class GmailSenderTest {
     @Test
     void smtpConfigurationRequiresMatchingSenderAndAppPassword() {
         settings.setProvider("GMAIL_SMTP");
+        settings.setDeliveryMode("ALLOWLIST");
+        settings.setAllowedRecipients(Set.of("student@example.edu"));
         assertThatThrownBy(settings::validate).isInstanceOf(IllegalStateException.class);
         settings.setSmtpUsername(settings.getFrom());
         settings.setSmtpAppPassword("test-only-password");
+        settings.setPublicBaseUrl("https://app.example.edu");
         assertThatCode(settings::validate).doesNotThrowAnyException();
         settings.setPublicBaseUrl("https://internlink.example@evil.example/path");
         assertThatThrownBy(settings::validate).isInstanceOf(IllegalStateException.class);

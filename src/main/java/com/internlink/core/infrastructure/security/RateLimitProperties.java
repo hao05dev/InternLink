@@ -23,6 +23,7 @@ public class RateLimitProperties {
      * Số lượt request tối đa cho đăng nhập (/api/v1/auth/login) trong 1 phút.
      */
     private int loginCapacity = 5;
+    private int recoveryCapacity = 3;
 
     /**
      * Số lượt request tối đa cho upload tài liệu (/api/v1/documents/uploads) trong 1 phút.

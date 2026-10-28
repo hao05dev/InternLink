@@ -59,40 +59,9 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
             throw new UnauthorizedException("Email tài khoản Google chưa được xác thực");
         }
 
-        String cleanEmail = googleUser.email().trim().toLowerCase();
-        Optional<User> userOpt = userRepository.findByGoogleSubject(googleUser.sub());
-
-        User user;
-        if (userOpt.isPresent()) {
-            user = userOpt.get();
-        } else {
-            Optional<User> existingByEmail = userRepository.findByEmail(cleanEmail);
-            if (existingByEmail.isPresent()) {
-                user = existingByEmail.get();
-                user.setGoogleSubject(googleUser.sub());
-                if (user.getEmailVerifiedAt() == null) {
-                    user.setEmailVerifiedAt(OffsetDateTime.now());
-                }
-                user = userRepository.save(user);
-            } else {
-                // Tự động khởi tạo tài khoản mới cho người dùng Google (mặc định STUDENT)
-                user = User.builder()
-                        .email(cleanEmail)
-                        .fullName(googleUser.name() != null ? googleUser.name().trim() : cleanEmail)
-                        .passwordHash(passwordEncoder.encode(UUID.randomUUID().toString()))
-                        .authProvider("GOOGLE")
-                        .googleSubject(googleUser.sub())
-                        .emailVerifiedAt(OffsetDateTime.now())
-                        .role(UserRole.STUDENT)
-                        .mustChangePassword(false)
-                        .isActive(true)
-                        .failedLoginAttempts(0)
-                        .build();
-                user = userRepository.save(user);
-                log.info("Đã tạo mới tài khoản qua Google OAuth cho email [{}]", cleanEmail);
-            }
-        }
-
+        // Only a previously linked subject can authenticate; email alone cannot link roles.
+        User user = userRepository.findByGoogleSubject(googleUser.sub())
+                .orElseThrow(() -> new UnauthorizedException("Tài khoản chưa liên kết Google. Vui lòng đăng nhập bằng mật khẩu."));
         if (!Boolean.TRUE.equals(user.getIsActive())) {
             throw new UnauthorizedException("Tài khoản của bạn đã bị khóa hoặc chưa kích hoạt");
         }
@@ -109,7 +78,7 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
         String accessToken = jwtUtil.generateToken(principal);
 
         ResponseCookie accessCookie = cookieUtils.createAccessTokenCookie(accessToken, jwtUtil.getExpirationMs());
-        response.addHeader(HttpHeaders.SET_COOKIE, accessCookie.toString());
+        com.internlink.core.infrastructure.security.AuthCookieWriter.add(response, HttpHeaders.SET_COOKIE, accessCookie.toString());
 
         refreshTokenService.createSessionAndToken(user, httpRequest, response);
 
@@ -149,9 +118,6 @@ public class GoogleAuthServiceImpl implements GoogleAuthService {
 
     private String extractClientIp(HttpServletRequest request) {
         if (request == null) return null;
-        String ip = request.getHeader("X-Forwarded-For");
-        if (ip == null || ip.isBlank()) ip = request.getHeader("Proxy-Client-IP");
-        if (ip == null || ip.isBlank()) ip = request.getRemoteAddr();
-        return (ip != null && ip.contains(",")) ? ip.split(",")[0].trim() : ip;
+        return request.getRemoteAddr();
     }
 }

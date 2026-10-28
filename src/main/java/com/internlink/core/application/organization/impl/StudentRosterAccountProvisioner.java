@@ -1,5 +1,6 @@
 package com.internlink.core.application.organization.impl;
 
+import com.internlink.core.application.auth.AccountActivationTokenService;
 import com.internlink.core.application.system.AuditLogService;
 import com.internlink.core.domain.auth.User;
 import com.internlink.core.domain.organization.InternshipTerm;
@@ -28,7 +29,7 @@ import java.util.UUID;
 
 /**
  * Đảm nhiệm duy nhất 1 nhiệm vụ: Cấp tài khoản hệ thống (đơn lẻ hoặc hàng loạt) cho sinh viên đủ điều kiện,
- * tạo mật khẩu ngẫu nhiên bảo mật và kích hoạt gửi email thông báo.
+ * tạo thông tin đăng nhập bất khả dụng và gửi liên kết kích hoạt một lần.
  */
 @Slf4j
 @Component
@@ -42,8 +43,12 @@ public class StudentRosterAccountProvisioner {
     private final PasswordEncoder passwordEncoder;
     private final StudentProvisionEmailNotifier emailNotifier;
     private final JpaStudentProfileRepository studentProfileRepository;
+    private final AccountActivationTokenService activationTokens;
 
     public StudentRosterResponse provisionSingleAccount(StudentRoster roster, StudentRosterMapper mapper) {
+        if (roster.getEligibilityStatus() != EligibilityStatus.ELIGIBLE) {
+            throw new BadRequestException("Chỉ cấp tài khoản cho sinh viên đủ điều kiện");
+        }
         if (roster.getClaimedUser() != null) {
             throw new BadRequestException("Sinh viên này đã có tài khoản hệ thống (MSSV: " + roster.getStudentCode() + ")");
         }
@@ -51,6 +56,7 @@ public class StudentRosterAccountProvisioner {
         String email = roster.getOfficialEmail().trim().toLowerCase();
         if (userRepository.existsByEmail(email)) {
             User existing = userRepository.findByEmail(email).orElseThrow();
+                requireStudentInDepartment(existing, roster);
             roster.setClaimedUser(existing);
             roster.setClaimedAt(OffsetDateTime.now());
             rosterRepository.save(roster);
@@ -62,12 +68,12 @@ public class StudentRosterAccountProvisioner {
             return mapper.mapToResponse(roster);
         }
 
-        String rawPassword = SecurePasswordGenerator.generateRandomPassword(10);
+        String bootstrapSecret = SecurePasswordGenerator.generateRandomPassword(32);
         User newUser = User.builder()
                 .email(email)
                 .fullName(roster.getFullName())
                 .phoneNumber(roster.getPhoneNumber())
-                .passwordHash(passwordEncoder.encode(rawPassword))
+                .passwordHash(passwordEncoder.encode(bootstrapSecret))
                 .role(UserRole.STUDENT)
                 .department(roster.getTerm().getDepartment())
                 .mustChangePassword(true)
@@ -80,17 +86,21 @@ public class StudentRosterAccountProvisioner {
         rosterRepository.save(roster);
         ensureStudentProfile(saved, roster);
 
-        // Gửi email chứa mật khẩu ngẫu nhiên về hòm thư sinh viên
-        emailNotifier.sendProvisionEmail(email, roster.getFullName(), roster.getStudentCode(), rawPassword, roster.getTerm().getTermName());
+        String activationUrl = activationTokens.issue(saved);
+        emailNotifier.sendProvisionEmail(
+                email,
+                roster.getFullName(),
+                roster.getStudentCode(),
+                activationUrl,
+                activationTokens.ttlHours(),
+                roster.getTerm().getTermName());
 
         auditLogService.logAction(
                 securityGuard.currentUser().getId(), "PROVISION_STUDENT_ACCOUNT",
                 "StudentRoster", roster.getId(), "SUCCESS",
                 Map.of("studentCode", roster.getStudentCode(), "email", email), null);
 
-        StudentRosterResponse result = mapper.mapToResponse(roster);
-        result.setDefaultPassword(rawPassword);
-        return result;
+        return mapper.mapToResponse(roster);
     }
 
     public BatchProvisionResponse batchProvisionEligible(InternshipTerm term, UUID actorId) {
@@ -116,6 +126,7 @@ public class StudentRosterAccountProvisioner {
             String email = roster.getOfficialEmail().trim().toLowerCase();
             if (userRepository.existsByEmail(email)) {
                 User existing = userRepository.findByEmail(email).orElseThrow();
+                requireStudentInDepartment(existing, roster);
                 roster.setClaimedUser(existing);
                 roster.setClaimedAt(OffsetDateTime.now());
                 rostersToUpdate.add(roster);
@@ -125,16 +136,15 @@ public class StudentRosterAccountProvisioner {
                         .studentCode(roster.getStudentCode())
                         .fullName(roster.getFullName())
                         .officialEmail(email)
-                        .defaultPassword(null)
                         .isNewlyCreated(false)
                         .build());
             } else {
-                String rawPassword = SecurePasswordGenerator.generateRandomPassword(10);
+                String bootstrapSecret = SecurePasswordGenerator.generateRandomPassword(32);
                 User newUser = User.builder()
                         .email(email)
                         .fullName(roster.getFullName())
                         .phoneNumber(roster.getPhoneNumber())
-                        .passwordHash(passwordEncoder.encode(rawPassword))
+                        .passwordHash(passwordEncoder.encode(bootstrapSecret))
                         .role(UserRole.STUDENT)
                         .department(term.getDepartment())
                         .mustChangePassword(true)
@@ -148,14 +158,19 @@ public class StudentRosterAccountProvisioner {
                 ensureStudentProfile(saved, roster);
                 newlyCreated++;
 
-                // Gửi email mật khẩu ngẫu nhiên
-                emailNotifier.sendProvisionEmail(email, roster.getFullName(), roster.getStudentCode(), rawPassword, term.getTermName());
+                String activationUrl = activationTokens.issue(saved);
+                emailNotifier.sendProvisionEmail(
+                        email,
+                        roster.getFullName(),
+                        roster.getStudentCode(),
+                        activationUrl,
+                        activationTokens.ttlHours(),
+                        term.getTermName());
 
                 accountDtos.add(BatchProvisionResponse.ProvisionedStudentAccountDto.builder()
                         .studentCode(roster.getStudentCode())
                         .fullName(roster.getFullName())
                         .officialEmail(email)
-                        .defaultPassword(rawPassword)
                         .isNewlyCreated(true)
                         .build());
             }
@@ -172,6 +187,13 @@ public class StudentRosterAccountProvisioner {
                 .linkedExistingCount(linkedExisting)
                 .accounts(accountDtos)
                 .build();
+    }
+
+    private void requireStudentInDepartment(User user, StudentRoster roster) {
+        if (user.getRole() != UserRole.STUDENT || user.getDepartment() == null
+                || !user.getDepartment().getId().equals(roster.getTerm().getDepartment().getId())) {
+            throw new BadRequestException("Email thuộc tài khoản khác vai trò hoặc khoa; liên hệ quản trị viên.");
+        }
     }
 
     private void ensureStudentProfile(User user, StudentRoster roster) {

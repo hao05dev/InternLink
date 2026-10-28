@@ -45,22 +45,24 @@ class NotificationReminderServiceTest {
         when(source.reserve(anyString())).thenReturn(true);
         doThrow(new IllegalStateException("fixture"))
                 .when(notifications)
-                .sendNotification(
+                .publishNotification(
                         eq(first.recipientId()),
                         anyString(),
                         anyString(),
                         anyString(),
-                        anyString());
+                        anyString(),
+                        eq(true));
         assertThat(new NotificationReminderService(source, notifications, transactions).run(now))
                 .isEqualTo(1);
         verify(transactions).rollback(failed);
         verify(transactions).commit(succeeded);
         verify(notifications)
-                .sendNotification(
+                .publishNotification(
                         eq(second.recipientId()),
                         anyString(),
                         anyString(),
                         anyString(),
-                        anyString());
+                        anyString(),
+                        eq(true));
     }
 }

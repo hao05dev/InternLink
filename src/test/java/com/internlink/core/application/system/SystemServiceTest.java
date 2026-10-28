@@ -70,7 +70,7 @@ class SystemServiceTest {
 
     @BeforeEach
     void setUp() {
-        profileService = new StudentProfileServiceImpl(studentProfileRepository, userRepository, programRepository, rosterRepository);
+        profileService = new StudentProfileServiceImpl(studentProfileRepository, userRepository, programRepository, rosterRepository, documentRepository);
         notificationService = new NotificationServiceImpl(notificationRepository, userRepository, mock(EmailOutboxService.class));
 
         DocumentAccessPolicy accessPolicy = new DocumentAccessPolicy(
@@ -153,7 +153,13 @@ class SystemServiceTest {
         when(securityGuard.currentUser()).thenReturn(CustomUserDetail.create(owner));
         when(storageServiceRouter.getActiveStorageService()).thenReturn(storage);
         when(storage.store(any(), any())).thenReturn(stored);
-        when(documentRepository.save(any())).thenThrow(new IllegalStateException("database unavailable"));
+        when(documentRepository.save(any())).thenAnswer(inv -> {
+            Document d = inv.getArgument(0);
+            if ("ACTIVE".equals(d.getStatus())) {
+                throw new IllegalStateException("database unavailable");
+            }
+            return d;
+        });
 
         TransactionSynchronizationManager.initSynchronization();
         try {
@@ -161,9 +167,6 @@ class SystemServiceTest {
                     owner.getId(), ContextType.PROFILE, owner.getId(), DocumentType.CV,
                     new MockMultipartFile("file", "cv.pdf", "application/pdf", "%PDF-1.7 fixture".getBytes())))
                     .isInstanceOf(IllegalStateException.class);
-            verify(storage, never()).delete(any());
-            TransactionSynchronizationManager.getSynchronizations()
-                    .forEach(sync -> sync.afterCompletion(TransactionSynchronization.STATUS_ROLLED_BACK));
             verify(storage).delete(stored.getProviderFileId());
         } finally {
             TransactionSynchronizationManager.clearSynchronization();

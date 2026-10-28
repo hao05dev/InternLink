@@ -12,6 +12,7 @@ import java.util.UUID;
 @Repository
 public interface JpaRefreshTokenRepository extends JpaRepository<RefreshToken, UUID> {
 
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT r FROM RefreshToken r JOIN FETCH r.family f JOIN FETCH f.user u WHERE r.tokenHash = :tokenHash")
     Optional<RefreshToken> findByTokenHashWithFamilyAndUser(@Param("tokenHash") String tokenHash);
 

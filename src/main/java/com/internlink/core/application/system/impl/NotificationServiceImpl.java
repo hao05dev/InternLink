@@ -89,7 +89,7 @@ public class NotificationServiceImpl
     @Transactional
     public void sendNotification(
             UUID recipientId, String type, String title, String message, String actionUrl) {
-        create(recipientId, type, title, message, actionUrl, true);
+        create(recipientId, type, title, message, actionUrl, false);
     }
 
     @Override

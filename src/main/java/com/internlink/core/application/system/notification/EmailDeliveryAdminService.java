@@ -38,7 +38,16 @@ public class EmailDeliveryAdminService {
         guard.requireRole(UserRole.ADMIN);
         if (status != null
                 && !status.isBlank()
-                && !Set.of("PENDING", "SENDING", "RETRY", "SENT", "FAILED", "UNKNOWN", "SKIPPED")
+                && !Set.of(
+                                "PENDING",
+                                "SENDING",
+                                "RETRY",
+                                "ACCEPTED",
+                                "DELIVERED",
+                                "BOUNCED",
+                                "FAILED",
+                                "UNKNOWN",
+                                "SKIPPED")
                         .contains(status)) throw new BadRequestException("Trạng thái không hợp lệ");
         if (scopeType != null && !scopeType.isBlank()
                 && !Set.of("SYSTEM", "DEPARTMENT", "COMPANY").contains(scopeType))
@@ -72,7 +81,7 @@ public class EmailDeliveryAdminService {
         requireReason(reason);
         if (!store.retry(id, confirmedNotAccepted))
             throw new BadRequestException(
-                    "Chỉ gửi lại FAILED hoặc UNKNOWN đã xác nhận chưa được nhà cung cấp chấp nhận");
+                    "Chỉ gửi lại FAILED, BOUNCED hoặc UNKNOWN đã xác nhận chưa được chấp nhận");
         audit.logAction(
                 guard.currentUser().getId(),
                 "RETRY_EMAIL_DELIVERY",

@@ -31,6 +31,10 @@ public class PasswordResetToken extends BaseEntity {
     @Column(name = "used_at")
     private OffsetDateTime usedAt;
 
+    @Builder.Default
+    @Column(name = "purpose", nullable = false, length = 30)
+    private String purpose = "PASSWORD_RESET";
+
     public boolean isExpired() {
         return OffsetDateTime.now().isAfter(expiresAt);
     }

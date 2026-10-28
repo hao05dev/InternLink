@@ -33,7 +33,8 @@ class PasswordControllerTest {
 
     @BeforeEach
     void setUp() {
-        controller = new PasswordController(passwordManagementService, passwordResetService);
+        controller = new PasswordController(passwordManagementService, passwordResetService,
+                new com.internlink.core.infrastructure.security.CookieUtils(new com.internlink.core.infrastructure.security.CookieProperties()));
     }
 
     @Test
@@ -47,7 +48,7 @@ class PasswordControllerTest {
                 .confirmPassword("NewPass123")
                 .build();
 
-        ResponseEntity<ApiResponse<Void>> response = controller.changePassword(principal, request);
+        ResponseEntity<ApiResponse<Void>> response = controller.changePassword(principal, request, new org.springframework.mock.web.MockHttpServletResponse());
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isNotNull();

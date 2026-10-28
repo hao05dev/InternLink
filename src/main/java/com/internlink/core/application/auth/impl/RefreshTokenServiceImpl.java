@@ -38,6 +38,7 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
     private final TokenCryptoUtils cryptoUtils;
     private final CookieUtils cookieUtils;
     private final JwtUtil jwtUtil;
+    private final com.internlink.core.infrastructure.persistence.jpa.JpaUserRepository users;
 
     private static final long IDLE_TTL_DAYS = 7;
     private static final long ABSOLUTE_TTL_DAYS = 30;
@@ -45,6 +46,14 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
     @Override
     @Transactional
     public String createSessionAndToken(User user, HttpServletRequest request, HttpServletResponse response) {
+        User current = users.findByIdForUpdate(user.getId())
+                .orElseThrow(() -> new UnauthorizedException("Tài khoản không còn hiệu lực"));
+        if (!Boolean.TRUE.equals(current.getIsActive())
+                || !java.util.Objects.equals(current.getPasswordChangedAt(), user.getPasswordChangedAt())
+                || current.getLockedUntil() != null && current.getLockedUntil().isAfter(OffsetDateTime.now())) {
+            throw new UnauthorizedException("Thông tin tài khoản đã thay đổi. Vui lòng đăng nhập lại.");
+        }
+        user = current;
         OffsetDateTime now = OffsetDateTime.now();
         OffsetDateTime absoluteExpiresAt = now.plusDays(ABSOLUTE_TTL_DAYS);
 
@@ -69,14 +78,14 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
         tokenRepository.save(token);
 
         long maxAgeSeconds = Duration.between(now, tokenExpiresAt).getSeconds();
-        response.addHeader(HttpHeaders.SET_COOKIE,
+        com.internlink.core.infrastructure.security.AuthCookieWriter.add(response, HttpHeaders.SET_COOKIE,
                 cookieUtils.createRefreshTokenCookie(rawToken, maxAgeSeconds).toString());
 
         return rawToken;
     }
 
     @Override
-    @Transactional
+    @Transactional(noRollbackFor = UnauthorizedException.class)
     public AuthResponse rotateRefreshToken(HttpServletRequest request, HttpServletResponse response) {
         String rawToken = cookieUtils.extractRefreshTokenFromCookie(request)
                 .orElseThrow(() -> new UnauthorizedException("Không tìm thấy refresh token trong yêu cầu"));
@@ -107,7 +116,9 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
 
         // 2. Kiểm tra tính hợp lệ của Token, Family và Trạng thái tài khoản
         if (currentToken.isExpired() || family.isRevoked() || family.isExpired()
-                || !Boolean.TRUE.equals(user.getIsActive())) {
+                || !Boolean.TRUE.equals(user.getIsActive())
+                || user.getLockedUntil() != null && user.getLockedUntil().isAfter(now)
+                || user.getPasswordChangedAt() != null && currentToken.getIssuedAt().isBefore(user.getPasswordChangedAt())) {
             clearCookies(response);
             throw new UnauthorizedException("Phiên làm việc đã hết hạn hoặc không còn hiệu lực");
         }
@@ -133,10 +144,10 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
         CustomUserDetail principal = CustomUserDetail.create(user);
         String newAccessToken = jwtUtil.generateToken(principal);
 
-        response.addHeader(HttpHeaders.SET_COOKIE,
+        com.internlink.core.infrastructure.security.AuthCookieWriter.add(response, HttpHeaders.SET_COOKIE,
                 cookieUtils.createAccessTokenCookie(newAccessToken, jwtUtil.getExpirationMs()).toString());
         long maxAgeSeconds = Duration.between(now, newTokenExpiresAt).getSeconds();
-        response.addHeader(HttpHeaders.SET_COOKIE,
+        com.internlink.core.infrastructure.security.AuthCookieWriter.add(response, HttpHeaders.SET_COOKIE,
                 cookieUtils.createRefreshTokenCookie(newRawToken, maxAgeSeconds).toString());
 
         return AuthResponse.builder()
@@ -175,8 +186,8 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
     }
 
     private void clearCookies(HttpServletResponse response) {
-        response.addHeader(HttpHeaders.SET_COOKIE, cookieUtils.deleteAccessTokenCookie().toString());
-        response.addHeader(HttpHeaders.SET_COOKIE, cookieUtils.deleteRefreshTokenCookie().toString());
+        com.internlink.core.infrastructure.security.AuthCookieWriter.add(response, HttpHeaders.SET_COOKIE, cookieUtils.deleteAccessTokenCookie().toString());
+        com.internlink.core.infrastructure.security.AuthCookieWriter.add(response, HttpHeaders.SET_COOKIE, cookieUtils.deleteRefreshTokenCookie().toString());
     }
 
     private String extractHeader(HttpServletRequest request, String headerName, int maxLength) {
@@ -187,8 +198,6 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
 
     private String extractClientIp(HttpServletRequest request) {
         if (request == null) return null;
-        String ip = request.getHeader("X-Forwarded-For");
-        if (ip == null || ip.isBlank()) ip = request.getRemoteAddr();
-        return (ip != null && ip.contains(",")) ? ip.split(",")[0].trim() : ip;
+        return request.getRemoteAddr();
     }
 }

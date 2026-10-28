@@ -5,6 +5,7 @@ import jakarta.mail.internet.*;
 
 import org.springframework.stereotype.Component;
 
+import java.io.UnsupportedEncodingException;
 import java.util.*;
 
 @Component
@@ -22,10 +23,13 @@ public class EmailMessageFactory {
                     new MimeMessage(session) {
                         @Override
                         protected void updateMessageID() throws MessagingException {
-                            setHeader("Message-ID", "<" + id + "@internlink.local>");
+                            setHeader("Message-ID", "<" + id + "@" + senderDomain(from) + ">");
                         }
                     };
-            message.setFrom(address(from));
+            InternetAddress sender = address(from);
+            sender.setPersonal("InternLink", "UTF-8");
+            message.setFrom(sender);
+            message.setReplyTo(new Address[] {sender});
             message.setRecipient(Message.RecipientType.TO, address(to));
             message.setHeader("X-InternLink-Template", "plain-v1");
             message.setSubject(subject, "UTF-8");
@@ -33,7 +37,7 @@ public class EmailMessageFactory {
             message.setSentDate(new Date());
             message.saveChanges();
             return message;
-        } catch (MessagingException ex) {
+        } catch (MessagingException | UnsupportedEncodingException ex) {
             throw new EmailDeliveryException("email_address_or_content_invalid", false, false);
         }
     }
@@ -44,5 +48,10 @@ public class EmailMessageFactory {
         var address = new InternetAddress(value, true);
         address.validate();
         return address;
+    }
+
+    private String senderDomain(String from) {
+        int marker = from == null ? -1 : from.lastIndexOf('@');
+        return marker < 0 ? "invalid.local" : from.substring(marker + 1).toLowerCase(Locale.ROOT);
     }
 }

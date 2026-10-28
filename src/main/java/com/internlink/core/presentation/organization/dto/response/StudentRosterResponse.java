@@ -39,5 +39,4 @@ public class StudentRosterResponse {
     private java.math.BigDecimal gpa;
     private String phoneNumber;
     private OffsetDateTime createdAt;
-    private String defaultPassword; // Only returned when newly provisioned
 }

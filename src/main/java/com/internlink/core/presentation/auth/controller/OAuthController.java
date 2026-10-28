@@ -23,6 +23,17 @@ import org.springframework.web.bind.annotation.RestController;
 public class OAuthController {
 
     private final GoogleAuthService googleAuthService;
+    private final com.internlink.core.application.auth.GoogleAccountLinkService googleLinks;
+
+    @PostMapping("/google/link")
+    @org.springframework.security.access.prepost.PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<Void>> link(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal
+            com.internlink.core.infrastructure.security.CustomUserDetail principal,
+            @Valid @RequestBody GoogleLoginRequest request) {
+        googleLinks.link(principal.getId(), request.getIdToken());
+        return ResponseEntity.ok(ApiResponse.success("Đã liên kết Google", null));
+    }
 
     @PostMapping("/google")
     public ResponseEntity<ApiResponse<AuthResponse>> googleLogin(

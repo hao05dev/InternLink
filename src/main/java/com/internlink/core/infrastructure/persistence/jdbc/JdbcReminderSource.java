@@ -41,7 +41,7 @@ WITH placements AS (
     SELECT a.student_id,o.id::text,'OFFER_DEADLINE','Lời mời thực tập cần phản hồi','/student/applications',o.expires_at
     FROM placement_offers o JOIN job_applications a ON a.id=o.application_id
     JOIN job_positions j ON j.id=a.job_id JOIN internship_terms t ON t.id=j.term_id
-    WHERE o.status='SENT' AND t.status NOT IN ('DRAFT','CLOSED')
+    WHERE o.status IN ('ACCEPTED','DELIVERED') AND t.status NOT IN ('DRAFT','CLOSED')
     UNION ALL
     SELECT g.student_id,g.id::text,'AGREEMENT_DEADLINE','Thỏa thuận cần chữ ký của bạn','/student/learning-agreement',t.application_deadline
     FROM learning_agreements g JOIN placement_offers o ON o.id=g.offer_id

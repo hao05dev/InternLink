@@ -51,6 +51,7 @@ class PasswordResetServiceTest {
     private EmailOutboxService emailOutboxService;
 
     private PasswordResetServiceImpl service;
+    private final RecoveryRequestLimiter recoveryLimits = mock(RecoveryRequestLimiter.class);
 
     @BeforeEach
     void setUp() {
@@ -60,9 +61,11 @@ class PasswordResetServiceTest {
                 sessionFamilyRepository,
                 cryptoUtils,
                 passwordEncoder,
-                emailOutboxService
+                emailOutboxService,
+                recoveryLimits
         );
         ReflectionTestUtils.setField(service, "publicBaseUrl", "http://localhost:3000");
+        lenient().when(recoveryLimits.allow(any())).thenReturn(true);
     }
 
     @Test
@@ -118,12 +121,14 @@ class PasswordResetServiceTest {
 
         when(cryptoUtils.hashToken("raw-token")).thenReturn("hash-abc");
         when(tokenRepository.findValidToken(eq("hash-abc"), any())).thenReturn(Optional.of(resetToken));
-        when(passwordEncoder.encode("NewSecret123")).thenReturn("new-encoded-hash");
+        when(userRepository.findByIdForUpdate(user.getId())).thenReturn(Optional.of(user));
+        when(tokenRepository.consume(any(), any())).thenReturn(1);
+        when(passwordEncoder.encode("My new secret passphrase")).thenReturn("new-encoded-hash");
 
         ResetPasswordRequest request = ResetPasswordRequest.builder()
                 .token("raw-token")
-                .newPassword("NewSecret123")
-                .confirmPassword("NewSecret123")
+                .newPassword("My new secret passphrase")
+                .confirmPassword("My new secret passphrase")
                 .build();
 
         service.resetPassword(request);
@@ -131,10 +136,10 @@ class PasswordResetServiceTest {
         assertThat(user.getPasswordHash()).isEqualTo("new-encoded-hash");
         assertThat(user.getFailedLoginAttempts()).isEqualTo(0);
         assertThat(user.getLockedUntil()).isNull();
-        assertThat(resetToken.getUsedAt()).isNotNull();
+        verify(tokenRepository).consume(any(), any());
 
         verify(userRepository).save(user);
-        verify(tokenRepository).save(resetToken);
+        verify(tokenRepository).invalidateAllForUser(eq(user.getId()), any());
         verify(sessionFamilyRepository).revokeAllActiveFamiliesByUserId(eq(user.getId()), any(), eq("PASSWORD_RESET"));
     }
 
@@ -145,8 +150,8 @@ class PasswordResetServiceTest {
 
         ResetPasswordRequest request = ResetPasswordRequest.builder()
                 .token("expired-token")
-                .newPassword("NewSecret123")
-                .confirmPassword("NewSecret123")
+                .newPassword("My new secret passphrase")
+                .confirmPassword("My new secret passphrase")
                 .build();
 
         assertThatThrownBy(() -> service.resetPassword(request))

@@ -13,6 +13,13 @@ import java.util.Date;
 @Slf4j
 @Component
 public class UserSecurityStateValidator {
+    public boolean isTokenValidForUser(CustomUserDetail user, Date issuedAt, String securityStamp) {
+        if (user == null || !user.isEnabled() || !user.isAccountNonLocked()) return false;
+        if (securityStamp == null) return isTokenValidForUser(user, issuedAt);
+        String expected = user.getPasswordChangedAt() == null ? "initial"
+                : user.getPasswordChangedAt().toInstant().toString();
+        return expected.equals(securityStamp);
+    }
 
     /**
      * Kiểm tra tính hợp lệ của token đối với trạng thái người dùng hiện tại.
@@ -29,8 +36,7 @@ public class UserSecurityStateValidator {
         OffsetDateTime passwordChangedAt = user.getPasswordChangedAt();
         if (passwordChangedAt != null && issuedAt != null) {
             long issuedAtMillis = issuedAt.getTime();
-            // Trừ 1 giây buffer phòng sai lệch mili giây khi cấp token và cập nhật DB cùng lúc
-            long passwordChangedAtMillis = passwordChangedAt.toInstant().toEpochMilli() - 1000L;
+            long passwordChangedAtMillis = passwordChangedAt.toInstant().toEpochMilli();
 
             if (issuedAtMillis < passwordChangedAtMillis) {
                 log.warn("Từ chối token của user [{}]: mật khẩu đã được đổi vào lúc {} sau thời điểm cấp token {}",

@@ -56,7 +56,8 @@ public class JwtFilter extends OncePerRequestFilter {
                     Date issuedAt = jwtUtil.getIssuedAtFromToken(jwt);
 
                     // 2. Kiểm tra trạng thái tài khoản và thời điểm đổi mật khẩu
-                    if (userSecurityStateValidator.isTokenValidForUser(userDetails, issuedAt)) {
+                    if (userSecurityStateValidator.isTokenValidForUser(userDetails, issuedAt,
+                            jwtUtil.getSecurityStampFromToken(jwt))) {
                         UsernamePasswordAuthenticationToken authentication =
                                 new UsernamePasswordAuthenticationToken(
                                         userDetails, null, userDetails.getAuthorities());

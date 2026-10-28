@@ -25,7 +25,6 @@ public class BatchProvisionResponse {
         private String studentCode;
         private String fullName;
         private String officialEmail;
-        private String defaultPassword;
         private boolean isNewlyCreated;
     }
 }

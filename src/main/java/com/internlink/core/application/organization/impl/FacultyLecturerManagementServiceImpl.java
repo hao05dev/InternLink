@@ -1,5 +1,6 @@
 package com.internlink.core.application.organization.impl;
 
+import com.internlink.core.application.auth.AccountActivationTokenService;
 import com.internlink.core.application.system.AuditLogService;
 import com.internlink.core.application.organization.FacultyLecturerManagementService;
 import com.internlink.core.domain.auth.User;
@@ -40,6 +41,7 @@ public class FacultyLecturerManagementServiceImpl implements FacultyLecturerMana
     private final PasswordEncoder passwordEncoder;
     private final LecturerProvisionEmailNotifier emailNotifier;
     private final AuditLogService auditLogService;
+    private final AccountActivationTokenService activationTokens;
 
     @Override
     @Transactional(readOnly = true)
@@ -79,18 +81,22 @@ public class FacultyLecturerManagementServiceImpl implements FacultyLecturerMana
         Department dept = departmentRepository.findById(departmentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Department", "id", departmentId));
 
-        InternshipTerm term = termId != null ? termRepository.findById(termId).orElse(null) : null;
+        InternshipTerm term = termId != null ? termRepository.findById(termId)
+                .orElseThrow(() -> new ResourceNotFoundException("InternshipTerm", "id", termId)) : null;
+        if (term != null && !term.getDepartment().getId().equals(departmentId)) {
+            throw new com.internlink.core.shared.exception.BadRequestException("Học kỳ không thuộc khoa");
+        }
         String email = req.getEmail().trim().toLowerCase();
 
         User user = userRepository.findByEmail(email).orElse(null);
         boolean isNew = false;
         if (user == null) {
-            String rawPassword = SecurePasswordGenerator.generateRandomPassword(10);
+            String bootstrapSecret = SecurePasswordGenerator.generateRandomPassword(32);
             user = User.builder()
                     .email(email)
                     .fullName(req.getFullName().trim())
                     .phoneNumber(req.getPhoneNumber() != null ? req.getPhoneNumber().trim() : null)
-                    .passwordHash(passwordEncoder.encode(rawPassword))
+                    .passwordHash(passwordEncoder.encode(bootstrapSecret))
                     .role(UserRole.LECTURER)
                     .department(dept)
                     .mustChangePassword(true)
@@ -98,9 +104,14 @@ public class FacultyLecturerManagementServiceImpl implements FacultyLecturerMana
                     .build();
             user = userRepository.save(user);
             isNew = true;
-            emailNotifier.sendProvisionEmail(email, user.getFullName(), rawPassword, term != null ? term.getTermName() : null);
+            emailNotifier.sendProvisionEmail(
+                    email,
+                    user.getFullName(),
+                    activationTokens.issue(user),
+                    activationTokens.ttlHours(),
+                    term != null ? term.getTermName() : null);
         } else {
-            if (user.getRole() != UserRole.LECTURER) user.setRole(UserRole.LECTURER);
+            requireLecturerInDepartment(user, dept);
             if (user.getDepartment() == null) user.setDepartment(dept);
             if (req.getPhoneNumber() != null && !req.getPhoneNumber().isBlank()) user.setPhoneNumber(req.getPhoneNumber().trim());
             userRepository.save(user);
@@ -131,7 +142,11 @@ public class FacultyLecturerManagementServiceImpl implements FacultyLecturerMana
     public BatchLecturerImportResponse importLecturers(UUID departmentId, UUID termId, List<LecturerImportItem> items, UUID actorId) {
         Department dept = departmentRepository.findById(departmentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Department", "id", departmentId));
-        InternshipTerm term = termId != null ? termRepository.findById(termId).orElse(null) : null;
+        InternshipTerm term = termId != null ? termRepository.findById(termId)
+                .orElseThrow(() -> new ResourceNotFoundException("InternshipTerm", "id", termId)) : null;
+        if (term != null && !term.getDepartment().getId().equals(departmentId)) {
+            throw new com.internlink.core.shared.exception.BadRequestException("Học kỳ không thuộc khoa");
+        }
 
         int newlyCreated = 0;
         int updated = 0;
@@ -142,12 +157,12 @@ public class FacultyLecturerManagementServiceImpl implements FacultyLecturerMana
                 String email = item.getEmail().trim().toLowerCase();
                 User user = userRepository.findByEmail(email).orElse(null);
                 if (user == null) {
-                    String rawPassword = SecurePasswordGenerator.generateRandomPassword(10);
+                    String bootstrapSecret = SecurePasswordGenerator.generateRandomPassword(32);
                     user = User.builder()
                             .email(email)
                             .fullName(item.getFullName().trim())
                             .phoneNumber(item.getPhoneNumber() != null ? item.getPhoneNumber().trim() : null)
-                            .passwordHash(passwordEncoder.encode(rawPassword))
+                            .passwordHash(passwordEncoder.encode(bootstrapSecret))
                             .role(UserRole.LECTURER)
                             .department(dept)
                             .mustChangePassword(true)
@@ -155,9 +170,14 @@ public class FacultyLecturerManagementServiceImpl implements FacultyLecturerMana
                             .build();
                     user = userRepository.save(user);
                     newlyCreated++;
-                    emailNotifier.sendProvisionEmail(email, user.getFullName(), rawPassword, term != null ? term.getTermName() : null);
+                    emailNotifier.sendProvisionEmail(
+                            email,
+                            user.getFullName(),
+                            activationTokens.issue(user),
+                            activationTokens.ttlHours(),
+                            term != null ? term.getTermName() : null);
                 } else {
-                    if (user.getRole() != UserRole.LECTURER) user.setRole(UserRole.LECTURER);
+                    requireLecturerInDepartment(user, dept);
                     if (user.getDepartment() == null) user.setDepartment(dept);
                     if (item.getPhoneNumber() != null && !item.getPhoneNumber().isBlank()) {
                         user.setPhoneNumber(item.getPhoneNumber().trim());
@@ -185,6 +205,14 @@ public class FacultyLecturerManagementServiceImpl implements FacultyLecturerMana
                 .updatedCount(updated)
                 .errors(errors)
                 .build();
+    }
+
+    private void requireLecturerInDepartment(User user, Department department) {
+        if (user.getRole() != UserRole.LECTURER || user.getDepartment() == null
+                || !user.getDepartment().getId().equals(department.getId())) {
+            throw new com.internlink.core.shared.exception.BadRequestException(
+                    "Email thuộc tài khoản khác vai trò hoặc khoa; liên hệ quản trị viên.");
+        }
     }
 
     private void upsertQuota(User lecturer, InternshipTerm term, int maxStudents) {

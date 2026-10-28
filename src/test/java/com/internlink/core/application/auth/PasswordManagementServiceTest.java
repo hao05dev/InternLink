@@ -52,15 +52,15 @@ class PasswordManagementServiceTest {
                 .build();
         user.setId(userId);
 
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(userRepository.findByIdForUpdate(userId)).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("OldPass123", "old-encoded-hash")).thenReturn(true);
-        when(passwordEncoder.matches("NewPass123", "old-encoded-hash")).thenReturn(false);
-        when(passwordEncoder.encode("NewPass123")).thenReturn("new-encoded-hash");
+        when(passwordEncoder.matches("My new secret passphrase", "old-encoded-hash")).thenReturn(false);
+        when(passwordEncoder.encode("My new secret passphrase")).thenReturn("new-encoded-hash");
 
         ChangePasswordRequest request = ChangePasswordRequest.builder()
                 .currentPassword("OldPass123")
-                .newPassword("NewPass123")
-                .confirmPassword("NewPass123")
+                .newPassword("My new secret passphrase")
+                .confirmPassword("My new secret passphrase")
                 .build();
 
         service.changePassword(userId, request);
@@ -78,7 +78,7 @@ class PasswordManagementServiceTest {
         UUID userId = UUID.randomUUID();
         ChangePasswordRequest request = ChangePasswordRequest.builder()
                 .currentPassword("OldPass123")
-                .newPassword("NewPass123")
+                .newPassword("My new secret passphrase")
                 .confirmPassword("DifferentPass")
                 .build();
 
@@ -91,13 +91,13 @@ class PasswordManagementServiceTest {
     void shouldRejectWhenCurrentPasswordIsIncorrect() {
         UUID userId = UUID.randomUUID();
         User user = User.builder().passwordHash("old-hash").build();
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(userRepository.findByIdForUpdate(userId)).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("WrongPass", "old-hash")).thenReturn(false);
 
         ChangePasswordRequest request = ChangePasswordRequest.builder()
                 .currentPassword("WrongPass")
-                .newPassword("NewPass123")
-                .confirmPassword("NewPass123")
+                .newPassword("My new secret passphrase")
+                .confirmPassword("My new secret passphrase")
                 .build();
 
         assertThatThrownBy(() -> service.changePassword(userId, request))
@@ -109,13 +109,13 @@ class PasswordManagementServiceTest {
     void shouldRejectWhenNewPasswordIsSameAsCurrentPassword() {
         UUID userId = UUID.randomUUID();
         User user = User.builder().passwordHash("old-hash").build();
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(passwordEncoder.matches("SamePass123", "old-hash")).thenReturn(true);
+        when(userRepository.findByIdForUpdate(userId)).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("SamePassword123456", "old-hash")).thenReturn(true);
 
         ChangePasswordRequest request = ChangePasswordRequest.builder()
-                .currentPassword("SamePass123")
-                .newPassword("SamePass123")
-                .confirmPassword("SamePass123")
+                .currentPassword("SamePassword123456")
+                .newPassword("SamePassword123456")
+                .confirmPassword("SamePassword123456")
                 .build();
 
         assertThatThrownBy(() -> service.changePassword(userId, request))
@@ -126,12 +126,12 @@ class PasswordManagementServiceTest {
     @Test
     void shouldThrowResourceNotFoundWhenUserDoesNotExist() {
         UUID userId = UUID.randomUUID();
-        when(userRepository.findById(userId)).thenReturn(Optional.empty());
+        when(userRepository.findByIdForUpdate(userId)).thenReturn(Optional.empty());
 
         ChangePasswordRequest request = ChangePasswordRequest.builder()
                 .currentPassword("OldPass123")
-                .newPassword("NewPass123")
-                .confirmPassword("NewPass123")
+                .newPassword("My new secret passphrase")
+                .confirmPassword("My new secret passphrase")
                 .build();
 
         assertThatThrownBy(() -> service.changePassword(userId, request))

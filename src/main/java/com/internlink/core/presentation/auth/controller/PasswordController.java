@@ -8,6 +8,7 @@ import com.internlink.core.presentation.auth.dto.request.ForgotPasswordRequest;
 import com.internlink.core.presentation.auth.dto.request.ResetPasswordRequest;
 import com.internlink.core.shared.api.ApiResponse;
 import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -26,12 +27,16 @@ public class PasswordController {
 
     private final PasswordManagementService passwordManagementService;
     private final PasswordResetService passwordResetService;
+    private final com.internlink.core.infrastructure.security.CookieUtils cookies;
 
     @PostMapping("/change-password")
     public ResponseEntity<ApiResponse<Void>> changePassword(
             @AuthenticationPrincipal CustomUserDetail principal,
-            @Valid @RequestBody ChangePasswordRequest request) {
+            @Valid @RequestBody ChangePasswordRequest request,
+            HttpServletResponse response) {
         passwordManagementService.changePassword(principal.getId(), request);
+        response.addHeader("Set-Cookie", cookies.deleteAccessTokenCookie().toString());
+        response.addHeader("Set-Cookie", cookies.deleteRefreshTokenCookie().toString());
         return ResponseEntity.ok(ApiResponse.success("Đổi mật khẩu thành công", null));
     }
 

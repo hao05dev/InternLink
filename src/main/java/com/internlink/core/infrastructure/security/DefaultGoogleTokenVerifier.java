@@ -4,66 +4,61 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.internlink.core.shared.exception.UnauthorizedException;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
+import java.time.Instant;
+import java.util.Set;
 
-import java.net.URI;
-import java.net.URLEncoder;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-
-/**
- * Triển khai mặc định gọi trực tiếp endpoint tokeninfo của Google OAuth2.
- */
-@Slf4j
+/** Verify Google signatures with cached public keys, then enforce local identity policy. */
 @Component
 @RequiredArgsConstructor
 public class DefaultGoogleTokenVerifier implements GoogleTokenVerifier {
-
     private final ObjectMapper objectMapper;
-    private final HttpClient httpClient = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(10))
-            .build();
+    private final GoogleAuthProperties properties;
+    private volatile GoogleIdTokenVerifier verifier;
 
     @Override
     public GoogleUserInfo verify(String idToken) {
-        if (idToken == null || idToken.isBlank()) {
-            throw new UnauthorizedException("Google ID Token không được để trống");
+        if (!properties.isEnabled() || properties.getClientId().isBlank()) {
+            throw new UnauthorizedException("Đăng nhập Google chưa được bật.");
+        }
+        if (idToken == null || idToken.isBlank() || idToken.length() > 10000) {
+            throw new UnauthorizedException("Google ID token không hợp lệ");
         }
         try {
-            String encodedToken = URLEncoder.encode(idToken, StandardCharsets.UTF_8);
-            HttpRequest httpReq = HttpRequest.newBuilder(
-                    URI.create("https://oauth2.googleapis.com/tokeninfo?id_token=" + encodedToken))
-                    .timeout(Duration.ofSeconds(10))
-                    .GET()
-                    .build();
-
-            HttpResponse<String> httpRes = httpClient.send(httpReq, HttpResponse.BodyHandlers.ofString());
-            if (httpRes.statusCode() != 200) {
-                log.warn("Xác minh Google Token thất bại. HTTP Status: {}", httpRes.statusCode());
-                throw new UnauthorizedException("Google ID Token không hợp lệ hoặc đã hết hạn");
-            }
-
-            JsonNode json = objectMapper.readTree(httpRes.body());
-            String sub = json.path("sub").asText();
-            String email = json.path("email").asText();
-            boolean emailVerified = json.path("email_verified").asBoolean(
-                    "true".equalsIgnoreCase(json.path("email_verified").asText()));
-            String name = json.has("name") ? json.path("name").asText() : email;
-
-            if (sub.isBlank() || email.isBlank()) {
-                throw new UnauthorizedException("Dữ liệu danh tính Google không đầy đủ");
-            }
-
-            return new GoogleUserInfo(sub, email, name, emailVerified);
-        } catch (UnauthorizedException e) {
-            throw e;
+            var token = verifier().verify(idToken);
+            if (token == null) throw new UnauthorizedException("Google ID token không hợp lệ");
+            return validateClaims(objectMapper.valueToTree(token.getPayload()));
+        } catch (UnauthorizedException ex) {
+            throw ex;
         } catch (Exception ex) {
-            log.error("Lỗi khi kết nối Google OAuth endpoint: {}", ex.getMessage());
-            throw new UnauthorizedException("Không thể xác minh danh tính tài khoản Google");
+            throw new UnauthorizedException("Không thể xác minh danh tính Google");
         }
+    }
+
+    private synchronized GoogleIdTokenVerifier verifier() {
+        if (verifier == null) {
+            verifier = new GoogleIdTokenVerifier.Builder(new NetHttpTransport(), GsonFactory.getDefaultInstance())
+                    .setAudience(java.util.List.of(properties.getClientId())).build();
+        }
+        return verifier;
+    }
+
+    GoogleUserInfo validateClaims(JsonNode json) {
+        String issuer = json.path("iss").asText();
+        String azp = json.path("azp").asText();
+        boolean valid = properties.getClientId().equals(json.path("aud").asText())
+                && (azp.isBlank() || properties.getClientId().equals(azp))
+                && Set.of("accounts.google.com", "https://accounts.google.com").contains(issuer)
+                && json.path("exp").asLong(0) > Instant.now().getEpochSecond()
+                && !json.path("sub").asText().isBlank() && !json.path("email").asText().isBlank()
+                && json.path("email_verified").asBoolean()
+                && (properties.getHostedDomains().isEmpty()
+                    || properties.getHostedDomains().contains(json.path("hd").asText()));
+        if (!valid) throw new UnauthorizedException("Google ID token không hợp lệ cho ứng dụng này");
+        return new GoogleUserInfo(json.path("sub").asText(), json.path("email").asText(),
+                json.path("name").asText(), true);
     }
 }

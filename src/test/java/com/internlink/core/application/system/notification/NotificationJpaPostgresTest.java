@@ -102,12 +102,14 @@ class NotificationJpaPostgresTest {
                                 .isActive(true)
                                 .build());
         settings.setEnabled(true);
-        service.sendNotification(
+        settings.setDeliveryMode("REDIRECT");
+        service.publishNotification(
                 user.getId(),
                 "SYSTEM_TEST",
                 "Thông báo thử",
                 "Kiểm tra giao dịch",
-                "/admin/dashboard");
+                "/admin/dashboard",
+                true);
         assertThat(
                         jdbc.queryForObject(
                                 "SELECT count(*) FROM email_outbox WHERE recipient_user_id=?",

@@ -21,9 +21,11 @@ public class RateLimiterService {
 
     // Cache các bucket theo key (ví dụ: "login:127.0.0.1", "ai:user-uuid")
     private final Map<String, Bucket> buckets = new ConcurrentHashMap<>();
+    private long lastCleanup = System.nanoTime();
 
     public enum LimitCategory {
         LOGIN,
+        RECOVERY,
         UPLOAD,
         AI,
         DEFAULT
@@ -36,7 +38,13 @@ public class RateLimiterService {
      * @param category  Phân loại endpoint cần áp dụng hạn mức
      * @return ConsumptionProbe chứa kết quả (thành công hay không, thời gian cần chờ)
      */
-    public ConsumptionProbe tryConsume(String clientKey, LimitCategory category) {
+    public synchronized ConsumptionProbe tryConsume(String clientKey, LimitCategory category) {
+        long now = System.nanoTime();
+        if (now - lastCleanup > Duration.ofMinutes(10).toNanos()) {
+            buckets.clear();
+            lastCleanup = now;
+        }
+        if (buckets.size() >= 10000) clientKey = "overflow";
         String cacheKey = category.name() + ":" + clientKey;
         Bucket bucket = buckets.computeIfAbsent(cacheKey, k -> createNewBucket(category));
         return bucket.tryConsumeAndReturnRemaining(1);
@@ -45,6 +53,7 @@ public class RateLimiterService {
     private Bucket createNewBucket(LimitCategory category) {
         int capacity = switch (category) {
             case LOGIN -> properties.getLoginCapacity();
+            case RECOVERY -> properties.getRecoveryCapacity();
             case UPLOAD -> properties.getUploadCapacity();
             case AI -> properties.getAiCapacity();
             case DEFAULT -> properties.getDefaultCapacity();
