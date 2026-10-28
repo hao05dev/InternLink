@@ -74,8 +74,13 @@ class AiServiceClientTest {
 
     @Test
     void fallbackMatchesSharedPythonContract() throws Exception {
+        // Repo AI nằm cạnh repo backend; có thể override bằng -Dai.contract.path=...
+        var contractPath = java.nio.file.Path.of(
+                System.getProperty("ai.contract.path", "../Internlink-v1-ai/tests/fixtures/ranking_contract.json"));
+        org.junit.jupiter.api.Assumptions.assumeTrue(java.nio.file.Files.exists(contractPath),
+                "Bỏ qua: không tìm thấy contract fixture tại " + contractPath.toAbsolutePath());
         var json = new com.fasterxml.jackson.databind.ObjectMapper();
-        var cases = json.readTree(java.nio.file.Path.of("../ai-service/tests/fixtures/ranking_contract.json").toFile());
+        var cases = json.readTree(contractPath.toFile());
         var client = new AiServiceClient(WebClient.builder(), "http://127.0.0.1:1");
         for (var sample : cases) {
             List<String> student = json.convertValue(sample.get("student"), new com.fasterxml.jackson.core.type.TypeReference<List<String>>() {});

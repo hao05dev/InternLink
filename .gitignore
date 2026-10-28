@@ -1,0 +1,158 @@
+# ====================================================================
+# InternLink - Comprehensive .gitignore
+# ====================================================================
+
+# --------------------------------------------------------------------
+# 1. Sensitive Data, Secrets & Credentials (Bảo mật & Thông tin nhạy cảm)
+# --------------------------------------------------------------------
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.test
+
+# Private Keys & Certificates
+*.pem
+*.key
+*.p12
+*.pfx
+*.keystore
+*.jks
+*credentials*.json
+*secret*.json
+google-credentials.json
+service-account.json
+
+# User Uploaded Content & Media (Tránh lộ CV, tài liệu cá nhân sinh viên)
+**/uploads/**
+!**/uploads/.gitkeep
+**/storage/**
+!src/main/java/com/internlink/core/application/system/storage/
+!src/main/java/com/internlink/core/application/system/storage/**
+!src/features/documents/components/storage/
+!src/features/documents/components/storage/**
+!src/main/java/com/internlink/core/infrastructure/integration/storage/
+!src/main/java/com/internlink/core/infrastructure/integration/storage/*.java
+!src/test/java/com/internlink/core/infrastructure/integration/storage/
+!src/test/java/com/internlink/core/infrastructure/integration/storage/*.java
+**/media/**
+
+# --------------------------------------------------------------------
+# 2. Operating System & Local Temporary Files
+# --------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.sql
+!src/main/resources/db/migration/*.sql
+!docs/
+docs/*
+/docs
+AGENTS.md
+!docs/IMPLEMENTATION_FILE_MAP.md
+!docs/NOTIFICATIONS_EMAIL_R2_PLAN.md
+!docs/NOTIFICATIONS_EMAIL_R2_STATUS.md
+!docs/R2_GMAIL_INTEGRATION_GUIDE.md
+# --------------------------------------------------------------------
+# 3. IDEs & Editors
+# --------------------------------------------------------------------
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+
+# Agent & AI Editor Temporary Directories
+**/.agent/
+**/.agents/
+!**/.agents/rules/**
+**/skills-lock.json
+
+# --------------------------------------------------------------------
+# 4. Logs & Process Files
+# --------------------------------------------------------------------
+*.log
+**/logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# --------------------------------------------------------------------
+# 5. Database & Docker Local Data
+# --------------------------------------------------------------------
+postgres_data/
+**/postgres_data/
+*.sql.bak
+mo_ta_luan_van.txt
+internlink.sql
+
+# --------------------------------------------------------------------
+# 6. Backend - Java / Maven / Spring Boot (backend-core)
+# --------------------------------------------------------------------
+**/target/
+**/.mvn/wrapper/maven-wrapper.jar
+**/*.class
+**/*.jar
+**/*.war
+**/*.nar
+**/*.ear
+**/*.zip
+**/*.tar.gz
+**/*.rar
+**/hs_err_pid*
+**/.factorypath
+**/.apt_generated/
+IMPLEMENTATION_ROADMAP.md
+.pytest_temp
+# --------------------------------------------------------------------
+# 7. AI Service - Python / FastAPI (ai-service)
+# --------------------------------------------------------------------
+**/.venv/
+**/venv/
+**/env/
+**/ENV/
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+**/.pytest_cache/
+**/.ruff_cache/
+**/.mypy_cache/
+**/.coverage
+**/htmlcov/
+**/.cache/
+# Large ML models & checkpoints
+**/*.onnx
+**/*.pt
+**/*.bin
+**/*.safetensors
+
+# --------------------------------------------------------------------
+# 8. Frontend - Node.js / Next.js / React (frontend-web)
+# --------------------------------------------------------------------
+**/node_modules/
+**/.next/
+**/out/
+**/build/
+**/dist/
+**/.turbo/
+**/.vercel/
+**/*.tsbuildinfo
+**/next-env.d.ts
+
+!src/app/(admin)/admin/storage/
+!src/app/(admin)/admin/storage/*.tsx
+
+# Version the auth implementation plan and deployment instructions.
+!/docs/
+!/docs/auth-reimplementation-plan.md
+!/docs/auth-deployment-runbook.md
