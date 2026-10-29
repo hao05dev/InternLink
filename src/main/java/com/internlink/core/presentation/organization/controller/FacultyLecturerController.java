@@ -9,6 +9,7 @@ import com.internlink.core.presentation.organization.dto.response.BatchLecturerI
 import com.internlink.core.presentation.organization.dto.response.FacultyLecturerResponse;
 import com.internlink.core.shared.api.ApiResponse;
 import com.internlink.core.shared.security.SecurityGuard;
+import com.internlink.core.shared.validation.ImportRowLimit;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -55,6 +56,7 @@ public class FacultyLecturerController {
     public ResponseEntity<ApiResponse<BatchLecturerImportResponse>> importLecturers(
             @RequestParam(required = false) UUID termId,
             @Valid @RequestBody List<LecturerImportItem> items) {
+        ImportRowLimit.check(items);
         User actor = users.findById(securityGuard.currentUser().getId()).orElseThrow();
         BatchLecturerImportResponse result = facultyLecturerService.importLecturers(
                 actor.getDepartment().getId(), termId, items, actor.getId());

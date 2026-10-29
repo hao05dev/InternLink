@@ -13,6 +13,7 @@ import java.util.regex.*;
 @Component
 @RequiredArgsConstructor
 public class MediaReferencePolicy {
+    private static final int MAX_ATTACHMENTS = 20;
     private final MediaAssetRepository assets;
     public static final Pattern URL =
             Pattern.compile(
@@ -34,10 +35,30 @@ public class MediaReferencePolicy {
             UUID company,
             String banner,
             List<Map<String, Object>> attachments,
+            List<Map<String, Object>> storedAttachments,
             String description) {
         require(banner, MediaPurpose.JOB_BANNER, company);
-        attachments(attachments, MediaPurpose.JOB_ATTACHMENT, company);
+        jobAttachments(company, attachments, storedAttachments);
         embedded(description, MediaPurpose.JOB_IMAGE, company);
+    }
+
+    /**
+     * Đính kèm tin tuyển dụng chỉ nhận tệp đã tải lên (managed URL) của đúng doanh nghiệp.
+     * URL http(s) chỉ được giữ lại khi đã nằm sẵn trong tin (dữ liệu cũ khi sửa tin).
+     */
+    private void jobAttachments(
+            UUID company, List<Map<String, Object>> attachments, List<Map<String, Object>> stored) {
+        if (attachments == null) return;
+        if (attachments.size() > MAX_ATTACHMENTS)
+            throw new BadRequestException("Tối đa " + MAX_ATTACHMENTS + " tệp đính kèm");
+        Set<String> kept = new HashSet<>();
+        if (stored != null)
+            for (var item : stored) kept.add(Objects.toString(item.get("fileUrl"), ""));
+        for (var item : attachments) {
+            String url = Objects.toString(item.get("fileUrl"), "");
+            if (kept.contains(url)) continue;
+            requireManaged(url, MediaPurpose.JOB_ATTACHMENT, company);
+        }
     }
 
     public void post(
@@ -49,7 +70,8 @@ public class MediaReferencePolicy {
 
     private void attachments(List<Map<String, Object>> list, MediaPurpose purpose, UUID context) {
         if (list == null) return;
-        if (list.size() > 20) throw new BadRequestException("Tối đa 20 tệp đính kèm");
+        if (list.size() > MAX_ATTACHMENTS)
+            throw new BadRequestException("Tối đa " + MAX_ATTACHMENTS + " tệp đính kèm");
         for (var item : list) require(Objects.toString(item.get("fileUrl"), ""), purpose, context);
     }
 
@@ -63,10 +85,14 @@ public class MediaReferencePolicy {
         if (url == null || url.isBlank()) return;
         // Keep old remote references readable; newly uploaded files always use a managed URL.
         if (url.startsWith("https://") || url.startsWith("http://")) return;
-        var match = URL.matcher(url);
+        requireManaged(url, purpose, context);
+    }
+
+    private void requireManaged(String url, MediaPurpose purpose, UUID context) {
+        var match = URL.matcher(url == null ? "" : url);
         if (!match.matches())
             throw new BadRequestException(
-                    "Tệp đính kèm phải là tệp đã tải lên; không nhận blob/base64");
+                    "Tệp đính kèm phải là tệp đã tải lên; không nhận blob/base64 hoặc liên kết ngoài");
         var asset = assets.get(UUID.fromString(match.group(1)));
         if (!asset.url().equals(url)
                 || asset.purpose() != purpose

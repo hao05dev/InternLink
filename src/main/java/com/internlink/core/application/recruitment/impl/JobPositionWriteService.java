@@ -91,6 +91,7 @@ public class JobPositionWriteService {
                 company.getId(),
                 request.getBannerUrl(),
                 request.getAttachmentUrls(),
+                List.of(),
                 request.getDescription());
         OffsetDateTime deadline = request.getApplicationDeadline() != null
                 ? request.getApplicationDeadline()
@@ -176,6 +177,7 @@ public class JobPositionWriteService {
                 job.getCompany().getId(),
                 request.getBannerUrl(),
                 request.getAttachmentUrls(),
+                job.getAttachmentUrls(),
                 request.getDescription());
         job.setBannerUrl(request.getBannerUrl());
         job.setAttachmentUrls(

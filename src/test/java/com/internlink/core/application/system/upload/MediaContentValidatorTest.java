@@ -54,7 +54,7 @@ class MediaContentValidatorTest {
     }
 
     @Test
-    void rejectsSvgAndNonImageBannerButAllowsValidatedAttachment() throws Exception {
+    void rejectsSvgAndNonImageBanner() throws Exception {
         assertThatThrownBy(
                         () ->
                                 validator.validate(
@@ -65,14 +65,19 @@ class MediaContentValidatorTest {
                                                 "<svg/>".getBytes()),
                                         MediaPurpose.POST_COVER))
                 .hasMessageContaining("PNG");
-        var text =
-                validator.validate(
-                        new MockMultipartFile(
-                                "file",
-                                "readme.txt",
-                                "text/plain",
-                                "Nội dung".getBytes(java.nio.charset.StandardCharsets.UTF_8)),
-                        MediaPurpose.JOB_ATTACHMENT);
-        assertThat(text.mime()).isEqualTo("text/plain");
+    }
+
+    @Test
+    void jobAttachmentAcceptsOnlyPdf() {
+        assertThatThrownBy(
+                        () ->
+                                validator.validate(
+                                        new MockMultipartFile(
+                                                "file",
+                                                "readme.txt",
+                                                "text/plain",
+                                                "Nội dung".getBytes(java.nio.charset.StandardCharsets.UTF_8)),
+                                        MediaPurpose.JOB_ATTACHMENT))
+                .hasMessageContaining("PDF");
     }
 }

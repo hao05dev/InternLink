@@ -9,6 +9,7 @@ import com.internlink.core.presentation.organization.dto.response.BatchProvision
 import com.internlink.core.presentation.organization.dto.response.IneligibleNoticeResponse;
 import com.internlink.core.presentation.organization.dto.response.StudentRosterResponse;
 import com.internlink.core.shared.api.ApiResponse;
+import com.internlink.core.shared.validation.ImportRowLimit;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -55,6 +56,7 @@ public class StudentRosterController {
             @PathVariable UUID termId,
             @Valid @RequestBody List<StudentRosterImportItem> items
     ) {
+        ImportRowLimit.check(items);
         List<StudentRosterResponse> responses = rosterService.importRosterList(termId, items);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Import danh sách sinh viên thành công (" + responses.size() + " sinh viên)", responses));

@@ -46,9 +46,9 @@ class MediaReferencePolicyTest {
                         10,
                         "checksum");
         when(assets.get(id)).thenReturn(asset);
-        assertThatThrownBy(() -> policy.job(company, "blob:http://localhost/photo", List.of(), ""))
+        assertThatThrownBy(() -> policy.job(company, "blob:http://localhost/photo", List.of(), List.of(), ""))
                 .hasMessageContaining("blob/base64");
-        assertThatThrownBy(() -> policy.job(company, asset.url(), List.of(), ""))
+        assertThatThrownBy(() -> policy.job(company, asset.url(), List.of(), List.of(), ""))
                 .hasMessageContaining("đúng doanh nghiệp");
     }
 
@@ -71,12 +71,34 @@ class MediaReferencePolicyTest {
                         10,
                         "checksum");
         when(assets.get(id)).thenReturn(asset);
-        assertThatCode(() -> policy.job(company, asset.url(), List.of(), ""))
+        assertThatCode(() -> policy.job(company, asset.url(), List.of(), List.of(), ""))
                 .doesNotThrowAnyException();
         assertThatThrownBy(
                         () ->
                                 policy.job(
-                                        company, null, List.of(Map.of("fileUrl", asset.url())), ""))
+                                        company, null, List.of(Map.of("fileUrl", asset.url())), List.of(), ""))
                 .hasMessageContaining("mục đích");
+    }
+
+    @Test
+    void jobAttachmentsAcceptOnlyManagedFilesOfSameCompanyUnlessAlreadyStored() {
+        var assets = mock(MediaAssetRepository.class);
+        var policy = new MediaReferencePolicy(assets);
+        var company = UUID.randomUUID();
+        var id = UUID.randomUUID();
+        var pdf = new MediaAssetRepository.Asset(id, UUID.randomUUID(),
+                MediaPurpose.JOB_ATTACHMENT, company, null, "key", "jd.pdf", "application/pdf", 10, "checksum");
+        when(assets.get(id)).thenReturn(pdf);
+        var managed = List.<Map<String, Object>>of(Map.of("fileUrl", pdf.url()));
+        assertThatCode(() -> policy.job(company, null, managed, List.of(), "")).doesNotThrowAnyException();
+        assertThatThrownBy(() -> policy.job(company, null,
+                List.<Map<String, Object>>of(Map.of("fileUrl", "https://evil.example/x.pdf")), List.of(), ""))
+                .hasMessageContaining("liên kết ngoài");
+        // Liên kết cũ đã nằm sẵn trong tin vẫn được giữ khi sửa tin
+        var legacy = List.<Map<String, Object>>of(Map.of("fileUrl", "https://old.example/jd.pdf"));
+        assertThatCode(() -> policy.job(company, null, legacy, legacy, "")).doesNotThrowAnyException();
+        var tooMany = Collections.nCopies(21, Map.<String, Object>of("fileUrl", pdf.url()));
+        assertThatThrownBy(() -> policy.job(company, null, tooMany, List.of(), ""))
+                .hasMessageContaining("Tối đa 20");
     }
 }
