@@ -1,26 +1,26 @@
 package com.internlink.core.application.organization;
 
+import com.internlink.core.infrastructure.integration.storage.OfficialTemplateStore;
 import com.internlink.core.shared.enums.ReportTemplateType;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 
-import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.List;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class SampleTemplateDocumentGenerator {
+
+    private final OfficialTemplateStore officialTemplateStore;
 
     public Resource generateSample(String title, ReportTemplateType type, String programCode) {
         String officialFile = resolveOfficialFileName(type, programCode);
         if (officialFile != null) {
-            Resource officialRes = loadResourceByFileName(officialFile);
+            Resource officialRes = loadOfficialResource(officialFile);
             if (officialRes != null) {
                 return officialRes;
             }
@@ -31,25 +31,9 @@ public class SampleTemplateDocumentGenerator {
         return new ByteArrayResource(htmlContent.getBytes(StandardCharsets.UTF_8));
     }
 
-    public Resource loadResourceByFileName(String fileName) {
-        if (fileName == null || fileName.isBlank()) return null;
-
-        // Direct disk lookups across working directories
-        List<Path> candidatePaths = List.of(
-            Paths.get("backend-core/uploads/templates/official", fileName),
-            Paths.get("uploads/templates/official", fileName),
-            Paths.get("docs/Các biểu mẫu-20261018", fileName),
-            Paths.get("../docs/Các biểu mẫu-20261018", fileName)
-        );
-
-        for (Path path : candidatePaths) {
-            try {
-                if (Files.exists(path) && Files.isReadable(path)) {
-                    return new ByteArrayResource(Files.readAllBytes(path));
-                }
-            } catch (Exception ignored) {}
-        }
-        return null;
+    /** Tải biểu mẫu chính thức từ R2; trả về null nếu R2 chưa có tệp. */
+    public Resource loadOfficialResource(String fileName) {
+        return officialTemplateStore.find(fileName).orElse(null);
     }
 
 

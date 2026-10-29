@@ -3,6 +3,7 @@ package com.internlink.core.application.organization;
 import com.internlink.core.domain.auth.User;
 import com.internlink.core.domain.organization.InternshipTerm;
 import com.internlink.core.domain.organization.ReportTemplateVersion;
+import com.internlink.core.infrastructure.integration.storage.OfficialTemplateStore;
 import com.internlink.core.infrastructure.integration.storage.StorageService;
 import com.internlink.core.infrastructure.integration.storage.StorageServiceRouter;
 import com.internlink.core.infrastructure.integration.storage.StoredFileInfo;
@@ -44,13 +45,15 @@ class ReportTemplateServiceTest {
     private StorageServiceRouter storageServiceRouter;
     @Mock
     private StorageService storageService;
+    @Mock
+    private OfficialTemplateStore officialTemplateStore;
 
     private SampleTemplateDocumentGenerator sampleGenerator;
     private ReportTemplateService service;
 
     @BeforeEach
     void setUp() {
-        sampleGenerator = new SampleTemplateDocumentGenerator();
+        sampleGenerator = new SampleTemplateDocumentGenerator(officialTemplateStore);
         service = new ReportTemplateService(
             templateRepository,
             termRepository,
@@ -102,6 +105,27 @@ class ReportTemplateServiceTest {
 
         assertThat(result.fileName()).isEqualTo("M-TT-04.doc");
         assertThat(result.resource()).isNotNull();
+        verifyNoInteractions(storageServiceRouter);
+    }
+
+    @Test
+    void loadTemplateDownload_whenNoStoredFile_usesOfficialTemplateFromR2() {
+        UUID id = UUID.randomUUID();
+        ReportTemplateVersion entity = ReportTemplateVersion.builder()
+            .title("M-TT-05")
+            .reportType(ReportTemplateType.M05)
+            .fileUrl("/api/v1/storage/documents/sample/M-TT-05.doc")
+            .fileName("M-TT-05-Maubaocao.doc")
+            .mimeType("application/msword")
+            .build();
+        ByteArrayResource official = new ByteArrayResource("official-r2".getBytes());
+
+        when(templateRepository.findById(id)).thenReturn(Optional.of(entity));
+        when(officialTemplateStore.find("M-TT-05-Maubaocao.doc")).thenReturn(Optional.of(official));
+
+        TemplateDownload result = service.loadTemplateDownload(id);
+
+        assertThat(result.resource()).isSameAs(official);
         verifyNoInteractions(storageServiceRouter);
     }
 

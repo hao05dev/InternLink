@@ -260,7 +260,7 @@ public class ReportTemplateService {
         }
 
         if (resource == null) {
-            resource = sampleGenerator.loadResourceByFileName(entity.getFileName());
+            resource = sampleGenerator.loadOfficialResource(entity.getFileName());
         }
 
         if (resource == null) {
