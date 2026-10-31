@@ -61,4 +61,17 @@ public interface JpaJobApplicationRepository extends JpaRepository<JobApplicatio
         """)
     long countActiveApplicationsByStudentInTerm(@Param("studentId") UUID studentId,
                                                  @Param("termId") UUID termId);
+
+    @Query("""
+        SELECT a FROM JobApplication a
+        WHERE a.student.id = :studentId
+          AND a.job.term.id = :termId
+          AND a.id <> :excludeApplicationId
+          AND a.status NOT IN (com.internlink.core.shared.enums.ApplicationStatus.REJECTED, com.internlink.core.shared.enums.ApplicationStatus.WITHDRAWN)
+    """)
+    List<JobApplication> findOtherActiveApplicationsByStudentAndTerm(
+        @Param("studentId") UUID studentId,
+        @Param("termId") UUID termId,
+        @Param("excludeApplicationId") UUID excludeApplicationId
+    );
 }

@@ -46,7 +46,6 @@ class JobApplicationServiceTest {
     @Mock private JpaStudentProfileRepository studentProfileRepository;
     @Mock private JpaStudentRosterRepository studentRosterRepository;
     @Mock private JpaPlacementOfferRepository offerRepository;
-    @Mock private com.internlink.core.infrastructure.persistence.jpa.JpaInternshipPlacementRepository placementRepository;
     @Mock private SecurityGuard securityGuard;
     @Mock private NotificationService notifications;
 
@@ -77,7 +76,7 @@ class JobApplicationServiceTest {
                 new com.internlink.core.infrastructure.integration.email.EmailProperties()),
             new com.internlink.core.application.recruitment.impl.JobApplicationSubmissionValidator(
                 applicationRepository, documentRepository, studentProfileRepository,
-                studentRosterRepository, offerRepository, placementRepository),
+                studentRosterRepository, offerRepository),
             new com.internlink.core.application.recruitment.impl.JobApplicationMapper()
         );
 

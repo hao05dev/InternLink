@@ -6,6 +6,7 @@ import com.internlink.core.domain.organization.Department;
 import com.internlink.core.domain.organization.InternshipTerm;
 import com.internlink.core.shared.domain.BaseEntity;
 import com.internlink.core.shared.enums.JobStatus;
+import com.internlink.core.shared.enums.JobType;
 import com.internlink.core.shared.enums.WorkFormat;
 
 import jakarta.persistence.*;
@@ -34,12 +35,17 @@ public class JobPosition extends BaseEntity {
     private Company company;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "term_id", nullable = false)
+    @JoinColumn(name = "term_id", nullable = true)
     private InternshipTerm term;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "department_id", nullable = false)
     private Department department;
+
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    @Column(name = "job_type", nullable = false, length = 20)
+    private JobType jobType = JobType.INTERNSHIP;
 
     @Column(name = "title", nullable = false)
     private String title;

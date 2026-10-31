@@ -2,13 +2,23 @@ package com.internlink.core.application.recruitment.impl;
 
 import com.internlink.core.domain.recruitment.JobPosition;
 import com.internlink.core.domain.system.Document;
-import com.internlink.core.infrastructure.persistence.jpa.*;
+import com.internlink.core.infrastructure.persistence.jpa.JpaDocumentRepository;
+import com.internlink.core.infrastructure.persistence.jpa.JpaJobApplicationRepository;
+import com.internlink.core.infrastructure.persistence.jpa.JpaPlacementOfferRepository;
+import com.internlink.core.infrastructure.persistence.jpa.JpaStudentProfileRepository;
+import com.internlink.core.infrastructure.persistence.jpa.JpaStudentRosterRepository;
 import com.internlink.core.presentation.recruitment.dto.request.JobApplicationRequest;
-import com.internlink.core.shared.enums.*;
-import com.internlink.core.shared.exception.*;
+import com.internlink.core.shared.enums.DocumentType;
+import com.internlink.core.shared.enums.EligibilityStatus;
+import com.internlink.core.shared.enums.JobStatus;
+import com.internlink.core.shared.enums.JobType;
+import com.internlink.core.shared.enums.TermStatus;
+import com.internlink.core.shared.exception.BadRequestException;
+import com.internlink.core.shared.exception.ResourceNotFoundException;
 import com.internlink.core.shared.security.TermGuard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
@@ -21,7 +31,6 @@ public class JobApplicationSubmissionValidator {
     private final JpaStudentProfileRepository profiles;
     private final JpaStudentRosterRepository rosters;
     private final JpaPlacementOfferRepository offers;
-    private final JpaInternshipPlacementRepository placements;
 
     public Document validate(UUID studentId, JobApplicationRequest request, JobPosition job) {
         if (job.getStatus() != JobStatus.APPROVED || job.getClosedEarlyAt() != null)
@@ -30,27 +39,29 @@ public class JobApplicationSubmissionValidator {
         if (job.getApplicationDeadline() != null && now.isAfter(job.getApplicationDeadline()))
             throw new BadRequestException("Vị trí tuyển dụng đã hết hạn nộp hồ sơ");
 
-        var profile = profiles.findByUserId(studentId)
+        profiles.findByUserId(studentId)
                 .orElseThrow(() -> new BadRequestException("Chưa có hồ sơ sinh viên. Vui lòng hoàn thiện hồ sơ trước khi ứng tuyển"));
 
-        boolean isFresherOrAlumni = isFresherOrAlumniApplication(studentId, job);
+        boolean isFresher = job.getJobType() == JobType.FRESHER;
 
         var term = job.getTerm();
-        if (term != null && !isFresherOrAlumni) {
+        if (term != null) {
             TermGuard.requireNotClosed(term);
-            if (term.getStatus() != TermStatus.REGISTRATION_OPEN
-                    && term.getStatus() != TermStatus.APPLICATION_OPEN
-                    && term.getStatus() != TermStatus.ACTIVE)
-                throw new BadRequestException("Kỳ thực tập hiện không tiếp nhận hồ sơ ứng tuyển");
+            if (!isFresher) {
+                if (term.getStatus() != TermStatus.REGISTRATION_OPEN
+                        && term.getStatus() != TermStatus.APPLICATION_OPEN
+                        && term.getStatus() != TermStatus.ACTIVE)
+                    throw new BadRequestException("Kỳ thực tập hiện không tiếp nhận hồ sơ ứng tuyển");
 
-            var roster = rosters.findByTermIdAndClaimedUserId(term.getId(), studentId)
-                    .orElseThrow(() -> new BadRequestException("Sinh viên chưa có trong danh sách kỳ thực tập này"));
-            if (roster.getEligibilityStatus() != EligibilityStatus.ELIGIBLE)
-                throw new BadRequestException("Sinh viên chưa đủ điều kiện tham gia kỳ thực tập");
+                var roster = rosters.findByTermIdAndClaimedUserId(term.getId(), studentId)
+                        .orElseThrow(() -> new BadRequestException("Sinh viên chưa có trong danh sách kỳ thực tập này"));
+                if (roster.getEligibilityStatus() != EligibilityStatus.ELIGIBLE)
+                    throw new BadRequestException("Sinh viên chưa đủ điều kiện tham gia kỳ thực tập");
 
-            if (applications.countActiveApplicationsByStudentInTerm(studentId, term.getId())
-                    >= MAX_ACTIVE_APPLICATIONS_PER_TERM)
-                throw new BadRequestException("Bạn đã đạt giới hạn hồ sơ đang xử lý trong kỳ thực tập");
+                if (applications.countActiveApplicationsByStudentInTerm(studentId, term.getId())
+                        >= MAX_ACTIVE_APPLICATIONS_PER_TERM)
+                    throw new BadRequestException("Bạn đã đạt giới hạn hồ sơ đang xử lý trong kỳ thực tập");
+            }
         }
 
         // Soft preference: targetProgramCodes is advisory; applicants from other majors can still apply.
@@ -64,21 +75,5 @@ public class JobApplicationSubmissionValidator {
         if (!cv.getOwner().getId().equals(studentId) || cv.getDocumentType() != DocumentType.CV)
             throw new BadRequestException("Tài liệu nộp kèm phải là CV thuộc sở hữu của sinh viên");
         return cv;
-    }
-
-    private boolean isFresherOrAlumniApplication(UUID studentId, JobPosition job) {
-        if (job.getTerm() == null) return true;
-        String titleLower = job.getTitle() != null ? job.getTitle().toLowerCase() : "";
-        String descLower = job.getDescription() != null ? job.getDescription().toLowerCase() : "";
-        boolean isFresherJob = titleLower.contains("fresher")
-                || titleLower.contains("full-time")
-                || titleLower.contains("fulltime")
-                || titleLower.contains("chính thức")
-                || descLower.contains("tốt nghiệp")
-                || descLower.contains("ra trường");
-        if (isFresherJob) return true;
-
-        return placements.findByStudentId(studentId).stream()
-                .anyMatch(p -> p.getStatus() == PlacementStatus.COMPLETED);
     }
 }

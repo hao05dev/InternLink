@@ -29,6 +29,7 @@ public class StudentFoundApplicationService {
     private final JpaUserRepository users;
     private final SecurityGuard security;
     private final NotificationService notifications;
+    private final PlacementEligibilityService placementEligibility;
 
     @Transactional
     public StudentFoundResponse create(StudentFoundRequest request) {
@@ -128,13 +129,14 @@ public class StudentFoundApplicationService {
         if ("APPROVED".equals(decision)) {
             if (app.getAcceptanceDocument() == null || !"ACTIVE".equals(app.getAcceptanceDocument().getStatus()))
                 throw new BadRequestException("Thiếu thư tiếp nhận hợp lệ");
-            if (!placements.findByTermIdAndStudentId(app.getTerm().getId(), app.getStudent().getId()).isEmpty())
-                throw new BadRequestException("Sinh viên đã có lần thực tập trong kỳ");
+
+            placementEligibility.requireEligibleRoster(app.getStudent().getId(), app.getTerm().getId());
+            placementEligibility.requireNoLivePlacement(app.getStudent().getId(), app.getTerm().getId());
+
             if (lecturerId == null) throw new BadRequestException("Cần phân công giảng viên hướng dẫn");
             var lecturer = users.findById(lecturerId).orElseThrow(() -> new ResourceNotFoundException("User", "id", lecturerId));
-            if (lecturer.getRole() != UserRole.LECTURER || lecturer.getDepartment() == null
-                || !lecturer.getDepartment().getId().equals(app.getTerm().getDepartment().getId()))
-                throw new BadRequestException("Giảng viên không thuộc đơn vị quản lý kỳ thực tập");
+            placementEligibility.requireActiveLecturer(lecturer, app.getTerm().getDepartment().getId());
+
             var placement = InternshipPlacement.builder().studentFoundApplication(app).source("STUDENT_FOUND")
                 .student(app.getStudent()).lecturer(lecturer).term(app.getTerm())
                 .startDate(app.getStartDate()).endDate(app.getEndDate())

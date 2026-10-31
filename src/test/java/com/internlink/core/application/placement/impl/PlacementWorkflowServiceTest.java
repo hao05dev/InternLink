@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+import com.internlink.core.application.placement.PlacementEligibilityService;
 import com.internlink.core.application.system.AuditLogService;
 import com.internlink.core.application.system.NotificationService;
 import com.internlink.core.domain.auth.User;
@@ -79,6 +80,8 @@ class PlacementWorkflowServiceTest {
                         userRepository,
                         securityGuard,
                         notificationService);
+        PlacementEligibilityService placementEligibility =
+                new PlacementEligibilityService(placementRepository, null, null);
         agreementService =
                 new LearningAgreementServiceImpl(
                         agreementRepository,
@@ -86,6 +89,7 @@ class PlacementWorkflowServiceTest {
                         departmentRepository,
                         userRepository,
                         studentProfileRepository,
+                        placementEligibility,
                         securityGuard,
                         auditLogService,
                         notificationService);
@@ -141,7 +145,7 @@ class PlacementWorkflowServiceTest {
         assertThatThrownBy(
                         () ->
                                 attendanceService.confirmAttendance(
-                                        log.getId(), mentor.getId(), AttendanceStatus.CONFIRMED))
+                                         log.getId(), mentor.getId(), AttendanceStatus.CONFIRMED))
                 .isInstanceOf(BadRequestException.class);
         verify(placementRepository, times(1)).save(placement);
     }

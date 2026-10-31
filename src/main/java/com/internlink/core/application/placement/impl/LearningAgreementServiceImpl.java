@@ -1,6 +1,7 @@
 package com.internlink.core.application.placement.impl;
 
 import com.internlink.core.application.placement.LearningAgreementService;
+import com.internlink.core.application.placement.PlacementEligibilityService;
 import com.internlink.core.application.system.AuditLogService;
 import com.internlink.core.application.system.NotificationService;
 import com.internlink.core.domain.auth.User;
@@ -43,6 +44,7 @@ public class LearningAgreementServiceImpl implements LearningAgreementService {
     private final JpaDepartmentRepository departmentRepository;
     private final JpaUserRepository userRepository;
     private final JpaStudentProfileRepository studentProfileRepository;
+    private final PlacementEligibilityService placementEligibility;
     private final SecurityGuard securityGuard;
     private final AuditLogService auditLogService;
     private final NotificationService notificationService;
@@ -106,6 +108,12 @@ public class LearningAgreementServiceImpl implements LearningAgreementService {
             throw new BadRequestException("Đã tồn tại Thỏa thuận học tập cho Offer này");
         }
 
+        // Đảm bảo sinh viên chưa có placement live trong kỳ (hoặc nếu là fresher giữ việc làm ngoài thì không tạo agreement)
+        var term = offer.getApplication().getJob().getTerm();
+        if (term != null) {
+            placementEligibility.requireNoLivePlacement(studentId, term.getId());
+        }
+
         Department department = departmentRepository.findById(request.getDepartmentId())
             .orElseThrow(() -> new ResourceNotFoundException("Department", "id", request.getDepartmentId()));
 
@@ -127,7 +135,6 @@ public class LearningAgreementServiceImpl implements LearningAgreementService {
 
         LearningAgreement saved = agreementRepository.save(agreement);
 
-        // ── Hooks: AuditLog & Notification ────────────────────────────────
         auditLogService.logAction(
             studentId,
             "CREATE_AGREEMENT",
@@ -167,14 +174,12 @@ public class LearningAgreementServiceImpl implements LearningAgreementService {
             throw new BadRequestException("Dữ liệu chữ ký không được để trống");
         }
 
-        // ── Lấy thông tin người đang đăng nhập từ JWT (không tin vào signerRole từ client) ──
         var currentUser = securityGuard.currentUser();
         UUID currentUserId = currentUser.getId();
         UserRole actualRole = currentUser.getRole();
 
         switch (actualRole) {
             case STUDENT -> {
-                // Sinh viên chỉ được ký thỏa thuận của chính mình
                 if (!agreement.getStudent().getId().equals(currentUserId)) {
                     throw new ForbiddenException(
                         "Bạn chỉ có thể ký thỏa thuận học tập của chính mình"
@@ -200,7 +205,6 @@ public class LearningAgreementServiceImpl implements LearningAgreementService {
             );
         }
 
-        // Nếu cả 3 bên đã ký, chuyển trạng thái sang APPROVED
         boolean fullySigned = agreement.getStudentSignature() != null
             && agreement.getCompanySignature() != null
             && agreement.getFacultySignature() != null;
@@ -213,7 +217,6 @@ public class LearningAgreementServiceImpl implements LearningAgreementService {
 
         LearningAgreement saved = agreementRepository.save(agreement);
 
-        // ── Hooks: AuditLog & Notification ────────────────────────────────
         auditLogService.logAction(
             currentUserId,
             "SIGN_AGREEMENT_" + actualRole.name(),
@@ -280,7 +283,6 @@ public class LearningAgreementServiceImpl implements LearningAgreementService {
             null
         );
 
-        // Thông báo cho sinh viên nếu cần chỉnh sửa
         if (status == AgreementStatus.REVISION_REQUESTED) {
             notificationService.sendNotification(
                 agreement.getStudent().getId(),
@@ -299,10 +301,17 @@ public class LearningAgreementServiceImpl implements LearningAgreementService {
             .map(StudentProfile::getStudentCode)
             .orElse(null);
 
+        UUID termId = (entity.getOffer() != null
+                && entity.getOffer().getApplication() != null
+                && entity.getOffer().getApplication().getJob() != null
+                && entity.getOffer().getApplication().getJob().getTerm() != null)
+                ? entity.getOffer().getApplication().getJob().getTerm().getId()
+                : null;
+
         return LearningAgreementResponse.builder()
             .id(entity.getId())
             .offerId(entity.getOffer().getId())
-            .termId(entity.getOffer().getApplication().getJob().getTerm().getId())
+            .termId(termId)
             .studentId(entity.getStudent().getId())
             .studentName(entity.getStudent().getFullName())
             .studentCode(studentCode)

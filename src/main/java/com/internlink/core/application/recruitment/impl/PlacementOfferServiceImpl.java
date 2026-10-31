@@ -1,44 +1,91 @@
 package com.internlink.core.application.recruitment.impl;
 
+import com.internlink.core.application.placement.PlacementEligibilityService;
 import com.internlink.core.application.recruitment.PlacementOfferService;
 import com.internlink.core.application.system.AuditLogService;
 import com.internlink.core.application.system.NotificationService;
 import com.internlink.core.domain.auth.User;
 import com.internlink.core.domain.recruitment.JobApplication;
+import com.internlink.core.domain.recruitment.JobPosition;
 import com.internlink.core.domain.recruitment.PlacementOffer;
 import com.internlink.core.infrastructure.persistence.jpa.JpaJobApplicationRepository;
+import com.internlink.core.infrastructure.persistence.jpa.JpaJobPositionRepository;
 import com.internlink.core.infrastructure.persistence.jpa.JpaPlacementOfferRepository;
+import com.internlink.core.infrastructure.persistence.jpa.JpaStudentRosterRepository;
 import com.internlink.core.infrastructure.persistence.jpa.JpaUserRepository;
 import com.internlink.core.presentation.recruitment.dto.request.PlacementOfferRequest;
 import com.internlink.core.presentation.recruitment.dto.response.PlacementOfferResponse;
 import com.internlink.core.shared.enums.ApplicationStatus;
-import com.internlink.core.shared.enums.OfferStatus;
 import com.internlink.core.shared.enums.JobStatus;
+import com.internlink.core.shared.enums.JobType;
+import com.internlink.core.shared.enums.OfferStatus;
 import com.internlink.core.shared.exception.BadRequestException;
 import com.internlink.core.shared.exception.ResourceNotFoundException;
 import com.internlink.core.shared.security.ResourceAuthorization;
 import com.internlink.core.shared.security.SecurityGuard;
 import com.internlink.core.shared.security.TermGuard;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class PlacementOfferServiceImpl implements PlacementOfferService {
 
     private final JpaPlacementOfferRepository offerRepository;
     private final JpaJobApplicationRepository applicationRepository;
+    private final JpaJobPositionRepository jobPositionRepository;
+    private final JpaStudentRosterRepository rosterRepository;
     private final JpaUserRepository userRepository;
+    private final PlacementEligibilityService placementEligibility;
     private final SecurityGuard securityGuard;
     private final AuditLogService auditLogService;
     private final NotificationService notificationService;
+    private final RedisJobSlotService redisJobSlotService;
+
+    public PlacementOfferServiceImpl(
+            JpaPlacementOfferRepository offerRepository,
+            JpaJobApplicationRepository applicationRepository,
+            JpaJobPositionRepository jobPositionRepository,
+            JpaStudentRosterRepository rosterRepository,
+            JpaUserRepository userRepository,
+            PlacementEligibilityService placementEligibility,
+            SecurityGuard securityGuard,
+            AuditLogService auditLogService,
+            NotificationService notificationService) {
+        this(offerRepository, applicationRepository, jobPositionRepository, rosterRepository,
+                userRepository, placementEligibility, securityGuard, auditLogService, notificationService,
+                new RedisJobSlotService(null, false));
+    }
+
+    public PlacementOfferServiceImpl(
+            JpaPlacementOfferRepository offerRepository,
+            JpaJobApplicationRepository applicationRepository,
+            JpaJobPositionRepository jobPositionRepository,
+            JpaStudentRosterRepository rosterRepository,
+            JpaUserRepository userRepository,
+            PlacementEligibilityService placementEligibility,
+            SecurityGuard securityGuard,
+            AuditLogService auditLogService,
+            NotificationService notificationService,
+            @Autowired(required = false) RedisJobSlotService redisJobSlotService) {
+        this.offerRepository = offerRepository;
+        this.applicationRepository = applicationRepository;
+        this.jobPositionRepository = jobPositionRepository;
+        this.rosterRepository = rosterRepository;
+        this.userRepository = userRepository;
+        this.placementEligibility = placementEligibility;
+        this.securityGuard = securityGuard;
+        this.auditLogService = auditLogService;
+        this.notificationService = notificationService;
+        this.redisJobSlotService = redisJobSlotService != null ? redisJobSlotService : new RedisJobSlotService(null, false);
+    }
 
     @Override
     @Transactional(readOnly = true)
@@ -82,8 +129,14 @@ public class PlacementOfferServiceImpl implements PlacementOfferService {
         if (request.getProposedMentorId() == null) {
             throw new BadRequestException("Cần chỉ định Mentor doanh nghiệp trước khi phát hành offer");
         }
-        if (offerRepository.countReservedPlaces(application.getJob().getId(), OffsetDateTime.now())
-            >= application.getJob().getVacancies()) {
+
+        // Khóa bi quan (PESSIMISTIC_WRITE) dòng JobPosition kết hợp Redis Pre-allocation
+        JobPosition lockedJob = jobPositionRepository.findByIdForUpdate(application.getJob().getId())
+            .orElseThrow(() -> new ResourceNotFoundException("JobPosition", "id", application.getJob().getId()));
+
+        long reserved = offerRepository.countReservedPlaces(lockedJob.getId(), OffsetDateTime.now());
+        long remaining = lockedJob.getVacancies() - reserved;
+        if (remaining <= 0 || !redisJobSlotService.tryAcquireSlot(lockedJob.getId(), remaining)) {
             throw new BadRequestException("Vị trí đã đủ số chỗ được giữ bởi các offer còn hiệu lực");
         }
 
@@ -115,13 +168,11 @@ public class PlacementOfferServiceImpl implements PlacementOfferService {
             .status(OfferStatus.SENT)
             .build();
 
-        // Cập nhật trạng thái đơn ứng tuyển sang OFFERED
         application.setStatus(ApplicationStatus.OFFERED);
         applicationRepository.save(application);
 
         PlacementOffer saved = offerRepository.save(offer);
 
-        // ── Hooks: AuditLog & Notification ────────────────────────────────
         UUID studentId = application.getStudent().getId();
         String jobTitle = application.getJob().getTitle();
         String companyName = application.getJob().getCompany().getCompanyName();
@@ -150,7 +201,6 @@ public class PlacementOfferServiceImpl implements PlacementOfferService {
     @Override
     @Transactional(noRollbackFor = BadRequestException.class)
     public PlacementOfferResponse respondToOffer(UUID id, OfferStatus status) {
-        // ── Bước 1: Xác minh người đang đăng nhập là sinh viên chủ của offer ──
         UUID currentUserId = securityGuard.currentUser().getId();
 
         PlacementOffer offer = offerRepository.findById(id)
@@ -175,17 +225,55 @@ public class PlacementOfferServiceImpl implements PlacementOfferService {
             throw new BadRequestException("Offer đã hết hạn phản hồi");
         }
 
-        offer.setStatus(status);
-        offer.setRespondedAt(OffsetDateTime.now());
+        var term = offer.getApplication().getJob().getTerm();
+        boolean isFresher = offer.getApplication().getJob().getJobType() == JobType.FRESHER;
 
-        if (status == OfferStatus.DECLINED) {
+        if (status == OfferStatus.ACCEPTED) {
+            if (term != null) {
+                // Khóa dòng roster của sinh viên trong kỳ để tuần tự hóa và chống race condition
+                rosterRepository.findByTermIdAndClaimedUserIdForUpdate(term.getId(), offerOwnerStudentId)
+                    .ifPresent(r -> log.debug("Locked student roster {} in term {}", r.getId(), term.getId()));
+
+                if (!isFresher) {
+                    // Luật INTERNSHIP: chỉ 1 offer accepted và 1 placement active mỗi kỳ
+                    placementEligibility.requireNoAcceptedOffer(offerOwnerStudentId, term.getId(), offer.getId());
+                    placementEligibility.requireNoLivePlacement(offerOwnerStudentId, term.getId());
+
+                    // Tự động từ chối các Offer SENT khác của SV trong kỳ
+                    List<PlacementOffer> otherSentOffers = offerRepository.findOtherSentOffersByStudentAndTerm(
+                        offerOwnerStudentId, term.getId(), offer.getId());
+                    for (PlacementOffer other : otherSentOffers) {
+                        other.setStatus(OfferStatus.DECLINED);
+                        other.setRespondedAt(OffsetDateTime.now());
+                        offerRepository.save(other);
+
+                        notifyOfferDeclinedAuto(other);
+                    }
+
+                    // Tự động chuyển các JobApplication đang active khác sang WITHDRAWN
+                    List<JobApplication> otherApps = applicationRepository.findOtherActiveApplicationsByStudentAndTerm(
+                        offerOwnerStudentId, term.getId(), offer.getApplication().getId());
+                    for (JobApplication otherApp : otherApps) {
+                        otherApp.setStatus(ApplicationStatus.WITHDRAWN);
+                        applicationRepository.save(otherApp);
+
+                        notifyApplicationWithdrawnAuto(otherApp);
+                    }
+                }
+            }
+
+            offer.setStatus(OfferStatus.ACCEPTED);
+            offer.setRespondedAt(OffsetDateTime.now());
+        } else {
+            offer.setStatus(OfferStatus.DECLINED);
+            offer.setRespondedAt(OffsetDateTime.now());
             offer.getApplication().setStatus(ApplicationStatus.REJECTED);
             applicationRepository.save(offer.getApplication());
+            redisJobSlotService.releaseSlot(offer.getApplication().getJob().getId());
         }
 
         PlacementOffer saved = offerRepository.save(offer);
 
-        // ── Hooks: AuditLog & Notification ────────────────────────────────
         auditLogService.logAction(
             currentUserId,
             "RESPOND_OFFER_" + status.name(),
@@ -212,6 +300,34 @@ public class PlacementOfferServiceImpl implements PlacementOfferService {
         }
 
         return mapToResponse(saved);
+    }
+
+    private void notifyOfferDeclinedAuto(PlacementOffer other) {
+        User creator = other.getApplication().getJob().getCreatedBy();
+        if (creator != null) {
+            notificationService.sendNotification(
+                creator.getId(),
+                "OFFER_DECLINED_AUTO",
+                "Lời mời thực tập tự động hủy",
+                "Sinh viên " + other.getApplication().getStudent().getFullName()
+                    + " đã chấp nhận một đề nghị thực tập khác trong kỳ này.",
+                "/offers/" + other.getId()
+            );
+        }
+    }
+
+    private void notifyApplicationWithdrawnAuto(JobApplication otherApp) {
+        User creator = otherApp.getJob().getCreatedBy();
+        if (creator != null) {
+            notificationService.sendNotification(
+                creator.getId(),
+                "APPLICATION_WITHDRAWN_AUTO",
+                "Hồ sơ ứng tuyển tự động rút",
+                "Sinh viên " + otherApp.getStudent().getFullName()
+                    + " đã chấp nhận một lời mời thực tập khác trong kỳ.",
+                "/company/candidates"
+            );
+        }
     }
 
     private PlacementOfferResponse mapToResponse(PlacementOffer entity) {

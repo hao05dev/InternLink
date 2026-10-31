@@ -102,6 +102,8 @@ class CorePlacementServicesTest {
                 new PlacementTransitionValidator(finalResultRepository);
         PlacementNotificationHelper notificationHelper =
                 new PlacementNotificationHelper(auditLogService, notificationService);
+        PlacementEligibilityService placementEligibility =
+                new PlacementEligibilityService(placementRepository, null, null);
         InternshipPlacementServiceImpl service =
                 new InternshipPlacementServiceImpl(
                         placementRepository,
@@ -112,6 +114,7 @@ class CorePlacementServicesTest {
                         placementMapper,
                         transitionValidator,
                         notificationHelper,
+                        placementEligibility,
                         new PaginatedResponseMapper());
         LearningAgreement agreement =
                 LearningAgreement.builder().status(AgreementStatus.DRAFT).build();
@@ -121,7 +124,7 @@ class CorePlacementServicesTest {
         assertThatThrownBy(
                         () ->
                                 service.activatePlacementFromAgreement(
-                                        agreement.getId(), UUID.randomUUID()))
+                                         agreement.getId(), UUID.randomUUID()))
                 .isInstanceOf(BadRequestException.class);
     }
 

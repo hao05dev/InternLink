@@ -9,6 +9,7 @@ import com.internlink.core.infrastructure.persistence.jpa.*;
 import com.internlink.core.presentation.recruitment.dto.request.JobPositionRequest;
 import com.internlink.core.presentation.recruitment.dto.response.JobPositionResponse;
 import com.internlink.core.shared.enums.JobStatus;
+import com.internlink.core.shared.enums.JobType;
 import com.internlink.core.shared.enums.UserRole;
 import com.internlink.core.shared.enums.VerificationStatus;
 import com.internlink.core.shared.exception.BadRequestException;
@@ -57,14 +58,15 @@ public class JobPositionWriteService {
                     "Doanh nghiệp chưa được xác thực, không thể đăng tin tuyển dụng");
         }
 
-        InternshipTerm term =
-                termRepository
-                        .findById(request.getTermId())
-                        .orElseThrow(
-                                () ->
-                                        new ResourceNotFoundException(
-                                                "InternshipTerm", "id", request.getTermId()));
-        TermGuard.requireNotClosed(term);
+        JobType jobType = request.getJobType() != null ? request.getJobType() : JobType.INTERNSHIP;
+        InternshipTerm term = null;
+        if (request.getTermId() != null) {
+            term = termRepository.findById(request.getTermId())
+                    .orElseThrow(() -> new ResourceNotFoundException("InternshipTerm", "id", request.getTermId()));
+            TermGuard.requireNotClosed(term);
+        } else if (jobType == JobType.INTERNSHIP) {
+            throw new BadRequestException("Vị trí thực tập (INTERNSHIP) bắt buộc phải gắn với một kỳ thực tập");
+        }
 
         Department department =
                 departmentRepository
@@ -74,7 +76,7 @@ public class JobPositionWriteService {
                                         new ResourceNotFoundException(
                                                 "Department", "id", request.getDepartmentId()));
 
-        if (!term.getDepartment().getId().equals(department.getId())) {
+        if (term != null && !term.getDepartment().getId().equals(department.getId())) {
             throw new BadRequestException("Khoa thẩm định phải trùng với khoa quản lý kỳ thực tập");
         }
 
@@ -95,7 +97,7 @@ public class JobPositionWriteService {
                 request.getDescription());
         OffsetDateTime deadline = request.getApplicationDeadline() != null
                 ? request.getApplicationDeadline()
-                : term.getApplicationDeadline();
+                : (term != null ? term.getApplicationDeadline() : null);
 
         boolean isAutoApproved = createdBy.getRole() == UserRole.BLOG_MANAGER
                 || createdBy.getRole() == UserRole.FACULTY_ADMIN
@@ -104,6 +106,7 @@ public class JobPositionWriteService {
         JobPosition.JobPositionBuilder jobBuilder =
                 JobPosition.builder()
                         .company(company)
+                        .jobType(jobType)
                         .term(term)
                         .department(department)
                         .title(request.getTitle().trim())
@@ -166,8 +169,12 @@ public class JobPositionWriteService {
             throw new BadRequestException(
                     "Chỉ có thể chỉnh sửa vị trí ở trạng thái DRAFT hoặc REJECTED");
         }
+
+        boolean termMismatch = (job.getTerm() == null && request.getTermId() != null)
+                || (job.getTerm() != null && !job.getTerm().getId().equals(request.getTermId()));
+
         if (!job.getCompany().getId().equals(request.getCompanyId())
-                || !job.getTerm().getId().equals(request.getTermId())
+                || termMismatch
                 || !job.getDepartment().getId().equals(request.getDepartmentId())) {
             throw new BadRequestException(
                     "Không thể đổi doanh nghiệp, kỳ hoặc khoa của vị trí đã tạo");

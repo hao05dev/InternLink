@@ -1,7 +1,9 @@
 package com.internlink.core.application.placement.impl;
 
 import com.internlink.core.application.placement.InternshipPlacementService;
+import com.internlink.core.application.placement.PlacementEligibilityService;
 import com.internlink.core.domain.auth.User;
+import com.internlink.core.domain.organization.InternshipTerm;
 import com.internlink.core.domain.placement.InternshipPlacement;
 import com.internlink.core.domain.placement.LearningAgreement;
 import com.internlink.core.infrastructure.persistence.jpa.*;
@@ -39,6 +41,7 @@ public class InternshipPlacementServiceImpl implements InternshipPlacementServic
     private final InternshipPlacementMapper placementMapper;
     private final PlacementTransitionValidator transitionValidator;
     private final PlacementNotificationHelper notificationHelper;
+    private final PlacementEligibilityService placementEligibility;
     private final com.internlink.core.shared.api.PaginatedResponseMapper paginatedResponseMapper;
 
     @Override
@@ -127,10 +130,18 @@ public class InternshipPlacementServiceImpl implements InternshipPlacementServic
         if (agreement.getStatus() != AgreementStatus.APPROVED) {
             throw new BadRequestException("Thỏa thuận 3 bên phải được phê duyệt (APPROVED) trước khi kích hoạt thực tập");
         }
+
+        InternshipTerm term = null;
         if (agreement.getOffer() != null
             && agreement.getOffer().getApplication() != null
             && agreement.getOffer().getApplication().getJob() != null) {
-            TermGuard.requireNotClosed(agreement.getOffer().getApplication().getJob().getTerm());
+            term = agreement.getOffer().getApplication().getJob().getTerm();
+            TermGuard.requireNotClosed(term);
+        }
+
+        if (term != null) {
+            placementEligibility.requireEligibleRoster(agreement.getStudent().getId(), term.getId());
+            placementEligibility.requireNoLivePlacement(agreement.getStudent().getId(), term.getId());
         }
 
         ResourceAuthorization.require(ResourceAuthorization.managesDepartment(
@@ -142,9 +153,7 @@ public class InternshipPlacementServiceImpl implements InternshipPlacementServic
 
         User lecturer = userRepository.findById(lecturerId)
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", lecturerId));
-        ResourceAuthorization.require(lecturer.getRole() == UserRole.LECTURER
-            && lecturer.getDepartment() != null
-            && lecturer.getDepartment().getId().equals(agreement.getDepartment().getId()));
+        placementEligibility.requireActiveLecturer(lecturer, agreement.getDepartment().getId());
 
         User mentor = agreement.getOffer().getProposedMentor();
         if (mentor == null) {
@@ -157,7 +166,7 @@ public class InternshipPlacementServiceImpl implements InternshipPlacementServic
             .company(agreement.getCompany())
             .mentor(mentor)
             .lecturer(lecturer)
-            .term(agreement.getOffer().getApplication().getJob().getTerm())
+            .term(term)
             .startDate(agreement.getOffer().getStartDate())
             .endDate(agreement.getOffer().getEndDate())
             .totalHoursWorked(BigDecimal.ZERO)
@@ -186,10 +195,8 @@ public class InternshipPlacementServiceImpl implements InternshipPlacementServic
         }
         User lecturer = userRepository.findById(lecturerId)
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", lecturerId));
-        ResourceAuthorization.require(lecturer.getRole() == UserRole.LECTURER
-            && Boolean.TRUE.equals(lecturer.getIsActive())
-            && lecturer.getDepartment() != null
-            && lecturer.getDepartment().getId().equals(placement.getTerm().getDepartment().getId()));
+        placementEligibility.requireActiveLecturer(lecturer, placement.getTerm().getDepartment().getId());
+
         UUID previousId = placement.getLecturer().getId();
         placement.setLecturer(lecturer);
         InternshipPlacement saved = placementRepository.save(placement);

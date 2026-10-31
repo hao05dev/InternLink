@@ -1,6 +1,7 @@
 package com.internlink.core.presentation.recruitment.dto.request;
 
 import com.internlink.core.shared.enums.JobStatus;
+import com.internlink.core.shared.enums.JobType;
 import com.internlink.core.shared.enums.WorkFormat;
 
 import jakarta.validation.Valid;
@@ -29,7 +30,9 @@ public class JobPositionRequest {
     @NotNull(message = "Doanh nghiệp không được để trống")
     private UUID companyId;
 
-    @NotNull(message = "Kỳ thực tập không được để trống")
+    @Builder.Default
+    private JobType jobType = JobType.INTERNSHIP;
+
     private UUID termId;
 
     @NotNull(message = "Khoa thẩm định không được để trống")

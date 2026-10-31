@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+import com.internlink.core.application.placement.PlacementEligibilityService;
 import com.internlink.core.application.system.AuditLogService;
 import com.internlink.core.application.system.NotificationService;
 import com.internlink.core.domain.auth.User;
@@ -52,7 +53,7 @@ abstract class RecruitmentTestFixture {
     @Mock JpaJobApplicationRepository applicationRepository;
     @Mock JpaDocumentRepository documentRepository;
     @Mock JpaPlacementOfferRepository offerRepository;
-    @Mock com.internlink.core.infrastructure.persistence.jpa.JpaInternshipPlacementRepository placementRepository;
+    @Mock JpaInternshipPlacementRepository placementRepository;
     @Mock JpaStudentProfileRepository studentProfileRepository;
     @Mock JpaStudentRosterRepository studentRosterRepository;
     @Mock SecurityGuard securityGuard;
@@ -64,6 +65,7 @@ abstract class RecruitmentTestFixture {
     protected JobPositionServiceImpl jobService;
     protected JobApplicationServiceImpl applicationService;
     protected PlacementOfferServiceImpl offerService;
+    protected PlacementEligibilityService placementEligibility;
 
     @BeforeEach
     void setUp() {
@@ -101,6 +103,7 @@ abstract class RecruitmentTestFixture {
                 mapper,
                 notifHelper,
                 new com.internlink.core.application.recruitment.JobPositionAccessPolicy(userRepository, securityGuard)));
+
         applicationService =
                 new JobApplicationServiceImpl(
                         applicationRepository,
@@ -116,19 +119,30 @@ abstract class RecruitmentTestFixture {
                                 new com.internlink.core.infrastructure.integration.email.EmailProperties()),
                         new JobApplicationSubmissionValidator(
                                 applicationRepository, documentRepository, studentProfileRepository,
-                                studentRosterRepository, offerRepository, placementRepository),
+                                studentRosterRepository, offerRepository),
                         new JobApplicationMapper());
+
+        placementEligibility = new PlacementEligibilityService(
+                placementRepository, studentRosterRepository, offerRepository);
+
         offerService =
                 new PlacementOfferServiceImpl(
                         offerRepository,
                         applicationRepository,
+                        jobRepository,
+                        studentRosterRepository,
                         userRepository,
+                        placementEligibility,
                         securityGuard,
                         auditLogService,
                         notificationService);
+
         lenient()
                 .when(jobRepository.save(any()))
                 .thenAnswer(invocation -> invocation.getArgument(0));
+        lenient()
+                .when(jobRepository.findByIdForUpdate(any()))
+                .thenAnswer(invocation -> jobRepository.findById(invocation.getArgument(0)));
         lenient()
                 .when(applicationRepository.save(any()))
                 .thenAnswer(invocation -> invocation.getArgument(0));
@@ -190,6 +204,7 @@ abstract class RecruitmentTestFixture {
         JobPosition value =
                 JobPosition.builder()
                         .company(company)
+                        .jobType(JobType.INTERNSHIP)
                         .term(term)
                         .department(department)
                         .title("Java Intern")
@@ -223,6 +238,7 @@ abstract class RecruitmentTestFixture {
     protected JobPositionRequest jobRequest(UUID companyId, UUID termId, UUID departmentId) {
         return JobPositionRequest.builder()
                 .companyId(companyId)
+                .jobType(JobType.INTERNSHIP)
                 .termId(termId)
                 .departmentId(departmentId)
                 .title("Java Intern")

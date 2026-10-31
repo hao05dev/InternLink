@@ -36,7 +36,8 @@ class StudentFoundApplicationServiceTest {
 
     @Test
     void createsPlacementWithoutOfferCompanyOrMentorAfterVerifiedAcceptance() {
-        var service = new StudentFoundApplicationService(applications, placements, rosters, terms, documents, users, security, notifications);
+        var eligibility = new PlacementEligibilityService(placements, rosters, null);
+        var service = new StudentFoundApplicationService(applications, placements, rosters, terms, documents, users, security, notifications, eligibility);
         Department department = Department.builder().code("CICT").name("CNTT&TT").build();
         department.setId(UUID.randomUUID());
         User student = User.builder().role(UserRole.STUDENT).fullName("Sinh viên").build();

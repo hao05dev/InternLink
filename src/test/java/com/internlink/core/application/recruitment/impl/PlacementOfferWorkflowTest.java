@@ -5,44 +5,28 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-import com.internlink.core.application.system.AuditLogService;
-import com.internlink.core.application.system.NotificationService;
 import com.internlink.core.domain.auth.User;
-import com.internlink.core.domain.company.Company;
-import com.internlink.core.domain.organization.AcademicProgram;
-import com.internlink.core.domain.organization.Department;
-import com.internlink.core.domain.organization.InternshipTerm;
 import com.internlink.core.domain.organization.StudentRoster;
+import com.internlink.core.domain.placement.InternshipPlacement;
 import com.internlink.core.domain.recruitment.JobApplication;
-import com.internlink.core.domain.recruitment.JobPosition;
 import com.internlink.core.domain.recruitment.PlacementOffer;
-import com.internlink.core.domain.student.StudentProfile;
-import com.internlink.core.domain.system.Document;
-import com.internlink.core.infrastructure.persistence.jpa.*;
-import com.internlink.core.infrastructure.persistence.jpa.JpaStudentProfileRepository;
-import com.internlink.core.infrastructure.persistence.jpa.JpaStudentRosterRepository;
 import com.internlink.core.infrastructure.security.CustomUserDetail;
-import com.internlink.core.presentation.recruitment.dto.request.JobApplicationRequest;
-import com.internlink.core.presentation.recruitment.dto.request.JobPositionRequest;
 import com.internlink.core.presentation.recruitment.dto.request.PlacementOfferRequest;
 import com.internlink.core.shared.enums.*;
 import com.internlink.core.shared.exception.BadRequestException;
 import com.internlink.core.shared.exception.ForbiddenException;
-import com.internlink.core.shared.security.SecurityGuard;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
 class PlacementOfferWorkflowTest extends RecruitmentTestFixture {
+
     @Test
     void studentCannotReadAnotherStudentsOffer() {
         JobApplication application = application(ApplicationStatus.OFFERED);
@@ -114,4 +98,86 @@ class PlacementOfferWorkflowTest extends RecruitmentTestFixture {
                 .isInstanceOf(BadRequestException.class);
     }
 
+    @Test
+    void acceptInternshipOffer_AutomaticallyDeclinesOtherOffersAndWithdrawsApplications() {
+        JobApplication application = application(ApplicationStatus.OFFERED);
+        User student = application.getStudent();
+        UUID termId = application.getJob().getTerm().getId();
+
+        PlacementOffer offer = PlacementOffer.builder()
+                .application(application)
+                .startDate(LocalDate.now().plusDays(1))
+                .endDate(LocalDate.now().plusMonths(3))
+                .expiresAt(OffsetDateTime.now().plusDays(1))
+                .status(OfferStatus.SENT)
+                .termsSnapshot(Map.of())
+                .build();
+        offer.setId(UUID.randomUUID());
+
+        JobApplication otherApp = application(ApplicationStatus.REVIEWING);
+        otherApp.setStudent(student);
+        PlacementOffer otherOffer = PlacementOffer.builder()
+                .application(otherApp)
+                .startDate(LocalDate.now().plusDays(1))
+                .endDate(LocalDate.now().plusMonths(3))
+                .expiresAt(OffsetDateTime.now().plusDays(1))
+                .status(OfferStatus.SENT)
+                .termsSnapshot(Map.of())
+                .build();
+        otherOffer.setId(UUID.randomUUID());
+
+        when(offerRepository.findById(offer.getId())).thenReturn(Optional.of(offer));
+        when(securityGuard.currentUser()).thenReturn(CustomUserDetail.create(student));
+        when(studentRosterRepository.findByTermIdAndClaimedUserIdForUpdate(termId, student.getId()))
+                .thenReturn(Optional.of(mock(StudentRoster.class)));
+        when(placementRepository.findByTermIdAndStudentId(termId, student.getId()))
+                .thenReturn(List.of());
+        when(offerRepository.findAll()).thenReturn(List.of(offer, otherOffer));
+        when(offerRepository.findOtherSentOffersByStudentAndTerm(student.getId(), termId, offer.getId()))
+                .thenReturn(List.of(otherOffer));
+        when(applicationRepository.findOtherActiveApplicationsByStudentAndTerm(student.getId(), termId, application.getId()))
+                .thenReturn(List.of(otherApp));
+
+        var response = offerService.respondToOffer(offer.getId(), OfferStatus.ACCEPTED);
+
+        assertThat(response.getStatus()).isEqualTo(OfferStatus.ACCEPTED);
+        assertThat(otherOffer.getStatus()).isEqualTo(OfferStatus.DECLINED);
+        assertThat(otherApp.getStatus()).isEqualTo(ApplicationStatus.WITHDRAWN);
+        verify(offerRepository).save(otherOffer);
+        verify(applicationRepository).save(otherApp);
+    }
+
+    @Test
+    void acceptInternshipOffer_FailsIfStudentAlreadyHasLivePlacement() {
+        JobApplication application = application(ApplicationStatus.OFFERED);
+        User student = application.getStudent();
+        UUID termId = application.getJob().getTerm().getId();
+
+        PlacementOffer offer = PlacementOffer.builder()
+                .application(application)
+                .startDate(LocalDate.now().plusDays(1))
+                .endDate(LocalDate.now().plusMonths(3))
+                .expiresAt(OffsetDateTime.now().plusDays(1))
+                .status(OfferStatus.SENT)
+                .termsSnapshot(Map.of())
+                .build();
+        offer.setId(UUID.randomUUID());
+
+        InternshipPlacement livePlacement = InternshipPlacement.builder()
+                .student(student)
+                .term(application.getJob().getTerm())
+                .status(PlacementStatus.ACTIVE)
+                .build();
+
+        when(offerRepository.findById(offer.getId())).thenReturn(Optional.of(offer));
+        when(securityGuard.currentUser()).thenReturn(CustomUserDetail.create(student));
+        when(studentRosterRepository.findByTermIdAndClaimedUserIdForUpdate(termId, student.getId()))
+                .thenReturn(Optional.of(mock(StudentRoster.class)));
+        when(placementRepository.findByTermIdAndStudentId(termId, student.getId()))
+                .thenReturn(List.of(livePlacement));
+
+        assertThatThrownBy(() -> offerService.respondToOffer(offer.getId(), OfferStatus.ACCEPTED))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("đã có một vị trí thực tập đang hoạt động");
+    }
 }

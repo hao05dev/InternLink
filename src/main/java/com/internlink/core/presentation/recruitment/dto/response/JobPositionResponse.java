@@ -1,6 +1,7 @@
 package com.internlink.core.presentation.recruitment.dto.response;
 
 import com.internlink.core.shared.enums.JobStatus;
+import com.internlink.core.shared.enums.JobType;
 import com.internlink.core.shared.enums.WorkFormat;
 
 import lombok.AllArgsConstructor;
@@ -32,6 +33,7 @@ public class JobPositionResponse {
     private String termStatus;
     private UUID departmentId;
     private String departmentName;
+    private JobType jobType;
     private String title;
     private WorkFormat workFormat;
     private String location;

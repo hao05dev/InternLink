@@ -62,14 +62,15 @@ public class JobPositionMapper {
                 .useCompanyLocation(entity.isUseCompanyLocation())
                 .mapEmbedUrl(locations.resolve(entity).mapEmbedUrl())
                 .mapsUrl(locations.resolve(entity).mapsUrl())
-                .termId(entity.getTerm().getId())
-                .termName(entity.getTerm().getTermName())
+                .termId(entity.getTerm() != null ? entity.getTerm().getId() : null)
+                .termName(entity.getTerm() != null ? entity.getTerm().getTermName() : null)
                 .termStatus(
                         entity.getTerm() != null && entity.getTerm().getStatus() != null
                                 ? entity.getTerm().getStatus().name()
                                 : null)
                 .departmentId(entity.getDepartment().getId())
                 .departmentName(entity.getDepartment().getName())
+                .jobType(entity.getJobType())
                 .title(entity.getTitle())
                 .workFormat(entity.getWorkFormat())
                 .location(locations.resolve(entity).address())
