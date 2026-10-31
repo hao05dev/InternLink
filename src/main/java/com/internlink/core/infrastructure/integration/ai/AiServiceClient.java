@@ -68,6 +68,10 @@ public class AiServiceClient {
             Map.of("filename", name, "content_base64", base64, "allow_cloud", allowCloud));
     }
 
+    public Map<String, Object> parseRubric(String name, String base64) {
+        return infer("/api/v1/assistance/parse-rubric", Map.of("filename", name, "content_base64", base64, "allow_cloud", false));
+    }
+
     public Map<String, Object> parseSearchQuery(String query) {
         if (query == null || query.isBlank()) {
             return Map.of("parsed", false, "raw_query", "", "cleaned_keywords", "", "summary_message", "");
