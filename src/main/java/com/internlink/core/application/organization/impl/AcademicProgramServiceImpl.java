@@ -15,6 +15,8 @@ import com.internlink.core.shared.exception.BadRequestException;
 import com.internlink.core.shared.exception.ResourceNotFoundException;
 import com.internlink.core.shared.security.SecurityGuard;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,6 +38,7 @@ public class AcademicProgramServiceImpl implements AcademicProgramService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(value = "academic_programs", key = "'all'")
     public List<AcademicProgramResponse> getAllPrograms() {
         return programRepository.findAll().stream()
             .map(this::mapToResponse)
@@ -52,6 +55,7 @@ public class AcademicProgramServiceImpl implements AcademicProgramService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(value = "academic_programs", key = "#departmentId")
     public List<AcademicProgramResponse> getProgramsByDepartment(UUID departmentId) {
         return programRepository.findByDepartmentId(departmentId).stream()
             .map(this::mapToResponse)
@@ -60,6 +64,7 @@ public class AcademicProgramServiceImpl implements AcademicProgramService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "academic_programs", allEntries = true)
     public AcademicProgramResponse createProgram(AcademicProgramRequest request) {
         Department department = departmentRepository.findById(request.getDepartmentId())
             .orElseThrow(() -> new ResourceNotFoundException("Department", "id", request.getDepartmentId()));
@@ -87,6 +92,7 @@ public class AcademicProgramServiceImpl implements AcademicProgramService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "academic_programs", allEntries = true)
     public AcademicProgramResponse updateProgram(UUID id, AcademicProgramRequest request) {
         AcademicProgram program = programRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("AcademicProgram", "id", id));
@@ -124,6 +130,7 @@ public class AcademicProgramServiceImpl implements AcademicProgramService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "academic_programs", allEntries = true)
     public void deleteProgram(UUID id) {
         AcademicProgram program = programRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("AcademicProgram", "id", id));
