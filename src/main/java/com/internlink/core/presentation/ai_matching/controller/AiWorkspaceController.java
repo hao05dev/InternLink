@@ -1,7 +1,9 @@
 package com.internlink.core.presentation.ai_matching.controller;
 
 import com.internlink.core.application.ai_matching.impl.AiWorkspaceService;
+import com.internlink.core.application.ai_matching.impl.CvJdAnalysisService;
 import com.internlink.core.presentation.ai_matching.dto.request.CvExtractionRequest;
+import com.internlink.core.presentation.ai_matching.dto.request.CvJdAnalysisRequest;
 import com.internlink.core.presentation.ai_matching.dto.response.StudentSkillResponse;
 import com.internlink.core.shared.api.ApiResponse;
 import jakarta.validation.Valid;
@@ -17,6 +19,7 @@ import java.util.*;
 @PreAuthorize("isAuthenticated()")
 public class AiWorkspaceController {
     private final AiWorkspaceService service;
+    private final CvJdAnalysisService cvJdAnalysis;
     public record Declaration(@NotBlank @Size(max=2000) String evidence) {}
     public record LearningRequest(@NotEmpty @Size(max=3) List<@NotBlank String> skillIds, @Min(1) @Max(20) int hoursPerWeek) {}
 
@@ -27,6 +30,12 @@ public class AiWorkspaceController {
     @PreAuthorize("hasRole('STUDENT')")
     public ApiResponse<Map<String, Object>> extract(@Valid @RequestBody CvExtractionRequest request) {
         return ApiResponse.success(service.extractCv(request));
+    }
+
+    @PostMapping("/cv-jd-analysis")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ApiResponse<Map<String, Object>> analyzeCvJd(@Valid @RequestBody CvJdAnalysisRequest request) {
+        return ApiResponse.success(cvJdAnalysis.analyze(request));
     }
 
     @PutMapping("/skills/{id}")
