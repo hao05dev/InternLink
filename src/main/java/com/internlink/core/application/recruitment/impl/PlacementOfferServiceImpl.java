@@ -64,6 +64,7 @@ public class PlacementOfferServiceImpl implements PlacementOfferService {
                 new RedisJobSlotService(null, false));
     }
 
+    @Autowired
     public PlacementOfferServiceImpl(
             JpaPlacementOfferRepository offerRepository,
             JpaJobApplicationRepository applicationRepository,

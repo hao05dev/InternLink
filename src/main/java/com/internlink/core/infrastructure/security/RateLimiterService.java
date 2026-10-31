@@ -60,6 +60,7 @@ public class RateLimiterService {
         this(properties, null, false);
     }
 
+    @Autowired
     public RateLimiterService(
             RateLimitProperties properties,
             @Autowired(required = false) StringRedisTemplate redisTemplate,

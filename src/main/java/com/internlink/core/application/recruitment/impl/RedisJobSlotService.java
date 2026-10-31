@@ -29,26 +29,31 @@ public class RedisJobSlotService {
     private final StringRedisTemplate redisTemplate;
     private final boolean redisEnabled;
 
+    // ARGV[1] là số chỗ còn lại do DB tính dưới khóa PESSIMISTIC_WRITE, nên luôn là giá trị chuẩn.
+    // Ghi đè bộ đếm bằng giá trị này thay vì tin vào số cũ trên Redis: offer hết hạn, bị tự động
+    // từ chối hoặc giao dịch rollback sẽ không làm bộ đếm lệch và từ chối nhầm.
     private static final RedisScript<Long> ACQUIRE_SLOT_SCRIPT = new DefaultRedisScript<>(
             """
-            local key = KEYS[1]
-            local initialAvailable = tonumber(ARGV[1])
-            local current = redis.call('GET', key)
-            
-            if current == nil then
-                current = initialAvailable
-                redis.call('SET', key, current)
-                redis.call('EXPIRE', key, 86400)
-            else
-                current = tonumber(current)
-            end
-            
-            if current <= 0 then
+            local remaining = tonumber(ARGV[1])
+            if remaining <= 0 then
+                redis.call('SET', KEYS[1], 0, 'EX', 86400)
                 return 0
-            else
-                redis.call('DECR', key)
-                return 1
             end
+            redis.call('SET', KEYS[1], remaining - 1, 'EX', 86400)
+            return 1
+            """,
+            Long.class
+    );
+
+    // Không tạo khóa mới khi khóa đã hết hạn: lần giữ chỗ sau sẽ lấy lại số chuẩn từ DB.
+    private static final RedisScript<Long> RELEASE_SLOT_SCRIPT = new DefaultRedisScript<>(
+            """
+            if redis.call('EXISTS', KEYS[1]) == 0 then
+                return 0
+            end
+            redis.call('INCR', KEYS[1])
+            redis.call('EXPIRE', KEYS[1], 86400)
+            return 1
             """,
             Long.class
     );
@@ -99,9 +104,7 @@ public class RedisJobSlotService {
         }
 
         try {
-            String key = KEY_PREFIX + jobId;
-            redisTemplate.opsForValue().increment(key);
-            redisTemplate.expire(key, 1, TimeUnit.DAYS);
+            redisTemplate.execute(RELEASE_SLOT_SCRIPT, Collections.singletonList(KEY_PREFIX + jobId));
             log.debug("Đã hoàn trả 1 slot tuyển dụng cho vị trí [{}] trên Redis.", jobId);
         } catch (Exception ex) {
             log.warn("Không thể hoàn trả slot trên Redis: {}", ex.getMessage());

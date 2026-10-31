@@ -11,6 +11,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.data.redis.core.script.RedisScript;
 
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -72,12 +73,11 @@ class RedisJobSlotServiceTest {
     @Test
     @DisplayName("Nên hoàn trả slot trên Redis khi sinh viên từ chối offer")
     void shouldReleaseSlotSuccessfully() {
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-
         slotService.releaseSlot(testJobId);
 
-        verify(valueOperations).increment("job:slots:" + testJobId);
-        verify(redisTemplate).expire(eq("job:slots:" + testJobId), eq(1L), eq(TimeUnit.DAYS));
+        // Dùng script để không tạo khóa mới khi khóa đã hết hạn (INCR trên khóa trống sẽ tạo bộ đếm sai)
+        verify(redisTemplate).execute(any(RedisScript.class), eq(List.of("job:slots:" + testJobId)));
+        verify(valueOperations, never()).increment(anyString());
     }
 
     @Test
