@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/v1/notifications/delivery-summary")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAnyRole('ADMIN', 'FACULTY_ADMIN')")
 public class EmailDeliveryStatusController {
     private final EmailDeliveryAdminService service;
 

@@ -14,7 +14,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/notifications/deliveries")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAnyRole('ADMIN', 'FACULTY_ADMIN')")
 public class EmailDeliveryAdminController {
     private final EmailDeliveryAdminService service;
 
@@ -36,6 +36,7 @@ public class EmailDeliveryAdminController {
     }
 
     @PutMapping("/controls")
+    @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<EmailDeliveryResponse.Controls> controls(@RequestBody Controls request) {
         return ApiResponse.success(
                 service.controls(request.paused(), request.dailyLimit(), request.reason()));
